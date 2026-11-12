@@ -20,7 +20,7 @@ To know every value `type` can receive, you have to follow the data across files
 ```sh
 npx component-usage scan ./src \
   --components EuiIcon --from @elastic/eui \
-  --props type,iconType --resolve flow --wrappers --summary
+  --props type,iconType --follow all --wrappers --summary
 ```
 
 ## License
