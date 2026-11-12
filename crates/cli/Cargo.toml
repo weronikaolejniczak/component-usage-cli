@@ -1,0 +1,20 @@
+[package]
+name = "component-usage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "component-usage"
+path = "src/main.rs"
+
+[dependencies]
+component-usage-parse.workspace = true
+component-usage-graph.workspace = true
+component-usage-resolve.workspace = true
+component-usage-query.workspace = true
+component-usage-report.workspace = true
+clap.workspace = true
