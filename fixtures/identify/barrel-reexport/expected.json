@@ -1,0 +1,7 @@
+{
+  "query": { "components": ["Icon"], "from": "lib" },
+  "usages": [
+    { "component": "Icon", "file": "Named.tsx", "line": 3, "column": 28 },
+    { "component": "Icon", "file": "Star.tsx", "line": 3, "column": 27 }
+  ]
+}
