@@ -18,6 +18,8 @@ pub struct FileSummary {
     pub imports: Vec<Import>,
     pub exports: Vec<Export>,
     pub elements: Vec<JsxElement>,
+    /// Errors the parser recovered from. The lists above may be incomplete when this isn't empty.
+    pub errors: Vec<SyntaxError>,
 }
 
 /// One imported binding: `import { imported as local } from 'source'`.
@@ -81,17 +83,22 @@ pub enum Binding {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("syntax error at {location}: {message}")]
+pub struct SyntaxError {
+    pub location: Location,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ParseError {
     #[error("unsupported file extension")]
     UnsupportedExtension,
-    #[error("syntax error at {location}: {message}")]
-    Syntax { location: Location, message: String },
+    /// The parser couldn't recover, so nothing was extracted.
+    #[error(transparent)]
+    Syntax(SyntaxError),
 }
 
 /// Parses `source` as the dialect implied by `path`'s extension.
-///
-/// Fails on the first syntax error, even if the parser could recover, so a partial AST
-/// never produces partial results.
 pub fn parse(path: &Path, source: &str) -> Result<FileSummary, ParseError> {
     extract::extract(path, source)
 }

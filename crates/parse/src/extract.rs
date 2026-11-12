@@ -15,7 +15,7 @@ use oxc_syntax::module_record::{
 };
 
 use crate::lines::LineIndex;
-use crate::{Binding, Export, FileSummary, Import, Imported, JsxElement, ParseError};
+use crate::{Binding, Export, FileSummary, Import, Imported, JsxElement, ParseError, SyntaxError};
 
 pub(crate) fn extract(path: &Path, source: &str) -> Result<FileSummary, ParseError> {
     let source_type = SourceType::from_path(path).map_err(|_| ParseError::UnsupportedExtension)?;
@@ -24,13 +24,18 @@ pub(crate) fn extract(path: &Path, source: &str) -> Result<FileSummary, ParseErr
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, source, source_type).parse();
 
-    if let Some(error) = parsed.diagnostics.errors().next() {
-        let offset = error.labels.first().map_or(0, |label| label.offset());
-        return Err(ParseError::Syntax {
-            location: lines.location(offset),
-            message: error.message.to_string(),
+    let mut errors = parsed.diagnostics.errors().map(|error| SyntaxError {
+        location: lines.location(error.labels.first().map_or(0, |label| label.offset())),
+        message: error.message.to_string(),
+    });
+    if parsed.fatal_error {
+        let error = errors.next().unwrap_or(SyntaxError {
+            location: lines.location(0),
+            message: "unrecoverable syntax error".to_owned(),
         });
+        return Err(ParseError::Syntax(error));
     }
+    let errors = errors.collect();
 
     let record = &parsed.module_record;
 
@@ -71,6 +76,7 @@ pub(crate) fn extract(path: &Path, source: &str) -> Result<FileSummary, ParseErr
         imports,
         exports,
         elements,
+        errors,
     })
 }
 

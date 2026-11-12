@@ -227,11 +227,18 @@ fn unsupported_extension() {
 }
 
 #[test]
-fn syntax_error_has_location() {
-    let Err(ParseError::Syntax { location, .. }) =
-        parse(Path::new("App.tsx"), "const a = 1;\nconst = ;\n")
+fn recovered_errors_keep_results() {
+    let summary = tsx("import { Icon } from 'lib';\nconst a;\nconst b = <Icon />;\n");
+    assert_eq!(summary.elements.len(), 1);
+    assert_eq!(summary.errors.len(), 1);
+    assert_eq!(summary.errors[0].location, Location { line: 2, column: 7 });
+}
+
+#[test]
+fn unrecoverable_error_has_location() {
+    let Err(ParseError::Syntax(error)) = parse(Path::new("App.tsx"), "const a = 1;\nconst = ;\n")
     else {
         panic!("expected a syntax error");
     };
-    assert_eq!(location.line, 2);
+    assert_eq!(error.location.line, 2);
 }
