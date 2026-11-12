@@ -15,4 +15,5 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0008](./0008-distribute-via-npx.md) | Distribute through npm with per-platform binaries | accepted |
 | [0009](./0009-opt-in-cache.md) | Cache scan results between runs, opt-in | proposed |
 | [0010](./0010-output.md) | Output formats and query options | proposed |
-| [0011](./0011-crate-layout.md) | Split the code into workspace crates by pipeline stage | accepted |
+| [0011](./0011-crate-layout.md) | Split the code into workspace crates by pipeline stage | superseded by [0012](./0012-architecture.md) |
+| [0012](./0012-architecture.md) | Crate boundaries and interfaces | accepted |
