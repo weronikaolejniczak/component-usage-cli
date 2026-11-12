@@ -8,7 +8,7 @@ decision-makers: Weronika Olejniczak
 
 ## Context and Problem Statement
 
-Design decisions for `component-usage` need to be recorded with their reasoning and alternatives, in the repository, in a format both people and agents can read.
+Design decisions for `component-usage-cli` need to be recorded with their reasoning and alternatives, in the repository, in a format both people and agents can read.
 
 ## Considered Options
 

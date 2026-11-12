@@ -1,5 +1,5 @@
 [package]
-name = "component-usage-parse"
+name = "component-usage-cli-parse"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -1,5 +1,5 @@
 [package]
-name = "component-usage-query"
+name = "component-usage-cli-query"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

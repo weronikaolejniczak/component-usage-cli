@@ -8,7 +8,7 @@ decision-makers: Weronika Olejniczak
 
 ## Context and Problem Statement
 
-[Omlet](https://github.com/zeplin/omlet) (MIT, open-sourced April 2026) has a Rust scanner that identifies components and props across a codebase. Should `component-usage` fork it or start from scratch?
+[Omlet](https://github.com/zeplin/omlet) (MIT, open-sourced April 2026) has a Rust scanner that identifies components and props across a codebase. Should `component-usage-cli` fork it or start from scratch?
 
 ## Decision Drivers
 

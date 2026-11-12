@@ -26,7 +26,7 @@ Chosen option: "One crate per stage".
 | `resolve` | Value model and data-flow engine |
 | `query` | Filtering by component, prop, value kind |
 | `report` | Output formats |
-| `cli` | Argument parsing, entry point; binary `component-usage` |
+| `cli` | Argument parsing, entry point; binary `component-usage-cli` |
 
 ### Consequences
 

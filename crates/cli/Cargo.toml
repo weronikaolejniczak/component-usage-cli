@@ -1,5 +1,5 @@
 [package]
-name = "component-usage"
+name = "component-usage-cli"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,13 +8,13 @@ repository.workspace = true
 publish.workspace = true
 
 [[bin]]
-name = "component-usage"
+name = "component-usage-cli"
 path = "src/main.rs"
 
 [dependencies]
-component-usage-parse.workspace = true
-component-usage-graph.workspace = true
-component-usage-resolve.workspace = true
-component-usage-query.workspace = true
-component-usage-report.workspace = true
+component-usage-cli-parse.workspace = true
+component-usage-cli-graph.workspace = true
+component-usage-cli-resolve.workspace = true
+component-usage-cli-query.workspace = true
+component-usage-cli-report.workspace = true
 clap.workspace = true

@@ -1,5 +1,5 @@
 [package]
-name = "component-usage-graph"
+name = "component-usage-cli-graph"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

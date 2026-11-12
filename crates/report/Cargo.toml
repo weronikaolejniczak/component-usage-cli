@@ -1,5 +1,5 @@
 [package]
-name = "component-usage-report"
+name = "component-usage-cli-report"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

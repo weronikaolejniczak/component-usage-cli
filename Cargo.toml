@@ -7,15 +7,15 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
-repository = "https://github.com/weronikaolejniczak/component-usage"
+repository = "https://github.com/weronikaolejniczak/component-usage-cli"
 publish = false
 
 [workspace.dependencies]
-component-usage-parse = { path = "crates/parse" }
-component-usage-graph = { path = "crates/graph" }
-component-usage-resolve = { path = "crates/resolve" }
-component-usage-query = { path = "crates/query" }
-component-usage-report = { path = "crates/report" }
+component-usage-cli-parse = { path = "crates/parse" }
+component-usage-cli-graph = { path = "crates/graph" }
+component-usage-cli-resolve = { path = "crates/resolve" }
+component-usage-cli-query = { path = "crates/query" }
+component-usage-cli-report = { path = "crates/report" }
 
 clap = { version = "4", features = ["derive"] }
 
