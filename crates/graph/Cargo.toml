@@ -9,4 +9,6 @@ publish.workspace = true
 
 [dependencies]
 model.workspace = true
+oxc_resolver.workspace = true
 parse.workspace = true
+thiserror.workspace = true
