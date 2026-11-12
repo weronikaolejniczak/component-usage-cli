@@ -103,34 +103,66 @@ name = "component-usage-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
- "component-usage-cli-graph",
- "component-usage-cli-parse",
- "component-usage-cli-query",
+ "component-usage-cli-engine",
  "component-usage-cli-report",
- "component-usage-cli-resolve",
  "serde",
  "serde_json",
 ]
 
 [[package]]
+name = "component-usage-cli-engine"
+version = "0.1.0"
+dependencies = [
+ "component-usage-cli-graph",
+ "component-usage-cli-identify",
+ "component-usage-cli-model",
+ "component-usage-cli-parse",
+ "component-usage-cli-report",
+]
+
+[[package]]
 name = "component-usage-cli-graph"
+version = "0.1.0"
+dependencies = [
+ "component-usage-cli-model",
+ "component-usage-cli-parse",
+]
+
+[[package]]
+name = "component-usage-cli-identify"
+version = "0.1.0"
+dependencies = [
+ "component-usage-cli-graph",
+ "component-usage-cli-model",
+ "component-usage-cli-parse",
+]
+
+[[package]]
+name = "component-usage-cli-model"
 version = "0.1.0"
 
 [[package]]
 name = "component-usage-cli-parse"
 version = "0.1.0"
-
-[[package]]
-name = "component-usage-cli-query"
-version = "0.1.0"
+dependencies = [
+ "component-usage-cli-model",
+]
 
 [[package]]
 name = "component-usage-cli-report"
 version = "0.1.0"
+dependencies = [
+ "component-usage-cli-model",
+]
 
 [[package]]
-name = "component-usage-cli-resolve"
+name = "component-usage-cli-values"
 version = "0.1.0"
+dependencies = [
+ "component-usage-cli-graph",
+ "component-usage-cli-model",
+ "component-usage-cli-parse",
+]
 
 [[package]]
 name = "heck"
