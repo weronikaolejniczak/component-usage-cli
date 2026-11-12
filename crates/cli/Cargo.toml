@@ -18,3 +18,7 @@ component-usage-cli-resolve.workspace = true
 component-usage-cli-query.workspace = true
 component-usage-cli-report.workspace = true
 clap.workspace = true
+
+[dev-dependencies]
+serde.workspace = true
+serde_json.workspace = true

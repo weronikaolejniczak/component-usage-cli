@@ -19,6 +19,14 @@ enum Command {
     Scan {
         /// Root directory to scan
         dir: PathBuf,
+
+        /// Target components, by exported name
+        #[arg(long, value_delimiter = ',', required = true)]
+        components: Vec<String>,
+
+        /// Only count components imported from this module
+        #[arg(long)]
+        from: String,
     },
 }
 
@@ -26,8 +34,16 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Scan { dir } => {
-            eprintln!("scan is not implemented yet: {}", dir.display());
+        Command::Scan {
+            dir,
+            components,
+            from,
+        } => {
+            eprintln!(
+                "scan is not implemented yet: {} ({} from {from})",
+                dir.display(),
+                components.join(", "),
+            );
             ExitCode::FAILURE
         }
     }
