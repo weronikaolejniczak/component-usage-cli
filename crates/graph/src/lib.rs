@@ -10,7 +10,7 @@ mod resolver;
 use std::collections::{HashMap, HashSet};
 
 use model::{ExportRef, FileId};
-use parse::{Binding, Export, FileSummary, Imported};
+use parse::{AliasRoot, Binding, Export, FileSummary, Imported};
 
 pub use resolver::{ResolveError, Resolver};
 
@@ -40,6 +40,10 @@ pub enum OriginError {
         specifier: String,
         reason: ResolveError,
     },
+    #[error("module has no import #{import}")]
+    MissingImport { file: FileId, import: usize },
+    #[error("module has no alias #{alias}")]
+    MissingAlias { file: FileId, alias: usize },
     #[error("module wasn't parsed")]
     Unparsed { module: FileId },
     #[error("module has no export '{name}'")]
@@ -51,6 +55,7 @@ pub enum OriginError {
 }
 
 /// Files indexed by [`FileId`]. `None` marks a file that couldn't be parsed.
+#[derive(Debug)]
 pub struct ModuleGraph {
     modules: Vec<Option<Module>>,
 }
@@ -71,6 +76,23 @@ impl ModuleGraph {
         self.import_origin(file, import, &mut HashSet::new())
     }
 
+    /// Origin of the root of the alias at `alias` in `file`'s [`FileSummary::aliases`], before
+    /// its members. A `require` call is the required module's namespace.
+    pub fn alias_origin(&self, file: FileId, alias: usize) -> Result<Origin, OriginError> {
+        let module = self.parsed(file)?;
+        let alias = module
+            .summary
+            .aliases
+            .get(alias)
+            .ok_or(OriginError::MissingAlias { file, alias })?;
+        match &alias.root {
+            AliasRoot::Import(import) => self.origin(file, *import),
+            AliasRoot::Require(specifier) => {
+                self.target(file, module, specifier).map(Origin::Namespace)
+            }
+        }
+    }
+
     /// Origin of the export `name` of `module`.
     pub fn export_origin(&self, module: FileId, name: &str) -> Result<Origin, OriginError> {
         self.find_export(module, name, &mut HashSet::new())?
@@ -87,7 +109,11 @@ impl ModuleGraph {
         visiting: &mut HashSet<(FileId, String)>,
     ) -> Result<Origin, OriginError> {
         let module = self.parsed(file)?;
-        let import = &module.summary.imports[import];
+        let import = module
+            .summary
+            .imports
+            .get(import)
+            .ok_or(OriginError::MissingImport { file, import })?;
         let target = self.target(file, module, &import.source)?;
         match &import.imported {
             Imported::Namespace => Ok(Origin::Namespace(target)),
@@ -248,13 +274,23 @@ pub fn export_specifiers(summary: &FileSummary) -> impl Iterator<Item = &str> {
     reexports.chain(exported_imports)
 }
 
-/// Specifiers of the imports that JSX elements in this file refer to.
+/// Specifiers of the imports and `require` calls that JSX elements in this file refer to.
 pub fn element_specifiers(summary: &FileSummary) -> impl Iterator<Item = &str> {
+    let import = |index: usize| {
+        summary
+            .imports
+            .get(index)
+            .map(|import| import.source.as_str())
+    };
     summary
         .elements
         .iter()
-        .filter_map(|element| match element.binding {
-            Binding::Import(import) => Some(summary.imports[import].source.as_str()),
+        .filter_map(move |element| match element.binding {
+            Binding::Import(index) => import(index),
+            Binding::Alias(index) => match &summary.aliases.get(index)?.root {
+                AliasRoot::Import(index) => import(*index),
+                AliasRoot::Require(specifier) => Some(specifier.as_str()),
+            },
             Binding::Local | Binding::Global => None,
         })
 }

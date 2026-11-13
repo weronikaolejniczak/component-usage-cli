@@ -18,6 +18,8 @@ pub struct FileSummary {
     pub imports: Vec<Import>,
     pub exports: Vec<Export>,
     pub elements: Vec<JsxElement>,
+    /// Local constants that JSX elements refer to, indexed by [`Binding::Alias`].
+    pub aliases: Vec<Alias>,
     /// Errors the parser recovered from. The lists above may be incomplete when this isn't empty.
     pub errors: Vec<SyntaxError>,
 }
@@ -76,10 +78,30 @@ pub struct JsxElement {
 pub enum Binding {
     /// Index into [`FileSummary::imports`].
     Import(usize),
+    /// Index into [`FileSummary::aliases`]: a local constant that refers to an import or a
+    /// `require` call.
+    Alias(usize),
     /// Declared in this file, including a declaration that shadows an import.
     Local,
     /// Not declared anywhere in this file.
     Global,
+}
+
+/// A local constant initialised from an import or `require`, followed through other constants:
+/// `const I = Lib.Icon`, `const { Icon } = Lib`, `const { Icon } = require('lib')`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Alias {
+    pub root: AliasRoot,
+    /// Property accesses after the root: `["Icon"]` in each example above.
+    pub members: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AliasRoot {
+    /// Index into [`FileSummary::imports`].
+    Import(usize),
+    /// The specifier of `require('specifier')`.
+    Require(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

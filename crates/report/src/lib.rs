@@ -35,6 +35,14 @@ pub struct Unidentified {
     pub file: String,
     #[serde(flatten)]
     pub location: Location,
+    /// The tag as written: `L.Icon` in `<L.Icon>`.
+    pub tag: String,
+    /// The specifier of the import or `require` the tag refers to.
+    pub source: String,
+    pub code: UnidentifiedCode,
+    /// The target component the element refers to, when known.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub component: Option<String>,
     pub reason: String,
     /// Code owners of `file`; empty if unowned. Absent unless owners were requested.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -46,6 +54,7 @@ pub struct FileError {
     pub file: String,
     #[serde(flatten)]
     pub location: Option<Location>,
+    pub code: ErrorCode,
     pub message: String,
     /// `true` if nothing in the file was scanned; `false` if results from it may be incomplete.
     pub skipped: bool,
@@ -58,7 +67,52 @@ pub struct FileError {
 pub struct Warning {
     pub file: String,
     pub line: u32,
+    pub code: WarningCode,
     pub message: String,
+}
+
+/// Why a `CODEOWNERS` line was skipped. Stable across releases; `message` is for people.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum WarningCode {
+    UnsupportedNegation,
+    UnsupportedRange,
+    UnsupportedEscape,
+    InvalidOwner,
+}
+
+/// Why an element is unidentified. Stable across releases; `reason` is for people.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum UnidentifiedCode {
+    /// A specifier didn't resolve to a file.
+    Unresolved,
+    /// A module on the way couldn't be parsed.
+    Unparsed,
+    /// A module on the way doesn't export the name.
+    MissingExport,
+    /// More than one `export *` provides the name.
+    Ambiguous,
+    /// Re-exports form a cycle.
+    Cycle,
+    /// Refers to a target through a local constant, which isn't followed.
+    Alias,
+    /// Refers to a target through `require`; only ES modules are supported.
+    #[serde(rename = "commonjs")]
+    CommonJs,
+    /// A bug in this tool.
+    Internal,
+}
+
+/// Why a file couldn't be scanned, fully or partly. Stable across releases; `message` is for
+/// people.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ErrorCode {
+    /// The file or folder couldn't be read.
+    Read,
+    UnsupportedExtension,
+    Syntax,
 }
 
 impl Report {
@@ -89,7 +143,7 @@ pub fn write(report: &Report, format: Format, mut writer: impl Write) -> io::Res
 mod tests {
     use model::Location;
 
-    use super::{FileError, Format, Report, Usage, write};
+    use super::{ErrorCode, FileError, Format, Report, Usage, write};
 
     #[test]
     fn json() {
@@ -104,6 +158,7 @@ mod tests {
             errors: vec![FileError {
                 file: "src/Broken.tsx".to_owned(),
                 location: None,
+                code: ErrorCode::UnsupportedExtension,
                 message: "unsupported file extension".to_owned(),
                 skipped: true,
                 owners: None,
@@ -118,7 +173,7 @@ mod tests {
             serde_json::json!({
                 "usages": [{ "file": "src/App.tsx", "line": 3, "column": 5, "component": "Icon", "owners": ["@org/team"] }],
                 "unidentified": [],
-                "errors": [{ "file": "src/Broken.tsx", "message": "unsupported file extension", "skipped": true }],
+                "errors": [{ "file": "src/Broken.tsx", "code": "unsupported-extension", "message": "unsupported file extension", "skipped": true }],
                 "warnings": [],
             })
         );

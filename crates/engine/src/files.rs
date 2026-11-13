@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use model::FileId;
-use report::FileError;
+use report::{ErrorCode, FileError};
 
 const EXTENSIONS: [&str; 8] = ["tsx", "ts", "jsx", "js", "mjs", "cjs", "mts", "cts"];
 
@@ -33,24 +33,32 @@ impl Files {
         self.paths.len()
     }
 
-    /// Relative to `root` with `/` separators, or absolute if outside it.
     pub(crate) fn display(&self, id: FileId, root: &Path) -> String {
-        let path = self.path(id);
-        match path.strip_prefix(root) {
-            Ok(relative) => relative
-                .components()
-                .map(|component| component.as_os_str().to_string_lossy())
-                .collect::<Vec<_>>()
-                .join("/"),
-            Err(_) => path.to_string_lossy().into_owned(),
-        }
+        display(self.path(id), root)
     }
+}
+
+/// Relative to `root` with `/` separators, `.` for `root` itself, or absolute if outside it.
+pub(crate) fn display(path: &Path, root: &Path) -> String {
+    match path.strip_prefix(root) {
+        Ok(relative) if relative.as_os_str().is_empty() => ".".to_owned(),
+        Ok(relative) => slashed(relative),
+        Err(_) => path.to_string_lossy().into_owned(),
+    }
+}
+
+pub(crate) fn slashed(path: &Path) -> String {
+    path.components()
+        .map(|component| component.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 /// Source files under `root`, sorted. Walk failures are added to `errors`.
 pub(crate) fn discover(root: &Path, errors: &mut Vec<FileError>) -> Vec<PathBuf> {
     let walker = ignore::WalkBuilder::new(root)
-        .filter_entry(|entry| entry.file_name() != "node_modules")
+        .hidden(false)
+        .filter_entry(|entry| entry.file_name() != "node_modules" && entry.file_name() != ".git")
         .build();
     let mut paths = Vec::new();
     for entry in walker {
@@ -62,8 +70,9 @@ pub(crate) fn discover(root: &Path, errors: &mut Vec<FileError>) -> Vec<PathBuf>
                 }
             }
             Err(error) => errors.push(FileError {
-                file: root.to_string_lossy().into_owned(),
+                file: display(error_path(&error).unwrap_or(root), root),
                 location: None,
+                code: ErrorCode::Read,
                 message: error.to_string(),
                 skipped: true,
                 owners: None,
@@ -72,6 +81,18 @@ pub(crate) fn discover(root: &Path, errors: &mut Vec<FileError>) -> Vec<PathBuf>
     }
     paths.sort();
     paths
+}
+
+fn error_path(error: &ignore::Error) -> Option<&Path> {
+    match error {
+        ignore::Error::WithPath { path, .. } => Some(path),
+        ignore::Error::Loop { child, .. } => Some(child),
+        ignore::Error::WithDepth { err, .. } | ignore::Error::WithLineNumber { err, .. } => {
+            error_path(err)
+        }
+        ignore::Error::Partial(errors) => errors.iter().find_map(error_path),
+        _ => None,
+    }
 }
 
 fn is_source(path: &Path) -> bool {

@@ -20,11 +20,13 @@
   "warnings": [
     {
       "file": ".github/CODEOWNERS",
-      "line": 2
+      "line": 2,
+      "code": "unsupported-negation"
     },
     {
       "file": ".github/CODEOWNERS",
-      "line": 3
+      "line": 3,
+      "code": "invalid-owner"
     }
   ]
 }

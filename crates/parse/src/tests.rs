@@ -2,7 +2,9 @@ use std::path::Path;
 
 use model::Location;
 
-use crate::{Binding, Export, FileSummary, Import, Imported, JsxElement, ParseError, parse};
+use crate::{
+    Alias, AliasRoot, Binding, Export, FileSummary, Import, Imported, JsxElement, ParseError, parse,
+};
 
 fn tsx(source: &str) -> FileSummary {
     parse(Path::new("App.tsx"), source).unwrap()
@@ -241,4 +243,99 @@ fn unrecoverable_error_has_location() {
         panic!("expected a syntax error");
     };
     assert_eq!(error.location.line, 2);
+}
+
+#[test]
+fn unrecoverable_error_is_reported_over_earlier_recovered_ones() {
+    let Err(ParseError::Syntax(error)) =
+        parse(Path::new("App.tsx"), "const a;\nconst b = 1;\nconst = ;\n")
+    else {
+        panic!("expected a syntax error");
+    };
+    assert_eq!(error.location.line, 3);
+}
+
+fn alias(root: AliasRoot, members: &[&str]) -> Alias {
+    Alias {
+        root,
+        members: members.iter().map(|&member| member.to_owned()).collect(),
+    }
+}
+
+#[test]
+fn constants_from_imports_are_aliases() {
+    let summary = tsx(concat!(
+        "import * as Lib from 'lib';\n",
+        "const A = Lib.Icon;\n",
+        "const { Icon: B, Nested: { Item: C } } = Lib;\n",
+        "const D = (A as any);\n",
+        "const E = A;\n",
+        "<A />; <B />; <C />; <D />; <E.Part />; <A />;\n",
+    ));
+    let bindings: Vec<Binding> = summary
+        .elements
+        .iter()
+        .map(|element| element.binding)
+        .collect();
+    assert_eq!(
+        bindings,
+        [
+            Binding::Alias(0),
+            Binding::Alias(1),
+            Binding::Alias(2),
+            Binding::Alias(3),
+            Binding::Alias(4),
+            Binding::Alias(0),
+        ]
+    );
+    assert_eq!(
+        summary.aliases,
+        [
+            alias(AliasRoot::Import(0), &["Icon"]),
+            alias(AliasRoot::Import(0), &["Icon"]),
+            alias(AliasRoot::Import(0), &["Nested", "Item"]),
+            alias(AliasRoot::Import(0), &["Icon"]),
+            alias(AliasRoot::Import(0), &["Icon"]),
+        ]
+    );
+    assert_eq!(summary.elements[4].members, ["Part"]);
+}
+
+#[test]
+fn require_calls_are_aliases() {
+    let summary = parse(
+        Path::new("App.js"),
+        "const { Icon } = require('lib');\nconst Lib = require('lib').default;\n<Icon />; <Lib />;\n",
+    )
+    .unwrap();
+    assert_eq!(
+        summary.aliases,
+        [
+            alias(AliasRoot::Require("lib".to_owned()), &["Icon"]),
+            alias(AliasRoot::Require("lib".to_owned()), &["default"]),
+        ]
+    );
+}
+
+#[test]
+fn other_constants_are_local() {
+    let summary = tsx(concat!(
+        "import { Icon } from 'lib';\n",
+        "const require = (name: string) => Icon;\n",
+        "const A = require('lib');\n",
+        "const B = make(Icon);\n",
+        "const [C] = [Icon];\n",
+        "const D = E, E = D;\n",
+        "const F = Unknown.Icon;\n",
+        "<A />; <B />; <C />; <D />; <F />;\n",
+    ));
+    assert!(
+        summary
+            .elements
+            .iter()
+            .all(|element| element.binding == Binding::Local),
+        "{:?}",
+        summary.elements
+    );
+    assert!(summary.aliases.is_empty());
 }

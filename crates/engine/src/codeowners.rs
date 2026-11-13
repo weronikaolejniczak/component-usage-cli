@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use owners::CodeOwners;
-use report::{Report, Warning};
+use owners::{CodeOwners, Problem};
+use report::{Report, Warning, WarningCode};
 
+use crate::files::{display, slashed};
 use crate::{Owners, ScanError};
 
 /// GitHub's search order, relative to the repository root.
@@ -53,7 +55,13 @@ pub(crate) fn load(root: &Path, source: &Owners, report: &mut Report) -> Result<
         .extend(warnings.into_iter().map(|warning| Warning {
             file: file.clone(),
             line: warning.line,
-            message: warning.message,
+            code: match warning.problem {
+                Problem::Negation => WarningCode::UnsupportedNegation,
+                Problem::Range => WarningCode::UnsupportedRange,
+                Problem::Escape => WarningCode::UnsupportedEscape,
+                Problem::Owner(_) => WarningCode::InvalidOwner,
+            },
+            message: warning.problem.to_string(),
         }));
     Ok(Loaded { owners, repository })
 }
@@ -61,7 +69,13 @@ pub(crate) fn load(root: &Path, source: &Owners, report: &mut Report) -> Result<
 impl Loaded {
     /// Sets `owners` on every result. Report paths are relative to `root` or absolute.
     pub(crate) fn attach(&self, root: &Path, report: &mut Report) {
-        let owners = |file: &str| self.owners_of(&root.join(file));
+        let mut cache: HashMap<String, Vec<String>> = HashMap::new();
+        let mut owners = |file: &str| {
+            cache
+                .entry(file.to_owned())
+                .or_insert_with(|| self.owners_of(&root.join(file)))
+                .clone()
+        };
         for usage in &mut report.usages {
             usage.owners = Some(owners(&usage.file));
         }
@@ -79,18 +93,4 @@ impl Loaded {
             Err(_) => Vec::new(),
         }
     }
-}
-
-fn display(path: &Path, root: &Path) -> String {
-    match path.strip_prefix(root) {
-        Ok(relative) => slashed(relative),
-        Err(_) => path.to_string_lossy().into_owned(),
-    }
-}
-
-fn slashed(path: &Path) -> String {
-    path.components()
-        .map(|component| component.as_os_str().to_string_lossy())
-        .collect::<Vec<_>>()
-        .join("/")
 }

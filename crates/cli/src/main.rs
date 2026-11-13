@@ -1,14 +1,11 @@
-use std::io;
+use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(
-    version,
-    about = "Scan codebases for component usage and resolve prop values"
-)]
+#[command(version, about = "Scan React codebases for component usages")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -21,16 +18,18 @@ enum Command {
         /// Root directory to scan
         dir: PathBuf,
 
-        /// Target components, by exported name
-        #[arg(long, value_delimiter = ',', required = true)]
+        /// Target components, by exported name, e.g. `Icon` or `Icon.Item`
+        #[arg(long, value_delimiter = ',', required = true, value_parser = component_name)]
         components: Vec<String>,
 
-        /// Only count components imported from this module
+        /// Module the components are exported from, resolved from DIR; matches any import that
+        /// resolves to the same export
         #[arg(long)]
         from: String,
 
-        /// Add code owners to each result, from the repository's CODEOWNERS file or the given one
-        #[arg(long, num_args = 0..=1, value_name = "FILE")]
+        /// Add code owners to each result, from the repository's CODEOWNERS file, or from FILE
+        /// with `--owners=FILE`
+        #[arg(long, num_args = 0..=1, require_equals = true, value_name = "FILE")]
         owners: Option<Option<PathBuf>>,
     },
 }
@@ -59,11 +58,23 @@ fn main() -> ExitCode {
                     return ExitCode::FAILURE;
                 }
             };
-            if let Err(error) = report::write(&report, report::Format::Json, io::stdout().lock()) {
-                eprintln!("error: can't write report: {error}");
-                return ExitCode::FAILURE;
+            let mut out = io::BufWriter::new(io::stdout().lock());
+            match report::write(&report, report::Format::Json, &mut out).and_then(|()| out.flush())
+            {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(error) if error.kind() == io::ErrorKind::BrokenPipe => ExitCode::SUCCESS,
+                Err(error) => {
+                    eprintln!("error: can't write report: {error}");
+                    ExitCode::FAILURE
+                }
             }
-            ExitCode::SUCCESS
         }
     }
+}
+
+fn component_name(value: &str) -> Result<String, String> {
+    if value.split('.').any(str::is_empty) {
+        return Err(format!("'{value}' isn't a component name"));
+    }
+    Ok(value.to_owned())
 }

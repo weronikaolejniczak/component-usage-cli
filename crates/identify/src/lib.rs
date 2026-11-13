@@ -8,9 +8,10 @@ use std::collections::HashMap;
 
 use graph::{ModuleGraph, Origin, OriginError};
 use model::{FileId, Location, Usage};
-use parse::Binding;
+use parse::{AliasRoot, Binding, FileSummary, JsxElement};
 
 /// Resolved components to look for.
+#[derive(Debug)]
 pub struct Targets {
     by_key: HashMap<Key, String>,
 }
@@ -53,12 +54,26 @@ impl Targets {
     }
 }
 
-/// A JSX element whose origin couldn't be determined, so it may or may not be a usage.
+/// A JSX element that may be a usage but isn't counted as one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Unidentified {
     pub file: FileId,
     pub location: Location,
-    pub error: OriginError,
+    /// The tag as written: `L.Icon` in `<L.Icon>`.
+    pub tag: String,
+    /// The specifier of the import or `require` the tag refers to.
+    pub source: String,
+    pub cause: Cause,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Cause {
+    /// The origin couldn't be determined.
+    Origin(OriginError),
+    /// Refers to `component` through a local constant; constants aren't followed yet.
+    Alias { component: String },
+    /// Refers to `component` through `require`; only ES modules are supported.
+    Require { component: String },
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -78,27 +93,51 @@ pub fn identify(graph: &ModuleGraph, files: &[FileId], targets: &Targets) -> Ide
             continue;
         };
         for element in &module.summary.elements {
-            let Binding::Import(import) = element.binding else {
-                continue;
+            let (origin, members, via) = match element.binding {
+                Binding::Import(import) => (graph.origin(file, import), Vec::new(), None),
+                Binding::Alias(index) => {
+                    let Some(alias) = module.summary.aliases.get(index) else {
+                        continue;
+                    };
+                    (
+                        graph.alias_origin(file, index),
+                        alias.members.clone(),
+                        Some(&alias.root),
+                    )
+                }
+                Binding::Local | Binding::Global => continue,
             };
-            let key = graph
-                .origin(file, import)
-                .and_then(|origin| key(graph, origin, element.members.clone()));
+            let unidentified = |cause| Unidentified {
+                file,
+                location: element.location,
+                tag: tag(element),
+                source: source(&module.summary, element).unwrap_or_default(),
+                cause,
+            };
+            let members = members.into_iter().chain(element.members.iter().cloned());
+            let key = origin.and_then(|origin| key(graph, origin, members.collect()));
             match key {
                 Ok(key) => {
-                    if let Some(component) = targets.by_key.get(&key) {
-                        identified.usages.push(Usage {
+                    let Some(component) = targets.by_key.get(&key).cloned() else {
+                        continue;
+                    };
+                    match via {
+                        None => identified.usages.push(Usage {
                             file,
                             location: element.location,
-                            component: component.clone(),
-                        });
+                            component,
+                        }),
+                        Some(AliasRoot::Import(_)) => identified
+                            .unidentified
+                            .push(unidentified(Cause::Alias { component })),
+                        Some(AliasRoot::Require(_)) => identified
+                            .unidentified
+                            .push(unidentified(Cause::Require { component })),
                     }
                 }
-                Err(error) => identified.unidentified.push(Unidentified {
-                    file,
-                    location: element.location,
-                    error,
-                }),
+                Err(error) => identified
+                    .unidentified
+                    .push(unidentified(Cause::Origin(error))),
             }
         }
     }
@@ -107,6 +146,30 @@ pub fn identify(graph: &ModuleGraph, files: &[FileId], targets: &Targets) -> Ide
         .unidentified
         .sort_by_key(|unidentified| (unidentified.file, unidentified.location));
     identified
+}
+
+fn tag(element: &JsxElement) -> String {
+    std::iter::once(element.root.as_str())
+        .chain(element.members.iter().map(String::as_str))
+        .collect::<Vec<_>>()
+        .join(".")
+}
+
+fn source(summary: &FileSummary, element: &JsxElement) -> Option<String> {
+    let import = |index: usize| {
+        summary
+            .imports
+            .get(index)
+            .map(|import| import.source.clone())
+    };
+    match element.binding {
+        Binding::Import(index) => import(index),
+        Binding::Alias(index) => match &summary.aliases.get(index)?.root {
+            AliasRoot::Import(index) => import(*index),
+            AliasRoot::Require(specifier) => Some(specifier.clone()),
+        },
+        Binding::Local | Binding::Global => None,
+    }
 }
 
 fn key(graph: &ModuleGraph, mut origin: Origin, members: Vec<String>) -> Result<Key, OriginError> {

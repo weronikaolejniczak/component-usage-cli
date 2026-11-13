@@ -1,9 +1,10 @@
 //! Runs a scan: discovers files, parses them in parallel, builds the module graph, identifies usages.
 //!
 //! The only library crate that walks the filesystem and the only one that uses threads.
-//! Files under the root are discovered like ripgrep does (respecting `.gitignore`, skipping
-//! hidden files and `node_modules`). Files outside that set, such as library entry points in
-//! `node_modules`, are parsed only when a re-export chain or a JSX import reaches them.
+//! Files under the root are discovered respecting `.gitignore`, skipping `.git` and
+//! `node_modules`. Hidden files are included, since folders such as `.storybook` hold
+//! components. Files outside that set, such as library entry points in `node_modules`, are
+//! parsed only when a re-export chain or a JSX import reaches them.
 
 mod codeowners;
 mod files;
@@ -14,14 +15,15 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use graph::{Module, ModuleGraph, OriginError, ResolveError, Resolver};
-use identify::Targets;
+use identify::{Cause, Targets};
 use model::FileId;
 use parse::{FileSummary, ParseError};
 use rayon::prelude::*;
-use report::{FileError, Report};
+use report::{ErrorCode, FileError, Report, UnidentifiedCode};
 
 use crate::files::Files;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     pub root: PathBuf,
     /// Exported names, e.g. `Icon` or `Icon.Item`.
@@ -34,6 +36,7 @@ pub struct Config {
 
 /// Which `CODEOWNERS` file to use. Patterns always match paths relative to the repository root:
 /// `root` or its closest ancestor containing `.git`.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Owners {
     /// The first of `.github/CODEOWNERS`, `CODEOWNERS`, `docs/CODEOWNERS`, as GitHub does.
     Discover,
@@ -44,6 +47,8 @@ pub enum Owners {
 pub enum ScanError {
     #[error("can't open {}: {source}", path.display())]
     Root { path: PathBuf, source: io::Error },
+    #[error("{} is not a directory", path.display())]
+    RootNotDirectory { path: PathBuf },
     #[error("can't resolve '{specifier}' from {}: {reason}", root.display())]
     From {
         specifier: String,
@@ -73,6 +78,11 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
             path: config.root.clone(),
             source,
         })?;
+    if !root.is_dir() {
+        return Err(ScanError::RootNotDirectory {
+            path: config.root.clone(),
+        });
+    }
     let mut report = Report::default();
     let codeowners = config
         .owners
@@ -130,6 +140,7 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
                         errors.extend(summary.errors.iter().map(|error| FileError {
                             file: files.display(id, &root),
                             location: Some(error.location),
+                            code: ErrorCode::Syntax,
                             message: error.message.clone(),
                             skipped: false,
                             owners: None,
@@ -189,11 +200,32 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
     report.unidentified = identified
         .unidentified
         .into_iter()
-        .map(|unidentified| report::Unidentified {
-            file: files.display(unidentified.file, &root),
-            location: unidentified.location,
-            reason: describe(&unidentified.error, &files, &root),
-            owners: None,
+        .map(|unidentified| {
+            let (code, component, reason) = match unidentified.cause {
+                Cause::Origin(error) => (code(&error), None, describe(&error, &files, &root)),
+                Cause::Alias { component } => (
+                    UnidentifiedCode::Alias,
+                    Some(component),
+                    "refers to the component through a local constant, which isn't followed"
+                        .to_owned(),
+                ),
+                Cause::Require { component } => (
+                    UnidentifiedCode::CommonJs,
+                    Some(component),
+                    "refers to the component through `require`; only ES modules are supported"
+                        .to_owned(),
+                ),
+            };
+            report::Unidentified {
+                file: files.display(unidentified.file, &root),
+                location: unidentified.location,
+                tag: unidentified.tag,
+                source: unidentified.source,
+                code,
+                component,
+                reason,
+                owners: None,
+            }
         })
         .collect();
     report.errors = errors;
@@ -215,14 +247,19 @@ fn read_and_parse(path: &Path) -> Result<FileSummary, ReadError> {
 }
 
 fn file_error(file: String, error: ReadError) -> FileError {
-    let (location, message) = match error {
-        ReadError::Io(error) => (None, error.to_string()),
-        ReadError::Parse(ParseError::Syntax(error)) => (Some(error.location), error.message),
-        ReadError::Parse(error @ ParseError::UnsupportedExtension) => (None, error.to_string()),
+    let (location, code, message) = match error {
+        ReadError::Io(error) => (None, ErrorCode::Read, error.to_string()),
+        ReadError::Parse(ParseError::Syntax(error)) => {
+            (Some(error.location), ErrorCode::Syntax, error.message)
+        }
+        ReadError::Parse(error @ ParseError::UnsupportedExtension) => {
+            (None, ErrorCode::UnsupportedExtension, error.to_string())
+        }
     };
     FileError {
         file,
         location,
+        code,
         message,
         skipped: true,
         owners: None,
@@ -239,6 +276,19 @@ fn needed_specifiers(summary: &FileSummary, scanned: bool) -> Vec<&str> {
     specifiers
 }
 
+fn code(error: &OriginError) -> UnidentifiedCode {
+    match error {
+        OriginError::Unresolved { .. } => UnidentifiedCode::Unresolved,
+        OriginError::Unparsed { .. } => UnidentifiedCode::Unparsed,
+        OriginError::MissingExport { .. } => UnidentifiedCode::MissingExport,
+        OriginError::Ambiguous { .. } => UnidentifiedCode::Ambiguous,
+        OriginError::Cycle { .. } => UnidentifiedCode::Cycle,
+        OriginError::MissingImport { .. } | OriginError::MissingAlias { .. } => {
+            UnidentifiedCode::Internal
+        }
+    }
+}
+
 fn describe(error: &OriginError, files: &Files, root: &Path) -> String {
     match error {
         OriginError::Unresolved {
@@ -249,6 +299,12 @@ fn describe(error: &OriginError, files: &Files, root: &Path) -> String {
             "can't resolve '{specifier}' from {}: {reason}",
             files.display(*file, root)
         ),
+        OriginError::MissingImport { file, import } => {
+            format!("{} has no import #{import}", files.display(*file, root))
+        }
+        OriginError::MissingAlias { file, alias } => {
+            format!("{} has no alias #{alias}", files.display(*file, root))
+        }
         OriginError::Unparsed { module } => {
             format!("{} couldn't be parsed", files.display(*module, root))
         }

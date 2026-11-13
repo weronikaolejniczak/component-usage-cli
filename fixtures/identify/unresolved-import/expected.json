@@ -1,0 +1,7 @@
+{
+  "query": { "components": ["Icon"], "from": "lib" },
+  "usages": [],
+  "unidentified": [
+    { "file": "App.tsx", "line": 3, "column": 24, "code": "unresolved" }
+  ]
+}

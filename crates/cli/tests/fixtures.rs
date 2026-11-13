@@ -3,11 +3,16 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde::Deserialize;
+use tempfile::TempDir;
 
 #[derive(Deserialize)]
 struct Case {
     query: Query,
     usages: Vec<Usage>,
+    #[serde(default)]
+    unidentified: Vec<Located>,
+    #[serde(default)]
+    errors: Vec<Located>,
     #[serde(default)]
     warnings: Vec<Warning>,
 }
@@ -27,10 +32,24 @@ struct Query {
 #[derive(Deserialize)]
 struct Report {
     usages: Vec<Usage>,
+    unidentified: Vec<Located>,
+    errors: Vec<Located>,
     warnings: Vec<Warning>,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize)]
+struct Located {
+    file: String,
+    #[serde(default)]
+    line: Option<u32>,
+    #[serde(default)]
+    column: Option<u32>,
+    code: String,
+    #[serde(default)]
+    component: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq, Deserialize)]
 struct Usage {
     component: String,
     file: String,
@@ -40,27 +59,30 @@ struct Usage {
     owners: Option<Vec<String>>,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize)]
 struct Warning {
     file: String,
     line: u32,
+    code: String,
 }
 
 fn fixtures_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures")
 }
 
-/// Copies the group to a temporary folder and marks the case folder as a repository root,
-/// since a real `.git` folder can't be committed inside this repository.
-fn as_repository(group: &str, name: &str) -> PathBuf {
-    let temp = std::env::temp_dir().join(format!(
-        "component-usage-cli-{group}-{name}-{}",
-        std::process::id()
-    ));
-    let _ = fs::remove_dir_all(&temp);
-    copy_dir(&fixtures_dir().join(group), &temp);
-    fs::create_dir(temp.join(name).join(".git")).unwrap();
-    temp.join(name)
+/// Copies the case and the group's `node_modules` to a temporary folder and marks the case
+/// folder as a repository root, since a real `.git` folder can't be committed inside this
+/// repository.
+fn as_repository(group: &str, name: &str) -> TempDir {
+    let temp = TempDir::new().unwrap();
+    let group_dir = fixtures_dir().join(group);
+    copy_dir(&group_dir.join(name), &temp.path().join(name));
+    copy_dir(
+        &group_dir.join("node_modules"),
+        &temp.path().join("node_modules"),
+    );
+    fs::create_dir(temp.path().join(name).join(".git")).unwrap();
+    temp
 }
 
 fn copy_dir(from: &Path, to: &Path) {
@@ -80,8 +102,13 @@ fn run_case(group: &str, name: &str) {
     let case_dir = fixtures_dir().join(group).join(name);
     let case: Case =
         serde_json::from_str(&fs::read_to_string(case_dir.join("expected.json")).unwrap()).unwrap();
-    let case_dir = match case.query.owners {
-        Some(_) => as_repository(group, name),
+    let temp = case
+        .query
+        .owners
+        .is_some()
+        .then(|| as_repository(group, name));
+    let case_dir = match &temp {
+        Some(temp) => temp.path().join(name),
         None => case_dir,
     };
     let scan_dir = match &case.query.dir {
@@ -115,17 +142,13 @@ fn run_case(group: &str, name: &str) {
     );
 
     let report: Report = serde_json::from_slice(&output.stdout).unwrap();
-    let mut actual = report.usages;
-    actual.sort();
-    let mut expected = case.usages;
-    expected.sort();
-    assert_eq!(actual, expected, "{group}/{name}");
-
-    let mut warnings = report.warnings;
-    warnings.sort();
-    let mut expected_warnings = case.warnings;
-    expected_warnings.sort();
-    assert_eq!(warnings, expected_warnings, "{group}/{name} warnings");
+    assert_eq!(report.usages, case.usages, "{group}/{name} usages");
+    assert_eq!(
+        report.unidentified, case.unidentified,
+        "{group}/{name} unidentified"
+    );
+    assert_eq!(report.errors, case.errors, "{group}/{name} errors");
+    assert_eq!(report.warnings, case.warnings, "{group}/{name} warnings");
 }
 
 macro_rules! cases {
@@ -162,8 +185,16 @@ cases!(identify:
     member_expression,
     named_import,
     namespace_import,
+    commonjs,
+    hidden_directory,
+    local_alias,
     same_name_other_module,
     shadowed_local,
+    unresolved_import,
+);
+
+cases!(errors:
+    syntax_error,
 );
 
 cases!(owners:
@@ -171,9 +202,11 @@ cases!(owners:
     case_sensitive,
     direct_children,
     double_star,
+    email_owners,
     explicit_file,
     invalid_lines,
     last_match_wins,
+    later_lines_kept,
     location_order,
     multiple_owners,
     no_owners,

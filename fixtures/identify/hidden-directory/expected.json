@@ -1,0 +1,6 @@
+{
+  "query": { "components": ["Icon"], "from": "lib" },
+  "usages": [
+    { "component": "Icon", "file": ".storybook/preview.tsx", "line": 3, "column": 32 }
+  ]
+}

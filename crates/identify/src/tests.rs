@@ -3,7 +3,7 @@ use std::path::Path;
 use graph::{Module, ModuleGraph, OriginError};
 use model::{FileId, Location, Usage};
 
-use crate::{Targets, identify};
+use crate::{Cause, Targets, identify};
 
 /// Each file is its source plus the specifiers it uses, mapped to indices in this list.
 fn graph(files: &[(&str, &[(&str, u32)])]) -> ModuleGraph {
@@ -182,8 +182,8 @@ fn unidentified_elements_are_reported() {
         [13, 21]
     );
     assert!(matches!(
-        identified.unidentified[0].error,
-        OriginError::Unresolved { .. }
+        identified.unidentified[0].cause,
+        Cause::Origin(OriginError::Unresolved { .. })
     ));
 }
 
@@ -200,7 +200,7 @@ fn missing_namespace_member_is_unidentified() {
     let identified = identify(&graph, &[FileId(0)], &targets(&graph, 1, &["Icon"]));
     assert!(matches!(
         &identified.unidentified[..],
-        [unidentified] if matches!(unidentified.error, OriginError::MissingExport { .. })
+        [unidentified] if matches!(unidentified.cause, Cause::Origin(OriginError::MissingExport { .. }))
     ));
 }
 
@@ -211,4 +211,24 @@ fn unknown_target() {
         .err()
         .unwrap();
     assert_eq!(error.component, "Missing");
+}
+
+#[test]
+fn aliases_of_targets_are_unidentified() {
+    let graph = graph(&[
+        (
+            "import * as L from 'lib';\nconst I = L.Icon;\nconst a = <I.Item />;\nconst b = <I />;",
+            &[("lib", 1)],
+        ),
+        LIB,
+        ICON,
+    ]);
+    let identified = identify(&graph, &[FileId(0)], &targets(&graph, 1, &["Icon.Item"]));
+    assert_eq!(identified.usages, []);
+    assert!(matches!(
+        &identified.unidentified[..],
+        [unidentified] if unidentified.tag == "I.Item"
+            && unidentified.source == "lib"
+            && unidentified.cause == Cause::Alias { component: "Icon.Item".to_owned() }
+    ));
 }

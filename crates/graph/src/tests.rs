@@ -254,3 +254,15 @@ fn specifiers_needed() {
     assert_eq!(exports, ["./all", "./item", "./x"]);
     assert_eq!(element_specifiers(&summary).collect::<Vec<_>>(), ["lib"]);
 }
+
+#[test]
+fn invalid_import_index() {
+    let graph = graph(&[("import { Icon } from 'lib';", &[("lib", 1)]), (ICON, &[])]);
+    assert_eq!(
+        graph.origin(FileId(0), 5),
+        Err(OriginError::MissingImport {
+            file: FileId(0),
+            import: 5,
+        })
+    );
+}
