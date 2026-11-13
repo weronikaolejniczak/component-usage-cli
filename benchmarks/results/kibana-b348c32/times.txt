@@ -1,0 +1,15 @@
+real 27.73
+user 30.04
+sys 13.37
+real 26.56
+user 29.82
+sys 14.81
+real 26.42
+user 29.95
+sys 13.97
+real 26.56
+user 29.88
+sys 13.63
+real 26.06
+user 29.65
+sys 14.12
