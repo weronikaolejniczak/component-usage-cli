@@ -195,6 +195,7 @@ dependencies = [
  "component-usage-cli-graph",
  "component-usage-cli-model",
  "component-usage-cli-parse",
+ "thiserror",
 ]
 
 [[package]]

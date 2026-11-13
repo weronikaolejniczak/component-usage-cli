@@ -11,3 +11,4 @@ publish.workspace = true
 model.workspace = true
 parse.workspace = true
 graph.workspace = true
+thiserror.workspace = true
