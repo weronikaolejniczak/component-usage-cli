@@ -1,3 +1,4 @@
+use std::io;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -39,12 +40,23 @@ fn main() -> ExitCode {
             components,
             from,
         } => {
-            eprintln!(
-                "scan is not implemented yet: {} ({} from {from})",
-                dir.display(),
-                components.join(", "),
-            );
-            ExitCode::FAILURE
+            let config = engine::Config {
+                root: dir,
+                components,
+                from,
+            };
+            let report = match engine::scan(&config) {
+                Ok(report) => report,
+                Err(error) => {
+                    eprintln!("error: {error}");
+                    return ExitCode::FAILURE;
+                }
+            };
+            if let Err(error) = report::write(&report, report::Format::Json, io::stdout().lock()) {
+                eprintln!("error: can't write report: {error}");
+                return ExitCode::FAILURE;
+            }
+            ExitCode::SUCCESS
         }
     }
 }
