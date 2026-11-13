@@ -29,6 +29,8 @@ Proposed option: multiple formats with query options.
 * `--summary`: distinct values and counts per component and prop, no per-site data.
 * `--filter-kind <kinds>`: only values of the given kinds (see [ADR-0004](./0004-explicit-value-kinds.md)).
 * `--out <file>`.
+* Every unidentified element, file error and warning has a stable kebab-case `code`, e.g. `unresolved` or `syntax`, for scripts to group by. `reason` and `message` are for people and may change.
+* The exit code is 0 whenever a report is written, including one with unidentified elements, errors or warnings; the report says what's incomplete. It's non-zero only when no report is written, e.g. for invalid options or a target that can't be found.
 
 ### Consequences
 
