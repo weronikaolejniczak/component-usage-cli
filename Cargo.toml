@@ -18,6 +18,7 @@ identify = { package = "component-usage-cli-identify", path = "crates/identify" 
 values = { package = "component-usage-cli-values", path = "crates/values" }
 report = { package = "component-usage-cli-report", path = "crates/report" }
 engine = { package = "component-usage-cli-engine", path = "crates/engine" }
+owners = { package = "component-usage-cli-owners", path = "crates/owners" }
 
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
@@ -25,6 +26,7 @@ serde_json = "1"
 thiserror = "2"
 ignore = "0.4"
 rayon = "1"
+codeowners-rs = "0.1.1"
 
 oxc_allocator = "0.158"
 oxc_ast = "0.158"
