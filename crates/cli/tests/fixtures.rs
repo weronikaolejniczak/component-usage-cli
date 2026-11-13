@@ -181,15 +181,17 @@ macro_rules! cases {
 cases!(identify:
     aliased_import,
     barrel_reexport,
+    commonjs,
     deep_import,
+    hidden_directory,
+    local_alias,
     member_expression,
     named_import,
     namespace_import,
-    commonjs,
-    hidden_directory,
-    local_alias,
+    package_exports,
     same_name_other_module,
     shadowed_local,
+    tsconfig_paths,
     unresolved_import,
 );
 

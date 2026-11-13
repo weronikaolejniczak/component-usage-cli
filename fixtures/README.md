@@ -34,6 +34,8 @@ Each group's `node_modules/` holds stub packages, such as `lib` and `other-lib`,
 | `shadowed-local` | A local `Icon` shadowing the import is not counted |
 | `local-alias` | `const I = Icon`, destructuring and chains are unidentified with code `alias` ([ADR-0015](../docs/decisions/0015-es-modules-only.md)) |
 | `commonjs` | `require('lib')` is unidentified with code `commonjs`; other modules aren't reported |
+| `tsconfig-paths` | `tsconfig.json` `paths` aliases |
+| `package-exports` | `package.json` `exports`, including subpaths |
 | `unresolved-import` | An import that doesn't resolve is unidentified with code `unresolved` |
 | `hidden-directory` | Files in hidden folders such as `.storybook` are scanned ([ADR-0014](../docs/decisions/0014-file-discovery.md)) |
 
