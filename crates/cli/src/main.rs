@@ -28,6 +28,10 @@ enum Command {
         /// Only count components imported from this module
         #[arg(long)]
         from: String,
+
+        /// Add code owners to each result, from the repository's CODEOWNERS file or the given one
+        #[arg(long, num_args = 0..=1, value_name = "FILE")]
+        owners: Option<Option<PathBuf>>,
     },
 }
 
@@ -39,11 +43,14 @@ fn main() -> ExitCode {
             dir,
             components,
             from,
+            owners,
         } => {
             let config = engine::Config {
                 root: dir,
                 components,
                 from,
+                owners: owners
+                    .map(|file| file.map_or(engine::Owners::Discover, engine::Owners::File)),
             };
             let report = match engine::scan(&config) {
                 Ok(report) => report,

@@ -15,6 +15,8 @@ pub struct Report {
     pub unidentified: Vec<Unidentified>,
     /// Scanned files that couldn't be read or parsed, fully or partly.
     pub errors: Vec<FileError>,
+    /// Problems in inputs other than source files, such as skipped `CODEOWNERS` lines.
+    pub warnings: Vec<Warning>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -23,6 +25,9 @@ pub struct Usage {
     #[serde(flatten)]
     pub location: Location,
     pub component: String,
+    /// Code owners of `file`; empty if unowned. Absent unless owners were requested.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owners: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -31,6 +36,9 @@ pub struct Unidentified {
     #[serde(flatten)]
     pub location: Location,
     pub reason: String,
+    /// Code owners of `file`; empty if unowned. Absent unless owners were requested.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owners: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -41,6 +49,16 @@ pub struct FileError {
     pub message: String,
     /// `true` if nothing in the file was scanned; `false` if results from it may be incomplete.
     pub skipped: bool,
+    /// Code owners of `file`; empty if unowned. Absent unless owners were requested.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owners: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct Warning {
+    pub file: String,
+    pub line: u32,
+    pub message: String,
 }
 
 impl Report {
@@ -49,6 +67,7 @@ impl Report {
         self.usages.sort();
         self.unidentified.sort();
         self.errors.sort();
+        self.warnings.sort();
     }
 }
 
@@ -79,6 +98,7 @@ mod tests {
                 file: "src/App.tsx".to_owned(),
                 location: Location { line: 3, column: 5 },
                 component: "Icon".to_owned(),
+                owners: Some(vec!["@org/team".to_owned()]),
             }],
             unidentified: vec![],
             errors: vec![FileError {
@@ -86,7 +106,9 @@ mod tests {
                 location: None,
                 message: "unsupported file extension".to_owned(),
                 skipped: true,
+                owners: None,
             }],
+            warnings: vec![],
         };
         let mut out = Vec::new();
         write(&report, Format::Json, &mut out).unwrap();
@@ -94,9 +116,10 @@ mod tests {
         assert_eq!(
             json,
             serde_json::json!({
-                "usages": [{ "file": "src/App.tsx", "line": 3, "column": 5, "component": "Icon" }],
+                "usages": [{ "file": "src/App.tsx", "line": 3, "column": 5, "component": "Icon", "owners": ["@org/team"] }],
                 "unidentified": [],
                 "errors": [{ "file": "src/Broken.tsx", "message": "unsupported file extension", "skipped": true }],
+                "warnings": [],
             })
         );
     }

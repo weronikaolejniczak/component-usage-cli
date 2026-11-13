@@ -66,6 +66,7 @@ pub(crate) fn discover(root: &Path, errors: &mut Vec<FileError>) -> Vec<PathBuf>
                 location: None,
                 message: error.to_string(),
                 skipped: true,
+                owners: None,
             }),
         }
     }

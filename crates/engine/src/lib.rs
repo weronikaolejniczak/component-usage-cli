@@ -5,6 +5,7 @@
 //! hidden files and `node_modules`). Files outside that set, such as library entry points in
 //! `node_modules`, are parsed only when a re-export chain or a JSX import reaches them.
 
+mod codeowners;
 mod files;
 
 use std::collections::HashSet;
@@ -27,6 +28,16 @@ pub struct Config {
     pub components: Vec<String>,
     /// Module specifier the components are exported from, resolved from `root`.
     pub from: String,
+    /// Attach code owners to results.
+    pub owners: Option<Owners>,
+}
+
+/// Which `CODEOWNERS` file to use. Patterns always match paths relative to the repository root:
+/// `root` or its closest ancestor containing `.git`.
+pub enum Owners {
+    /// The first of `.github/CODEOWNERS`, `CODEOWNERS`, `docs/CODEOWNERS`, as GitHub does.
+    Discover,
+    File(PathBuf),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -41,6 +52,14 @@ pub enum ScanError {
     },
     #[error("can't find component '{component}': {reason}")]
     Component { component: String, reason: String },
+    #[error("no git repository at or above {}, needed to match CODEOWNERS paths", root.display())]
+    NoRepository { root: PathBuf },
+    #[error("no CODEOWNERS file in {}", repository.display())]
+    NoCodeOwners { repository: PathBuf },
+    #[error("can't read {}: {source}", path.display())]
+    ReadCodeOwners { path: PathBuf, source: io::Error },
+    #[error("{} is 3 MB or larger, so GitHub doesn't load it", path.display())]
+    CodeOwnersTooLarge { path: PathBuf },
 }
 
 /// Stands in for a file at the root when resolving `--from`, so `tsconfig.json` lookup works.
@@ -54,6 +73,12 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
             path: config.root.clone(),
             source,
         })?;
+    let mut report = Report::default();
+    let codeowners = config
+        .owners
+        .as_ref()
+        .map(|source| codeowners::load(&root, source, &mut report))
+        .transpose()?;
     let resolver = Resolver::new();
     let mut files = Files::default();
     let mut errors = Vec::new();
@@ -107,6 +132,7 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
                             location: Some(error.location),
                             message: error.message.clone(),
                             skipped: false,
+                            owners: None,
                         }));
                     }
                     let resolved = resolved
@@ -150,27 +176,30 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
     })?;
     let identified = identify::identify(&graph, &scanned, &targets);
 
-    let mut report = Report {
-        usages: identified
-            .usages
-            .into_iter()
-            .map(|usage| report::Usage {
-                file: files.display(usage.file, &root),
-                location: usage.location,
-                component: usage.component,
-            })
-            .collect(),
-        unidentified: identified
-            .unidentified
-            .into_iter()
-            .map(|unidentified| report::Unidentified {
-                file: files.display(unidentified.file, &root),
-                location: unidentified.location,
-                reason: describe(&unidentified.error, &files, &root),
-            })
-            .collect(),
-        errors,
-    };
+    report.usages = identified
+        .usages
+        .into_iter()
+        .map(|usage| report::Usage {
+            file: files.display(usage.file, &root),
+            location: usage.location,
+            component: usage.component,
+            owners: None,
+        })
+        .collect();
+    report.unidentified = identified
+        .unidentified
+        .into_iter()
+        .map(|unidentified| report::Unidentified {
+            file: files.display(unidentified.file, &root),
+            location: unidentified.location,
+            reason: describe(&unidentified.error, &files, &root),
+            owners: None,
+        })
+        .collect();
+    report.errors = errors;
+    if let Some(codeowners) = &codeowners {
+        codeowners.attach(&root, &mut report);
+    }
     report.sort();
     Ok(report)
 }
@@ -196,6 +225,7 @@ fn file_error(file: String, error: ReadError) -> FileError {
         location,
         message,
         skipped: true,
+        owners: None,
     }
 }
 

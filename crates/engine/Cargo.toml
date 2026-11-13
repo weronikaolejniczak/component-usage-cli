@@ -12,6 +12,7 @@ model.workspace = true
 parse.workspace = true
 graph.workspace = true
 identify.workspace = true
+owners.workspace = true
 report.workspace = true
 ignore.workspace = true
 rayon.workspace = true
