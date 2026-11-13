@@ -13,3 +13,6 @@ parse.workspace = true
 graph.workspace = true
 identify.workspace = true
 report.workspace = true
+ignore.workspace = true
+rayon.workspace = true
+thiserror.workspace = true
