@@ -46,6 +46,8 @@ pub enum OriginError {
     Unparsed { module: FileId },
     #[error("module has no export '{name}'")]
     MissingExport { module: FileId, name: String },
+    #[error("module has no ES exports, so '{name}' can't be found; CommonJS exports aren't read")]
+    NoEsExports { module: FileId, name: String },
     #[error("'{name}' is exported by more than one `export *`")]
     Ambiguous { module: FileId, name: String },
     #[error("re-exports of '{name}' form a cycle")]
@@ -98,10 +100,7 @@ impl ModuleGraph {
     /// Origin of the export `name` of `module`.
     pub fn export_origin(&self, module: FileId, name: &str) -> Result<Origin, OriginError> {
         self.find_export(module, name, &mut HashSet::new())?
-            .ok_or_else(|| OriginError::MissingExport {
-                module,
-                name: name.to_owned(),
-            })
+            .ok_or_else(|| self.missing(module, name))
     }
 
     fn import_origin(
@@ -113,12 +112,9 @@ impl ModuleGraph {
         let (target, imported) = self.import_target(file, import)?;
         match imported {
             Imported::Namespace => Ok(Origin::Namespace(target)),
-            Imported::Name(name) => self.find_export(target, name, visiting)?.ok_or_else(|| {
-                OriginError::MissingExport {
-                    module: target,
-                    name: name.clone(),
-                }
-            }),
+            Imported::Name(name) => self
+                .find_export(target, name, visiting)?
+                .ok_or_else(|| self.missing(target, name)),
         }
     }
 
@@ -176,10 +172,7 @@ impl ModuleGraph {
                     let target = self.target(id, module, source)?;
                     return self
                         .find_export(target, imported, visiting)?
-                        .ok_or_else(|| OriginError::MissingExport {
-                            module: target,
-                            name: imported.clone(),
-                        })
+                        .ok_or_else(|| self.missing(target, imported))
                         .map(Some);
                 }
                 Export::Namespace { exported, source } if exported == name => {
@@ -223,6 +216,17 @@ impl ModuleGraph {
         match (found, cycle) {
             (None, Some(cycle)) => Err(cycle),
             (found, _) => Ok(found),
+        }
+    }
+
+    /// A module without ES exports is likely CommonJS, whose exports aren't read.
+    fn missing(&self, module: FileId, name: &str) -> OriginError {
+        let name = name.to_owned();
+        match self.module(module) {
+            Some(parsed) if parsed.summary.exports.is_empty() => {
+                OriginError::NoEsExports { module, name }
+            }
+            _ => OriginError::MissingExport { module, name },
         }
     }
 

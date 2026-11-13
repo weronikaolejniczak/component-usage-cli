@@ -91,6 +91,9 @@ pub enum UnidentifiedCode {
     Unparsed,
     /// A module on the way doesn't export the name.
     MissingExport,
+    /// A module on the way has no ES exports, likely CommonJS, whose exports aren't read.
+    #[serde(rename = "commonjs-module")]
+    CommonJsModule,
     /// More than one `export *` provides the name.
     Ambiguous,
     /// Re-exports form a cycle.

@@ -182,6 +182,7 @@ cases!(identify:
     aliased_import,
     barrel_reexport,
     commonjs,
+    commonjs_module,
     deep_import,
     hidden_directory,
     local_alias,

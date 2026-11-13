@@ -36,6 +36,7 @@ Each group's `node_modules/` holds stub packages, such as `lib` and `other-lib`,
 | `commonjs` | `require('lib')` is unidentified with code `commonjs`; other modules aren't reported |
 | `tsconfig-paths` | `tsconfig.json` `paths` aliases |
 | `package-exports` | `package.json` `exports`, including subpaths |
+| `commonjs-module` | A tag imported from a module without ES exports is unidentified with code `commonjs-module` |
 | `unresolved-import` | An import that doesn't resolve is unidentified with code `unresolved` |
 | `hidden-directory` | Files in hidden folders such as `.storybook` are scanned ([ADR-0014](../docs/decisions/0014-file-discovery.md)) |
 

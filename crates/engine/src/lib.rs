@@ -281,6 +281,7 @@ fn code(error: &OriginError) -> UnidentifiedCode {
         OriginError::Unresolved { .. } => UnidentifiedCode::Unresolved,
         OriginError::Unparsed { .. } => UnidentifiedCode::Unparsed,
         OriginError::MissingExport { .. } => UnidentifiedCode::MissingExport,
+        OriginError::NoEsExports { .. } => UnidentifiedCode::CommonJsModule,
         OriginError::Ambiguous { .. } => UnidentifiedCode::Ambiguous,
         OriginError::Cycle { .. } => UnidentifiedCode::Cycle,
         OriginError::MissingImport { .. } => UnidentifiedCode::Internal,
@@ -303,6 +304,10 @@ fn describe(error: &OriginError, files: &Files, root: &Path) -> String {
         OriginError::Unparsed { module } => {
             format!("{} couldn't be parsed", files.display(*module, root))
         }
+        OriginError::NoEsExports { module, name } => format!(
+            "{} has no ES exports, so '{name}' can't be found; CommonJS exports aren't read",
+            files.display(*module, root)
+        ),
         OriginError::MissingExport { module, name } => {
             format!("{} has no export '{name}'", files.display(*module, root))
         }
