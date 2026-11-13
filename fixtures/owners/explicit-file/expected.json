@@ -1,0 +1,20 @@
+{
+  "query": {
+    "components": [
+      "Icon"
+    ],
+    "from": "lib",
+    "owners": "config/CODEOWNERS"
+  },
+  "usages": [
+    {
+      "component": "Icon",
+      "file": "A.tsx",
+      "line": 3,
+      "column": 24,
+      "owners": [
+        "@org/explicit"
+      ]
+    }
+  ]
+}

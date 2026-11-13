@@ -1,0 +1,54 @@
+{
+  "query": {
+    "components": [
+      "Icon"
+    ],
+    "from": "lib",
+    "owners": ""
+  },
+  "usages": [
+    {
+      "component": "Icon",
+      "file": "a/b/logs/B.tsx",
+      "line": 3,
+      "column": 24,
+      "owners": [
+        "@org/logs"
+      ]
+    },
+    {
+      "component": "Icon",
+      "file": "logs/A.tsx",
+      "line": 3,
+      "column": 24,
+      "owners": [
+        "@org/logs"
+      ]
+    },
+    {
+      "component": "Icon",
+      "file": "src/C.test.tsx",
+      "line": 3,
+      "column": 24,
+      "owners": [
+        "@org/tests"
+      ]
+    },
+    {
+      "component": "Icon",
+      "file": "src/E.tsx",
+      "line": 3,
+      "column": 24,
+      "owners": []
+    },
+    {
+      "component": "Icon",
+      "file": "src/x/y/D.test.tsx",
+      "line": 3,
+      "column": 24,
+      "owners": [
+        "@org/tests"
+      ]
+    }
+  ]
+}

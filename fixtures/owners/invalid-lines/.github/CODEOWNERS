@@ -1,0 +1,3 @@
+* @org/everyone
+!src/ @org/negated
+/src/ not-an-owner

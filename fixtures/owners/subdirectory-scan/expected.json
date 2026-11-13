@@ -1,0 +1,21 @@
+{
+  "query": {
+    "components": [
+      "Icon"
+    ],
+    "from": "lib",
+    "owners": "",
+    "dir": "packages/app"
+  },
+  "usages": [
+    {
+      "component": "Icon",
+      "file": "A.tsx",
+      "line": 3,
+      "column": 24,
+      "owners": [
+        "@org/app"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "query": {
+    "components": [
+      "Icon"
+    ],
+    "from": "lib",
+    "owners": ""
+  },
+  "usages": [
+    {
+      "component": "Icon",
+      "file": "other/B.tsx",
+      "line": 3,
+      "column": 24,
+      "owners": [
+        "@org/everyone"
+      ]
+    },
+    {
+      "component": "Icon",
+      "file": "src/A.tsx",
+      "line": 3,
+      "column": 24,
+      "owners": [
+        "@org/src"
+      ]
+    }
+  ]
+}

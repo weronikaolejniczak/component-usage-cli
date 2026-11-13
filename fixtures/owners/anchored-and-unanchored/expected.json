@@ -1,0 +1,45 @@
+{
+  "query": {
+    "components": [
+      "Icon"
+    ],
+    "from": "lib",
+    "owners": ""
+  },
+  "usages": [
+    {
+      "component": "Icon",
+      "file": "apps/A.tsx",
+      "line": 3,
+      "column": 24,
+      "owners": [
+        "@org/apps"
+      ]
+    },
+    {
+      "component": "Icon",
+      "file": "nested/apps/B.tsx",
+      "line": 3,
+      "column": 24,
+      "owners": [
+        "@org/apps"
+      ]
+    },
+    {
+      "component": "Icon",
+      "file": "nested/top/D.tsx",
+      "line": 3,
+      "column": 24,
+      "owners": []
+    },
+    {
+      "component": "Icon",
+      "file": "top/C.tsx",
+      "line": 3,
+      "column": 24,
+      "owners": [
+        "@org/top"
+      ]
+    }
+  ]
+}

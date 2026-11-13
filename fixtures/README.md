@@ -31,3 +31,30 @@ Each folder under a group (e.g. `identify/`) is one test case: a small project p
 | `member-expression` | `<Icon.Item />` reported as `Icon.Item`, separate from `Icon` |
 | `same-name-other-module` | `Icon` from `other-lib` is not counted |
 | `shadowed-local` | A local `Icon` shadowing the import is not counted |
+
+## owners
+
+Code owners of each usage ([ADR-0013](../docs/decisions/0013-code-owners.md)). Expected owners follow [GitHub's CODEOWNERS rules](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners).
+
+Extra `query` fields:
+
+- `owners`: `""` passes `--owners`; a path passes `--owners <path>`, relative to the case folder.
+- `dir`: scan root relative to the case folder, if not the case folder itself.
+
+Extra top-level field: `warnings`, the skipped `CODEOWNERS` lines as `{ file, line }`.
+
+A `.git` folder can't be committed inside this repository, so the test runner copies the group to a temporary folder and adds `.git` to the case folder, making it the repository root.
+
+| Case | Covers |
+|---|---|
+| `last-match-wins` | A later line overrides an earlier one |
+| `anchored-and-unanchored` | `apps/` matches at any depth, `/top/` only at the root |
+| `direct-children` | `docs/*` matches files in `docs/` but not deeper |
+| `double-star` | `**/logs` and `/src/**/*.test.tsx` |
+| `no-owners` | A matching line without owners leaves files unowned |
+| `multiple-owners` | Several owners on one line, email owners, comments |
+| `case-sensitive` | `/SRC/` doesn't match `src/` |
+| `invalid-lines` | `!` negation and invalid owners skip the whole line, with a warning |
+| `location-order` | `.github/CODEOWNERS` wins over `CODEOWNERS` and `docs/CODEOWNERS` |
+| `subdirectory-scan` | Paths match from the repository root, not the scan root |
+| `explicit-file` | `--owners <path>` |
