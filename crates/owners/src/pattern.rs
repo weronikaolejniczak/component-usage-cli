@@ -15,6 +15,8 @@ pub(crate) struct Pattern {
 enum Segment {
     /// `**`
     AnyDepth,
+    Literal(String),
+    /// Contains `*` or `?`.
     Glob(String),
 }
 
@@ -43,13 +45,14 @@ impl Pattern {
                 .map(|part| {
                     if part == "**" {
                         Segment::AnyDepth
-                    } else {
+                    } else if part.contains(['*', '?']) {
                         Segment::Glob(part.to_owned())
+                    } else {
+                        Segment::Literal(part.to_owned())
                     }
                 }),
         );
-        let last_is_literal =
-            matches!(segments.last(), Some(Segment::Glob(glob)) if !glob.contains(['*', '?']));
+        let last_is_literal = matches!(segments.last(), Some(Segment::Literal(_)));
         if inside {
             segments.push(Segment::Glob("*".to_owned()));
         }
@@ -78,6 +81,9 @@ fn matches(segments: &[Segment], path: &[&str]) -> bool {
         Some((Segment::AnyDepth, rest)) => {
             (0..=path.len()).any(|skip| matches(rest, &path[skip..]))
         }
+        Some((Segment::Literal(literal), rest)) => path
+            .split_first()
+            .is_some_and(|(part, path)| part == literal && matches(rest, path)),
         Some((Segment::Glob(glob), rest)) => path
             .split_first()
             .is_some_and(|(part, path)| wildcard(glob, part) && matches(rest, path)),
@@ -86,17 +92,26 @@ fn matches(segments: &[Segment], path: &[&str]) -> bool {
 
 /// `*` matches any run of characters, `?` any one character.
 fn wildcard(glob: &str, text: &str) -> bool {
-    let glob: Vec<char> = glob.chars().collect();
-    let text: Vec<char> = text.chars().collect();
+    if glob.is_ascii() && text.is_ascii() {
+        wildcard_in(glob.as_bytes(), text.as_bytes())
+    } else {
+        let glob: Vec<char> = glob.chars().collect();
+        let text: Vec<char> = text.chars().collect();
+        wildcard_in(&glob, &text)
+    }
+}
+
+fn wildcard_in<T: Copy + PartialEq + From<u8>>(glob: &[T], text: &[T]) -> bool {
+    let (star, any) = (T::from(b'*'), T::from(b'?'));
     let (mut g, mut t) = (0, 0);
     let mut backtrack = None;
     while t < text.len() {
         match glob.get(g) {
-            Some('*') => {
+            Some(&char) if char == star => {
                 backtrack = Some((g, t));
                 g += 1;
             }
-            Some(&char) if char == '?' || char == text[t] => {
+            Some(&char) if char == any || char == text[t] => {
                 g += 1;
                 t += 1;
             }
@@ -110,5 +125,5 @@ fn wildcard(glob: &str, text: &str) -> bool {
             },
         }
     }
-    glob[g..].iter().all(|&char| char == '*')
+    glob[g..].iter().all(|&char| char == star)
 }

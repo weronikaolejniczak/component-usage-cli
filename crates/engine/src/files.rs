@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, PoisonError};
 
 use model::FileId;
 use report::{ErrorCode, FileError};
@@ -54,32 +55,39 @@ pub(crate) fn slashed(path: &Path) -> String {
         .join("/")
 }
 
-/// Source files under `root`, sorted. Walk failures are added to `errors`.
+/// Source files under `root`, sorted. Walk failures are added to `errors`, sorted.
 pub(crate) fn discover(root: &Path, errors: &mut Vec<FileError>) -> Vec<PathBuf> {
-    let walker = ignore::WalkBuilder::new(root)
+    let found = Mutex::new((Vec::new(), Vec::new()));
+    ignore::WalkBuilder::new(root)
         .hidden(false)
         .filter_entry(|entry| entry.file_name() != "node_modules" && entry.file_name() != ".git")
-        .build();
-    let mut paths = Vec::new();
-    for entry in walker {
-        match entry {
-            Ok(entry) => {
-                let path = entry.path();
-                if entry.file_type().is_some_and(|kind| kind.is_file()) && is_source(path) {
-                    paths.push(path.to_path_buf());
+        .build_parallel()
+        .run(|| {
+            Box::new(|entry| {
+                let mut found = found.lock().unwrap_or_else(PoisonError::into_inner);
+                match entry {
+                    Ok(entry) => {
+                        let path = entry.path();
+                        if entry.file_type().is_some_and(|kind| kind.is_file()) && is_source(path) {
+                            found.0.push(path.to_path_buf());
+                        }
+                    }
+                    Err(error) => found.1.push(FileError {
+                        file: display(error_path(&error).unwrap_or(root), root),
+                        location: None,
+                        code: ErrorCode::Read,
+                        message: error.to_string(),
+                        skipped: true,
+                        owners: None,
+                    }),
                 }
-            }
-            Err(error) => errors.push(FileError {
-                file: display(error_path(&error).unwrap_or(root), root),
-                location: None,
-                code: ErrorCode::Read,
-                message: error.to_string(),
-                skipped: true,
-                owners: None,
-            }),
-        }
-    }
+                ignore::WalkState::Continue
+            })
+        });
+    let (mut paths, mut walk_errors) = found.into_inner().unwrap_or_else(PoisonError::into_inner);
     paths.sort();
+    walk_errors.sort();
+    errors.extend(walk_errors);
     paths
 }
 

@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 use graph::{ModuleGraph, Origin, OriginError};
 use model::{FileId, Location, Usage};
-use parse::{AliasRoot, Binding, FileSummary, JsxElement};
+use parse::{AliasRoot, Binding, FileSummary, Imported, JsxElement};
 
 /// Resolved components to look for.
 #[derive(Debug)]
@@ -37,13 +37,14 @@ impl Targets {
         module: FileId,
         components: &[String],
     ) -> Result<Self, TargetError> {
+        let mut origins = Origins::new(graph);
         let mut by_key = HashMap::new();
         for component in components {
             let mut parts = component.split('.').map(str::to_owned);
             let export = parts.next().unwrap_or_default();
-            let key = graph
-                .export_origin(module, &export)
-                .and_then(|origin| key(graph, origin, parts.collect()))
+            let key = origins
+                .export(module, &export)
+                .and_then(|origin| origins.key(origin, parts.collect()))
                 .map_err(|error| TargetError {
                     component: component.clone(),
                     error,
@@ -87,6 +88,7 @@ pub struct Identified {
 /// Finds usages of `targets` among the JSX elements of `files`.
 #[must_use]
 pub fn identify(graph: &ModuleGraph, files: &[FileId], targets: &Targets) -> Identified {
+    let mut origins = Origins::new(graph);
     let mut identified = Identified::default();
     for &file in files {
         let Some(module) = graph.module(file) else {
@@ -94,13 +96,13 @@ pub fn identify(graph: &ModuleGraph, files: &[FileId], targets: &Targets) -> Ide
         };
         for element in &module.summary.elements {
             let (origin, members, via) = match element.binding {
-                Binding::Import(import) => (graph.origin(file, import), Vec::new(), None),
+                Binding::Import(import) => (origins.import(file, import), Vec::new(), None),
                 Binding::Alias(index) => {
                     let Some(alias) = module.summary.aliases.get(index) else {
                         continue;
                     };
                     (
-                        graph.alias_origin(file, index),
+                        origins.alias(file, &alias.root),
                         alias.members.clone(),
                         Some(&alias.root),
                     )
@@ -115,7 +117,7 @@ pub fn identify(graph: &ModuleGraph, files: &[FileId], targets: &Targets) -> Ide
                 cause,
             };
             let members = members.into_iter().chain(element.members.iter().cloned());
-            let key = origin.and_then(|origin| key(graph, origin, members.collect()));
+            let key = origin.and_then(|origin| origins.key(origin, members.collect()));
             match key {
                 Ok(key) => {
                     let Some(component) = targets.by_key.get(&key).cloned() else {
@@ -172,23 +174,64 @@ fn source(summary: &FileSummary, element: &JsxElement) -> Option<String> {
     }
 }
 
-fn key(graph: &ModuleGraph, mut origin: Origin, members: Vec<String>) -> Result<Key, OriginError> {
-    let mut members = members.into_iter();
-    let mut rest = Vec::new();
-    for member in members.by_ref() {
-        match origin {
-            Origin::Namespace(module) => origin = graph.export_origin(module, &member)?,
-            Origin::Export(_) => {
-                rest.push(member);
-                break;
-            }
+/// Origin lookups, memoised by export: many elements across files import the same names.
+struct Origins<'g> {
+    graph: &'g ModuleGraph,
+    exports: HashMap<(FileId, String), Result<Origin, OriginError>>,
+}
+
+impl<'g> Origins<'g> {
+    fn new(graph: &'g ModuleGraph) -> Self {
+        Self {
+            graph,
+            exports: HashMap::new(),
         }
     }
-    rest.extend(members);
-    Ok(Key {
-        origin,
-        members: rest,
-    })
+
+    fn export(&mut self, module: FileId, name: &str) -> Result<Origin, OriginError> {
+        let graph = self.graph;
+        self.exports
+            .entry((module, name.to_owned()))
+            .or_insert_with(|| graph.export_origin(module, name))
+            .clone()
+    }
+
+    fn import(&mut self, file: FileId, import: usize) -> Result<Origin, OriginError> {
+        match self.graph.import_target(file, import)? {
+            (target, Imported::Namespace) => Ok(Origin::Namespace(target)),
+            (target, Imported::Name(name)) => self.export(target, name),
+        }
+    }
+
+    /// Origin of an alias's root, before its members. `require` returns the module's namespace.
+    fn alias(&mut self, file: FileId, root: &AliasRoot) -> Result<Origin, OriginError> {
+        match root {
+            AliasRoot::Import(import) => self.import(file, *import),
+            AliasRoot::Require(specifier) => self
+                .graph
+                .specifier_target(file, specifier)
+                .map(Origin::Namespace),
+        }
+    }
+
+    fn key(&mut self, mut origin: Origin, members: Vec<String>) -> Result<Key, OriginError> {
+        let mut members = members.into_iter();
+        let mut rest = Vec::new();
+        for member in members.by_ref() {
+            match origin {
+                Origin::Namespace(module) => origin = self.export(module, &member)?,
+                Origin::Export(_) => {
+                    rest.push(member);
+                    break;
+                }
+            }
+        }
+        rest.extend(members);
+        Ok(Key {
+            origin,
+            members: rest,
+        })
+    }
 }
 
 #[cfg(test)]

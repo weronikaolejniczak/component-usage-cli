@@ -283,9 +283,7 @@ fn code(error: &OriginError) -> UnidentifiedCode {
         OriginError::MissingExport { .. } => UnidentifiedCode::MissingExport,
         OriginError::Ambiguous { .. } => UnidentifiedCode::Ambiguous,
         OriginError::Cycle { .. } => UnidentifiedCode::Cycle,
-        OriginError::MissingImport { .. } | OriginError::MissingAlias { .. } => {
-            UnidentifiedCode::Internal
-        }
+        OriginError::MissingImport { .. } => UnidentifiedCode::Internal,
     }
 }
 
@@ -301,9 +299,6 @@ fn describe(error: &OriginError, files: &Files, root: &Path) -> String {
         ),
         OriginError::MissingImport { file, import } => {
             format!("{} has no import #{import}", files.display(*file, root))
-        }
-        OriginError::MissingAlias { file, alias } => {
-            format!("{} has no alias #{alias}", files.display(*file, root))
         }
         OriginError::Unparsed { module } => {
             format!("{} couldn't be parsed", files.display(*module, root))

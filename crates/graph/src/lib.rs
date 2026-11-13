@@ -42,8 +42,6 @@ pub enum OriginError {
     },
     #[error("module has no import #{import}")]
     MissingImport { file: FileId, import: usize },
-    #[error("module has no alias #{alias}")]
-    MissingAlias { file: FileId, alias: usize },
     #[error("module wasn't parsed")]
     Unparsed { module: FileId },
     #[error("module has no export '{name}'")]
@@ -76,21 +74,25 @@ impl ModuleGraph {
         self.import_origin(file, import, &mut HashSet::new())
     }
 
-    /// Origin of the root of the alias at `alias` in `file`'s [`FileSummary::aliases`], before
-    /// its members. A `require` call is the required module's namespace.
-    pub fn alias_origin(&self, file: FileId, alias: usize) -> Result<Origin, OriginError> {
+    /// The module the import at `import` in `file`'s [`FileSummary::imports`] resolves to, and
+    /// what it imports from it.
+    pub fn import_target(
+        &self,
+        file: FileId,
+        import: usize,
+    ) -> Result<(FileId, &Imported), OriginError> {
         let module = self.parsed(file)?;
-        let alias = module
+        let import = module
             .summary
-            .aliases
-            .get(alias)
-            .ok_or(OriginError::MissingAlias { file, alias })?;
-        match &alias.root {
-            AliasRoot::Import(import) => self.origin(file, *import),
-            AliasRoot::Require(specifier) => {
-                self.target(file, module, specifier).map(Origin::Namespace)
-            }
-        }
+            .imports
+            .get(import)
+            .ok_or(OriginError::MissingImport { file, import })?;
+        Ok((self.target(file, module, &import.source)?, &import.imported))
+    }
+
+    /// The module `specifier` resolves to from `file`.
+    pub fn specifier_target(&self, file: FileId, specifier: &str) -> Result<FileId, OriginError> {
+        self.target(file, self.parsed(file)?, specifier)
     }
 
     /// Origin of the export `name` of `module`.
@@ -108,14 +110,8 @@ impl ModuleGraph {
         import: usize,
         visiting: &mut HashSet<(FileId, String)>,
     ) -> Result<Origin, OriginError> {
-        let module = self.parsed(file)?;
-        let import = module
-            .summary
-            .imports
-            .get(import)
-            .ok_or(OriginError::MissingImport { file, import })?;
-        let target = self.target(file, module, &import.source)?;
-        match &import.imported {
+        let (target, imported) = self.import_target(file, import)?;
+        match imported {
             Imported::Namespace => Ok(Origin::Namespace(target)),
             Imported::Name(name) => self.find_export(target, name, visiting)?.ok_or_else(|| {
                 OriginError::MissingExport {

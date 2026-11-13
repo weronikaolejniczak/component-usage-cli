@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use owners::{CodeOwners, Problem};
+use rayon::prelude::*;
 use report::{Report, Warning, WarningCode};
 
 use crate::files::{display, slashed};
@@ -69,13 +70,23 @@ pub(crate) fn load(root: &Path, source: &Owners, report: &mut Report) -> Result<
 impl Loaded {
     /// Sets `owners` on every result. Report paths are relative to `root` or absolute.
     pub(crate) fn attach(&self, root: &Path, report: &mut Report) {
-        let mut cache: HashMap<String, Vec<String>> = HashMap::new();
-        let mut owners = |file: &str| {
-            cache
-                .entry(file.to_owned())
-                .or_insert_with(|| self.owners_of(&root.join(file)))
-                .clone()
-        };
+        let files: HashSet<&str> = report
+            .usages
+            .iter()
+            .map(|usage| usage.file.as_str())
+            .chain(
+                report
+                    .unidentified
+                    .iter()
+                    .map(|unidentified| unidentified.file.as_str()),
+            )
+            .chain(report.errors.iter().map(|error| error.file.as_str()))
+            .collect();
+        let by_file: HashMap<String, Vec<String>> = files
+            .into_par_iter()
+            .map(|file| (file.to_owned(), self.owners_of(&root.join(file))))
+            .collect();
+        let owners = |file: &str| by_file.get(file).cloned().unwrap_or_default();
         for usage in &mut report.usages {
             usage.owners = Some(owners(&usage.file));
         }
