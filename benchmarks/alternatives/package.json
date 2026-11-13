@@ -1,0 +1,9 @@
+{
+  "name": "alternatives",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@ast-grep/cli": "0.51.2",
+    "react-scanner": "1.2.0"
+  }
+}
