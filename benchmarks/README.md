@@ -20,8 +20,9 @@ Kibana at `6dce6e1bbcf1fcc46be7011088c3aa1e81feba19`: 105,517 source files scann
 |---|---|---|---|
 | [`b348c32`](./results/kibana-b348c32/) | 26.56 s | 26.06 s | 27.73 s |
 | [`55fb6a9`](./results/kibana-55fb6a9/) | 4.41 s | 4.00 s | 5.46 s |
+| [`09dad13`](./results/kibana-09dad13/) | 3.90 s | 3.81 s | 4.00 s |
 
-Both commits produce byte-identical reports. `55fb6a9` caches export lookups and runs file discovery and `CODEOWNERS` matching in parallel; matching was most of the time before.
+`b348c32` and `55fb6a9` produce byte-identical reports. `55fb6a9` caches export lookups and runs file discovery and `CODEOWNERS` matching in parallel; matching was most of the time before. `09dad13` gives unidentified elements from CommonJS modules their own code; usages are unchanged.
 
 Report: 4,640 usages in 3,084 files, 0 errors, 0 warnings.
 
@@ -46,8 +47,11 @@ Owners weren't compared with what GitHub shows yet.
 
 ### What the tool got wrong or couldn't resolve
 
-- 2,374 of 2,375 unidentified elements are `missing-export`: tags imported from CommonJS packages (`react`: 1,506, `@elastic/charts`: 845, others: 23), whose exports aren't read. None of them can be a target.
-- 1 is `alias` (`EuiPopover` through a local constant).
+Of 2,375 unidentified elements in the `09dad13` report:
+
+- 2,373 are `commonjs-module`: tags imported from packages without ES exports, mainly `react` and `@elastic/charts`, whose exports aren't read.
+- 1 is `missing-export`: an example app imports `SideNavigation` from a package index that doesn't export it.
+- 1 is `alias`: `EuiPopover` through a local constant.
 
 ## Codebases
 
