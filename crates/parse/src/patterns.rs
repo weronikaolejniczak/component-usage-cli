@@ -1,14 +1,7 @@
 use oxc_ast::ast::{BindingPattern, Expression};
 use oxc_semantic::SymbolId;
 
-/// One step into a destructured value.
-#[derive(Clone)]
-pub(crate) enum Segment {
-    /// A static key of an object pattern.
-    Key(String),
-    /// A position in an array pattern.
-    Index(usize),
-}
+use crate::Segment;
 
 /// A name a pattern declares.
 pub(crate) struct Leaf<'p, 'a> {

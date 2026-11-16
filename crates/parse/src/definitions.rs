@@ -11,7 +11,7 @@ use oxc_syntax::operator::UnaryOperator;
 use oxc_syntax::scope::ScopeFlags;
 
 use crate::attributes::Exprs;
-use crate::patterns::{Segment, leaves};
+use crate::patterns::leaves;
 use crate::scope::Scope;
 use crate::{Definition, Expr, ExprKind};
 
@@ -36,15 +36,29 @@ const MUTATING_OBJECT_FUNCTIONS: &[&str] = &[
     "setPrototypeOf",
 ];
 
-/// Defines every name [`Exprs`] has referred to, including names the definitions refer to. Each
+/// What definitions are for.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Mode {
+    /// Prop values: names changed after their declaration are [`Definition::Mutated`], and names
+    /// behind a default on an inner pattern aren't followed.
+    Values,
+    /// JSX tags, which are reported when they may be a component: every name is defined by its
+    /// declaration, whatever happens to it later or on the way.
+    Tags,
+}
+
+/// Defines every name `exprs` has referred to, including names the definitions refer to. Each
 /// round walks the program for the names added by the round before.
-pub(crate) fn definitions(program: &Program, exprs: &Exprs) -> Vec<Definition> {
+pub(crate) fn definitions(program: &Program, exprs: &Exprs, mode: Mode) -> Vec<Definition> {
+    let mutations = mode == Mode::Values;
     let scoping = exprs.scope.scoping;
     let mut changed = Changed {
         scope: exprs.scope,
         symbols: HashSet::new(),
     };
-    changed.visit_program(program);
+    if mutations {
+        changed.visit_program(program);
+    }
 
     let mut definitions = Vec::new();
     loop {
@@ -54,6 +68,7 @@ pub(crate) fn definitions(program: &Program, exprs: &Exprs) -> Vec<Definition> {
         }
         let mut round = Round {
             exprs,
+            mode,
             wanted: symbols.iter().copied().collect(),
             found: HashMap::new(),
             in_loop_head: false,
@@ -63,10 +78,10 @@ pub(crate) fn definitions(program: &Program, exprs: &Exprs) -> Vec<Definition> {
             let flags = scoping.symbol_flags(symbol);
             let redeclared = flags.contains(SymbolFlags::FunctionScopedVariable)
                 && scoping.symbol_declarations(symbol).count() > 1;
-            let definition = if scoping.symbol_is_mutated(symbol)
+            let mutated = scoping.symbol_is_mutated(symbol)
                 || redeclared
-                || changed.symbols.contains(&symbol)
-            {
+                || changed.symbols.contains(&symbol);
+            let definition = if mutations && mutated {
                 Definition::Mutated
             } else {
                 round
@@ -81,6 +96,7 @@ pub(crate) fn definitions(program: &Program, exprs: &Exprs) -> Vec<Definition> {
 
 struct Round<'e, 's> {
     exprs: &'e Exprs<'s>,
+    mode: Mode,
     wanted: HashSet<SymbolId>,
     found: HashMap<SymbolId, Definition>,
     in_loop_head: bool,
@@ -97,7 +113,9 @@ impl<'a> Visit<'a> for Round<'_, '_> {
         if !self.in_loop_head {
             let mut init: Option<Expr> = None;
             for leaf in leaves(&declarator.id) {
-                if leaf.inner_default || !self.wanted.contains(&leaf.symbol) {
+                if (leaf.inner_default && self.mode == Mode::Values)
+                    || !self.wanted.contains(&leaf.symbol)
+                {
                     continue;
                 }
                 let init = init
@@ -109,14 +127,7 @@ impl<'a> Visit<'a> for Round<'_, '_> {
                         },
                     })
                     .clone();
-                let path = leaf
-                    .path
-                    .into_iter()
-                    .map(|segment| match segment {
-                        Segment::Key(key) => key,
-                        Segment::Index(index) => index.to_string(),
-                    })
-                    .collect();
+                let path = leaf.path;
                 let default = leaf.default.map(|default| self.exprs.expr(default));
                 self.found.insert(
                     leaf.symbol,

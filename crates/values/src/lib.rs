@@ -8,7 +8,7 @@ use std::cell::RefCell;
 use model::{
     Entry, Item, Literal, Location, Part, Prop, Step, UnresolvedCode, Value, ValueKind, Via,
 };
-use parse::{Attribute, Definition, Expr, ExprKind, FileSummary, Key, Reference};
+use parse::{Attribute, Definition, Expr, ExprKind, FileSummary, Key, Reference, Segment};
 
 /// The attributes of `element`, an element of `file`, in source order. With `filter`, only the
 /// named ones, and spreads, which may set any prop.
@@ -110,7 +110,9 @@ impl Resolver<'_> {
                 Reference::Parameter => unresolved(UnresolvedCode::Parameter, None, text),
                 Reference::Global => unresolved(UnresolvedCode::Global, None, text),
             },
-            ExprKind::Call { text } => unresolved(UnresolvedCode::Call, None, text),
+            ExprKind::Call { text } | ExprKind::Require { text, .. } => {
+                unresolved(UnresolvedCode::Call, None, text)
+            }
             ExprKind::Unsupported { text } => unresolved(UnresolvedCode::Unsupported, None, text),
         };
         at(expr.location, kind)
@@ -135,8 +137,12 @@ impl Resolver<'_> {
             } => {
                 self.active.borrow_mut().push(index);
                 let mut value = self.value(init);
-                for key in pattern {
-                    value = lookup(value, &Key::Static(key.clone()), text, location);
+                for segment in pattern {
+                    let key = match segment {
+                        Segment::Key(key) => key.clone(),
+                        Segment::Index(index) => index.to_string(),
+                    };
+                    value = lookup(value, &Key::Static(key), text, location);
                 }
                 if let Some(default) = default
                     && value.kind == ValueKind::Undefined

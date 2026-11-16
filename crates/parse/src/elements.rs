@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use oxc_ast::ast::{
     IdentifierReference, JSXAttribute, JSXElement, JSXElementName, JSXMemberExpression,
     JSXMemberExpressionObject, Program,
@@ -9,39 +7,28 @@ use oxc_semantic::SymbolId;
 
 use model::Location;
 
-use crate::aliases::Aliases;
 use crate::attributes::{Exprs, attribute_name};
 use crate::scope::Declared;
-use crate::{Alias, Binding, JsxElement, Parent};
+use crate::{Binding, JsxElement, Parent};
 
-/// The JSX elements whose tag refers to a binding, in source order, and the aliases their tags
-/// refer to, indexed by [`Binding::Alias`].
-pub(crate) fn elements(
-    program: &Program,
-    exprs: &Exprs,
-    aliases: &Aliases,
-) -> (Vec<JsxElement>, Vec<Alias>) {
+/// The JSX elements whose tag refers to a binding, in source order, each with the local name its
+/// tag starts with, if any. Those elements are [`Binding::Local`] until `alias` says otherwise.
+pub(crate) fn elements(program: &Program, exprs: &Exprs) -> Vec<(JsxElement, Option<SymbolId>)> {
     let mut collector = Elements {
         exprs,
-        aliases,
         frames: Vec::new(),
-        alias_of: HashMap::new(),
-        used_aliases: Vec::new(),
         elements: Vec::new(),
     };
     collector.visit_program(program);
     let mut elements = collector.elements;
-    elements.sort_by_key(|element| element.location);
-    (elements, collector.used_aliases)
+    elements.sort_by_key(|(element, _)| element.location);
+    elements
 }
 
 struct Elements<'e, 's> {
     exprs: &'e Exprs<'s>,
-    aliases: &'e Aliases<'s>,
     frames: Vec<Frame>,
-    alias_of: HashMap<SymbolId, usize>,
-    used_aliases: Vec<Alias>,
-    elements: Vec<JsxElement>,
+    elements: Vec<(JsxElement, Option<SymbolId>)>,
 }
 
 /// An element being visited. `location` is set when it's in [`Elements::elements`].
@@ -55,7 +42,7 @@ impl<'a> Visit<'a> for Elements<'_, '_> {
         let opening = &element.opening_element;
         let location = tag(&opening.name).map(|(root, members)| {
             let location = self.exprs.scope.lines.location(opening.span.start);
-            let binding = self.binding(root);
+            let (binding, local) = self.binding(root);
             let parent = self.frames.iter().rev().find_map(|frame| {
                 Some(Parent {
                     location: frame.location?,
@@ -67,14 +54,17 @@ impl<'a> Visit<'a> for Elements<'_, '_> {
                 .iter()
                 .map(|attribute| self.exprs.attribute(attribute))
                 .collect();
-            self.elements.push(JsxElement {
-                location,
-                root: root.name.to_string(),
-                members,
-                binding,
-                parent,
-                attributes,
-            });
+            self.elements.push((
+                JsxElement {
+                    location,
+                    root: root.name.to_string(),
+                    members,
+                    binding,
+                    parent,
+                    attributes,
+                },
+                local,
+            ));
             location
         });
         self.frames.push(Frame {
@@ -99,23 +89,15 @@ impl Elements<'_, '_> {
         }
     }
 
-    fn binding(&mut self, root: &IdentifierReference) -> Binding {
+    fn binding(&self, root: &IdentifierReference) -> (Binding, Option<SymbolId>) {
         let scope = self.exprs.scope;
         let Some(symbol) = scope.symbol(root) else {
-            return Binding::Global;
+            return (Binding::Global, None);
         };
-        if let Declared::Import(import) = scope.declared(symbol) {
-            return Binding::Import(import);
+        match scope.declared(symbol) {
+            Declared::Import(import) => (Binding::Import(import), None),
+            Declared::Parameter | Declared::Local => (Binding::Local, Some(symbol)),
         }
-        if let Some(&alias) = self.alias_of.get(&symbol) {
-            return Binding::Alias(alias);
-        }
-        let Some(alias) = self.aliases.resolve(symbol) else {
-            return Binding::Local;
-        };
-        self.used_aliases.push(alias);
-        self.alias_of.insert(symbol, self.used_aliases.len() - 1);
-        Binding::Alias(self.used_aliases.len() - 1)
     }
 }
 

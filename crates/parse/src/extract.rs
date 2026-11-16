@@ -1,23 +1,26 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Path;
 
 use oxc_allocator::Allocator;
+use oxc_ast::ast::Program;
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::Parser;
-use oxc_semantic::SemanticBuilder;
+use oxc_semantic::{SemanticBuilder, SymbolId};
 use oxc_span::SourceType;
 use oxc_syntax::module_record::{
     ExportEntry, ExportExportName, ExportImportName, ImportEntry, ImportImportName,
 };
 
-use crate::aliases::Aliases;
-use crate::attributes::{Exprs, Variables};
-use crate::definitions::definitions;
+use crate::aliases::alias;
+use crate::attributes::Exprs;
+use crate::definitions::{Mode, definitions};
 use crate::elements::elements;
 use crate::lines::LineIndex;
 use crate::scope::Scope;
-use crate::{Definition, Export, FileSummary, Import, Imported, Options, ParseError, SyntaxError};
+use crate::{
+    Alias, Binding, Definition, Export, FileSummary, Import, Imported, JsxElement, Options,
+    ParseError, SyntaxError,
+};
 
 pub(crate) fn extract(
     path: &Path,
@@ -73,15 +76,11 @@ pub(crate) fn extract(
     errors.sort_by_key(|error| error.location);
     let semantic = built.semantic;
     let scope = Scope::new(&parsed.program, semantic.scoping(), &lines, import_at);
-    let aliases = Aliases::new(&parsed.program, &scope);
-    let exprs = Exprs {
-        source,
-        scope: &scope,
-        variables: RefCell::new(Variables::default()),
-    };
-    let (elements, aliases) = elements(&parsed.program, &exprs, &aliases);
+    let exprs = Exprs::new(source, &scope);
+    let elements = elements(&parsed.program, &exprs);
+    let (elements, aliases) = bind_aliases(&parsed.program, &scope, source, elements);
     let definitions = if options.variables {
-        definitions(&parsed.program, &exprs)
+        definitions(&parsed.program, &exprs, Mode::Values)
     } else {
         vec![Definition::NotFollowed; exprs.variables.borrow().symbols.len()]
     };
@@ -94,6 +93,43 @@ pub(crate) fn extract(
         definitions,
         errors,
     })
+}
+
+/// Sets [`Binding::Alias`] on elements whose tag starts with a local name that refers to an
+/// import or `require`. Tags are followed by their declarations, separately from attribute
+/// values and whatever `--follow` says: a tag that may be a component is always reported.
+fn bind_aliases(
+    program: &Program,
+    scope: &Scope,
+    source: &str,
+    elements: Vec<(JsxElement, Option<SymbolId>)>,
+) -> (Vec<JsxElement>, Vec<Alias>) {
+    let tags = Exprs::new(source, scope);
+    let locals: Vec<Option<usize>> = elements
+        .iter()
+        .map(|(_, local)| local.map(|symbol| tags.variable(symbol)))
+        .collect();
+    let definitions = definitions(program, &tags, Mode::Tags);
+    let mut aliases = Vec::new();
+    let mut alias_of: HashMap<usize, Option<usize>> = HashMap::new();
+    let elements = elements
+        .into_iter()
+        .zip(locals)
+        .map(|((mut element, _), local)| {
+            if let Some(local) = local {
+                let alias = *alias_of.entry(local).or_insert_with(|| {
+                    let alias = alias(&definitions, local)?;
+                    aliases.push(alias);
+                    Some(aliases.len() - 1)
+                });
+                if let Some(alias) = alias {
+                    element.binding = Binding::Alias(alias);
+                }
+            }
+            element
+        })
+        .collect();
+    (elements, aliases)
 }
 
 fn import(entry: &ImportEntry) -> Import {

@@ -2,9 +2,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use oxc_ast::ast::{
-    ArrayExpressionElement, ChainElement, Expression, IdentifierReference, JSXAttributeItem,
-    JSXAttributeName, JSXAttributeValue, JSXExpression, MemberExpression, ObjectPropertyKind,
-    TemplateLiteral,
+    Argument, ArrayExpressionElement, CallExpression, ChainElement, Expression,
+    IdentifierReference, JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXExpression,
+    MemberExpression, ObjectPropertyKind, TemplateLiteral,
 };
 use oxc_semantic::SymbolId;
 use oxc_span::{GetSpan, Span};
@@ -24,6 +24,16 @@ pub(crate) struct Exprs<'s> {
 pub(crate) struct Variables {
     index: HashMap<SymbolId, usize>,
     pub(crate) symbols: Vec<SymbolId>,
+}
+
+impl<'s> Exprs<'s> {
+    pub(crate) fn new(source: &'s str, scope: &'s Scope<'s>) -> Self {
+        Self {
+            source,
+            scope,
+            variables: RefCell::new(Variables::default()),
+        }
+    }
 }
 
 impl<'a> Exprs<'_> {
@@ -171,8 +181,15 @@ impl<'a> Exprs<'_> {
             Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_) => {
                 ExprKind::Function
             }
-            Expression::CallExpression(_) => ExprKind::Call {
-                text: self.text(span),
+            Expression::CallExpression(call) => match self.require(call) {
+                Some(specifier) => ExprKind::Require {
+                    specifier,
+                    text: self.text(span),
+                    path: Vec::new(),
+                },
+                None => ExprKind::Call {
+                    text: self.text(span),
+                },
             },
             Expression::ChainExpression(_)
             | Expression::StaticMemberExpression(_)
@@ -230,7 +247,14 @@ impl<'a> Exprs<'_> {
                 text,
                 path,
             },
-            Expression::CallExpression(_) => ExprKind::Call { text },
+            Expression::CallExpression(call) => match self.require(call) {
+                Some(specifier) => ExprKind::Require {
+                    specifier,
+                    text,
+                    path,
+                },
+                None => ExprKind::Call { text },
+            },
             _ => ExprKind::Unsupported { text },
         }
     }
@@ -276,7 +300,21 @@ impl<'a> Exprs<'_> {
         }
     }
 
-    fn variable(&self, symbol: SymbolId) -> usize {
+    /// The specifier of `require('specifier')`, when `require` isn't declared in the file.
+    fn require(&self, call: &CallExpression) -> Option<String> {
+        let Expression::Identifier(callee) = call.callee.get_inner_expression() else {
+            return None;
+        };
+        let [Argument::StringLiteral(specifier)] = call.arguments.as_slice() else {
+            return None;
+        };
+        let specifier = specifier.value.as_str()?;
+        (callee.name == "require" && self.scope.symbol(callee).is_none())
+            .then(|| specifier.to_owned())
+    }
+
+    /// The index of `symbol` in [`Variables::symbols`], adding it if it isn't there.
+    pub(crate) fn variable(&self, symbol: SymbolId) -> usize {
         let mut variables = self.variables.borrow_mut();
         let next = variables.symbols.len();
         let index = *variables.index.entry(symbol).or_insert(next);

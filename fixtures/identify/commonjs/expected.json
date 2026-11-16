@@ -3,6 +3,7 @@
   "usages": [],
   "unidentified": [
     { "file": "App.jsx", "line": 5, "column": 24, "code": "commonjs", "component": "Icon" },
-    { "file": "App.jsx", "line": 6, "column": 24, "code": "commonjs", "component": "Icon" }
+    { "file": "App.jsx", "line": 6, "column": 24, "code": "commonjs", "component": "Icon" },
+    { "file": "App.jsx", "line": 9, "column": 24, "code": "commonjs", "component": "Icon" }
   ]
 }

@@ -25,7 +25,8 @@ pub struct FileSummary {
     pub imports: Vec<Import>,
     pub exports: Vec<Export>,
     pub elements: Vec<JsxElement>,
-    /// Local constants that JSX elements refer to, indexed by [`Binding::Alias`].
+    /// Local names that JSX tags refer to imports or `require` through, indexed by
+    /// [`Binding::Alias`].
     pub aliases: Vec<Alias>,
     /// What the names in attributes are declared as, indexed by [`Reference::Variable`].
     pub definitions: Vec<Definition>,
@@ -134,6 +135,13 @@ pub enum ExprKind {
         /// Property accesses after the name: `[Static("icon")]` in `item.icon`.
         path: Vec<Key>,
     },
+    /// `require('specifier')`, with `require` not declared in the file, or a member access on
+    /// it.
+    Require {
+        specifier: String,
+        text: String,
+        path: Vec<Key>,
+    },
     /// A call, or a member access on one.
     Call {
         text: String,
@@ -185,6 +193,15 @@ pub enum Key {
     Dynamic,
 }
 
+/// One step into a destructured value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Segment {
+    /// A static key of an object pattern.
+    Key(String),
+    /// A position in an array pattern.
+    Index(usize),
+}
+
 /// What a name declared in the file holds, when [`Options::variables`] is set.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
@@ -193,7 +210,7 @@ pub enum Definition {
     /// its default, as in `const { name = default } = init`.
     Value {
         init: Expr,
-        path: Vec<String>,
+        path: Vec<Segment>,
         default: Option<Expr>,
     },
     /// A function declaration, at its start.
