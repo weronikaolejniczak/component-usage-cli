@@ -1,0 +1,40 @@
+{
+  "query": { "components": ["Button", "FormRow", "Icon", "Popover", "Select"], "from": "lib" },
+  "usages": [
+    { "component": "FormRow", "file": "App.tsx", "line": 5, "column": 3, "parents": [] },
+    {
+      "component": "Popover", "file": "App.tsx", "line": 6, "column": 5,
+      "parents": [{ "component": "FormRow", "line": 5, "column": 3 }]
+    },
+    {
+      "component": "Button", "file": "App.tsx", "line": 6, "column": 22,
+      "parents": [
+        { "component": "Popover", "line": 6, "column": 5, "prop": "button" },
+        { "component": "FormRow", "line": 5, "column": 3 }
+      ]
+    },
+    {
+      "component": "Icon", "file": "App.tsx", "line": 6, "column": 30,
+      "parents": [
+        { "component": "Button", "line": 6, "column": 22 },
+        { "component": "Popover", "line": 6, "column": 5, "prop": "button" },
+        { "component": "FormRow", "line": 5, "column": 3 }
+      ]
+    },
+    {
+      "component": "Select", "file": "App.tsx", "line": 9, "column": 11,
+      "parents": [
+        { "component": "Popover", "line": 6, "column": 5 },
+        { "component": "FormRow", "line": 5, "column": 3 }
+      ]
+    },
+    {
+      "component": "Icon", "file": "App.tsx", "line": 9, "column": 39,
+      "parents": [
+        { "component": "Select", "line": 9, "column": 11, "prop": "renderOption" },
+        { "component": "Popover", "line": 6, "column": 5 },
+        { "component": "FormRow", "line": 5, "column": 3 }
+      ]
+    }
+  ]
+}

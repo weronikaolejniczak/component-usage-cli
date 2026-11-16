@@ -97,6 +97,48 @@ impl ModuleGraph {
         self.target(file, self.parsed(file)?, specifier)
     }
 
+    /// Names `module` exports, including through `export *`, other than `default`, sorted.
+    /// Modules that can't be resolved or parsed contribute none.
+    #[must_use]
+    pub fn export_names(&self, module: FileId) -> Vec<String> {
+        let mut names = HashSet::new();
+        let mut visited = HashSet::new();
+        self.collect_names(module, &mut names, &mut visited);
+        let mut names: Vec<String> = names.into_iter().collect();
+        names.sort();
+        names
+    }
+
+    fn collect_names(
+        &self,
+        id: FileId,
+        names: &mut HashSet<String>,
+        visited: &mut HashSet<FileId>,
+    ) {
+        if !visited.insert(id) {
+            return;
+        }
+        let Some(module) = self.module(id) else {
+            return;
+        };
+        for export in &module.summary.exports {
+            match export {
+                Export::Local { exported, .. }
+                | Export::Reexport { exported, .. }
+                | Export::Namespace { exported, .. } => {
+                    if exported != "default" {
+                        names.insert(exported.clone());
+                    }
+                }
+                Export::Star { source } => {
+                    if let Ok(target) = self.target(id, module, source) {
+                        self.collect_names(target, names, visited);
+                    }
+                }
+            }
+        }
+    }
+
     /// Origin of the export `name` of `module`.
     pub fn export_origin(&self, module: FileId, name: &str) -> Result<Origin, OriginError> {
         self.find_export(module, name, &mut HashSet::new())?

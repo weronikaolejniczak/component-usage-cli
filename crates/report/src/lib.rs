@@ -5,10 +5,11 @@
 use std::io::{self, Write};
 
 use model::Location;
+pub use model::{Parent, Prop};
 use serde::Serialize;
 
 /// Paths are relative to the scan root, with `/` separators.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize)]
 pub struct Report {
     pub usages: Vec<Usage>,
     /// JSX elements that may or may not be usages, because their origin couldn't be determined.
@@ -19,12 +20,16 @@ pub struct Report {
     pub warnings: Vec<Warning>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Usage {
     pub file: String,
     #[serde(flatten)]
     pub location: Location,
     pub component: String,
+    /// Enclosing usages, nearest first.
+    pub parents: Vec<Parent>,
+    /// Attributes in source order.
+    pub props: Vec<Prop>,
     /// Code owners of `file`; empty if unowned. Absent unless owners were requested.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub owners: Option<Vec<String>>,
@@ -121,7 +126,8 @@ pub enum ErrorCode {
 impl Report {
     /// Sorts every list by file path, then position.
     pub fn sort(&mut self) {
-        self.usages.sort();
+        self.usages
+            .sort_by(|a, b| (&a.file, a.location).cmp(&(&b.file, b.location)));
         self.unidentified.sort();
         self.errors.sort();
         self.warnings.sort();
@@ -144,9 +150,9 @@ pub fn write(report: &Report, format: Format, mut writer: impl Write) -> io::Res
 
 #[cfg(test)]
 mod tests {
-    use model::Location;
+    use model::{Literal, Location, Step, UnresolvedCode, Value, ValueKind};
 
-    use super::{ErrorCode, FileError, Format, Report, Usage, write};
+    use super::{ErrorCode, FileError, Format, Parent, Prop, Report, Usage, write};
 
     #[test]
     fn json() {
@@ -155,6 +161,38 @@ mod tests {
                 file: "src/App.tsx".to_owned(),
                 location: Location { line: 3, column: 5 },
                 component: "Icon".to_owned(),
+                parents: vec![Parent {
+                    component: "Popover".to_owned(),
+                    location: Location { line: 2, column: 3 },
+                    prop: Some("button".to_owned()),
+                }],
+                props: vec![
+                    Prop::Named {
+                        name: "size".to_owned(),
+                        value: Value {
+                            kind: ValueKind::Literal {
+                                value: Literal::Integer(16),
+                            },
+                            location: Location {
+                                line: 3,
+                                column: 17,
+                            },
+                        },
+                    },
+                    Prop::Spread {
+                        spread: Value {
+                            kind: ValueKind::Unresolved {
+                                code: UnresolvedCode::NotFollowed,
+                                step: Some(Step::Variables),
+                                text: "rest".to_owned(),
+                            },
+                            location: Location {
+                                line: 3,
+                                column: 25,
+                            },
+                        },
+                    },
+                ],
                 owners: Some(vec!["@org/team".to_owned()]),
             }],
             unidentified: vec![],
@@ -174,7 +212,15 @@ mod tests {
         assert_eq!(
             json,
             serde_json::json!({
-                "usages": [{ "file": "src/App.tsx", "line": 3, "column": 5, "component": "Icon", "owners": ["@org/team"] }],
+                "usages": [{
+                    "file": "src/App.tsx", "line": 3, "column": 5, "component": "Icon",
+                    "parents": [{ "component": "Popover", "line": 2, "column": 3, "prop": "button" }],
+                    "props": [
+                        { "name": "size", "value": { "kind": "literal", "value": 16, "line": 3, "column": 17 } },
+                        { "spread": { "kind": "unresolved", "code": "not-followed", "step": "variables", "text": "rest", "line": 3, "column": 25 } },
+                    ],
+                    "owners": ["@org/team"],
+                }],
                 "unidentified": [],
                 "errors": [{ "file": "src/Broken.tsx", "code": "unsupported-extension", "message": "unsupported file extension", "skipped": true }],
                 "warnings": [],

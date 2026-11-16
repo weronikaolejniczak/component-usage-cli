@@ -1,0 +1,27 @@
+{
+  "query": { "components": ["Icon"], "from": "lib" },
+  "usages": [
+    {
+      "component": "Icon", "file": "App.tsx", "line": 5, "column": 5,
+      "parents": [],
+      "props": [
+        { "name": "type", "value": { "kind": "literal", "value": "gear", "line": 5, "column": 16 } },
+        { "name": "size", "value": { "kind": "literal", "value": 16, "line": 5, "column": 29 } },
+        { "name": "offset", "value": { "kind": "literal", "value": -2, "line": 5, "column": 41 } },
+        { "name": "spin", "value": { "kind": "literal", "value": true, "line": 5, "column": 45 } },
+        { "name": "disabled", "value": { "kind": "literal", "value": false, "line": 5, "column": 60 } },
+        { "name": "label", "value": { "kind": "literal", "value": null, "line": 5, "column": 74 } }
+      ]
+    },
+    {
+      "component": "Icon", "file": "App.tsx", "line": 6, "column": 5,
+      "parents": [],
+      "props": [
+        { "name": "type", "value": { "kind": "literal", "value": "user", "line": 6, "column": 17 } },
+        { "name": "title", "value": { "kind": "literal", "value": "plain", "line": 6, "column": 32 } },
+        { "name": "color", "value": { "kind": "undefined", "line": 6, "column": 48 } },
+        { "name": "alt", "value": { "kind": "undefined", "line": 6, "column": 64 } }
+      ]
+    }
+  ]
+}

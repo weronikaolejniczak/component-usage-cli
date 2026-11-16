@@ -1,6 +1,6 @@
 # component-usage-cli
 
-CLI that statically analyzes a React codebase and reports every usage of selected components. Resolving the values each prop can receive is planned.
+CLI that statically analyzes a React codebase and reports every usage of selected components, with its props as written. Following variables and imports to resolve the values each prop can receive is planned.
 
 ## Why
 
@@ -21,13 +21,16 @@ To know every value `type` can receive, you have to follow the data across files
 npx component-usage-cli scan ./src --components Icon,Icon.Item --from some-library
 ```
 
-- `--components`: exported names of the components to find.
+- `--components`: exported names of the components to find. Without it, every export of `--from` is a target.
 - `--from`: the module they're exported from, resolved from the scanned folder. Imports from any path that resolves to the same export count, including re-exports.
+- `--props`: names of the props to report. Without it, all are reported. Spreads are always reported, since they can set any prop.
 - `--owners`: adds the owners of each file from the repository's `CODEOWNERS`. `--owners=<file>` uses a given file.
 
 The JSON report lists:
 
-- `usages`: every opening JSX element of the components.
+- `usages`: every opening JSX element of the components, with:
+  - `props`: attributes in source order, as `{ "name", "value" }` or `{ "spread" }`. Each value has a `kind`, such as `literal`, `object`, `template` or `one-of`, and a position. Objects, arrays and templates contain values. Values that aren't resolved are `unresolved`, with a `code`, such as `not-followed` for a variable or import.
+  - `parents`: the enclosing usages, nearest first. `prop` names the parent's attribute the usage is in, such as `button` in `<Popover button={<Button />}>`.
 - `unidentified`: elements that may be usages but aren't counted, with a `code` and a reason.
 - `errors`: files that couldn't be read or parsed.
 - `warnings`: skipped `CODEOWNERS` lines.
@@ -36,7 +39,7 @@ The exit code is 0 whenever a report is written.
 
 ### Planned
 
-Prop values, `--props`, `--follow`, `--wrappers`, `--summary` and other output formats. See [decisions](./docs/decisions/README.md).
+`--follow` for variables, imports and props, `--wrappers`, `--summary` and other output formats. See [decisions](./docs/decisions/README.md).
 
 ## License
 

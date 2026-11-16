@@ -1,0 +1,56 @@
+{
+  "query": { "components": ["Panel", "Select"], "from": "lib" },
+  "usages": [
+    {
+      "component": "Panel", "file": "App.tsx", "line": 6, "column": 3,
+      "props": [
+        {
+          "name": "style",
+          "value": {
+            "kind": "object", "line": 6, "column": 17,
+            "entries": [
+              { "key": "width", "value": { "kind": "literal", "value": 200, "line": 6, "column": 26 } },
+              { "spread": { "kind": "unresolved", "code": "not-followed", "step": "variables", "text": "base", "line": 6, "column": 34 } },
+              { "key": "min-height", "value": { "kind": "literal", "value": "1em", "line": 6, "column": 54 } },
+              { "computed": "side", "value": { "kind": "literal", "value": 0, "line": 6, "column": 69 } },
+              { "key": "onClick", "value": { "kind": "function", "line": 6, "column": 72 } }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Select", "file": "App.tsx", "line": 7, "column": 5,
+      "parents": [{ "component": "Panel", "line": 6, "column": 3 }],
+      "props": [
+        {
+          "name": "singleSelection",
+          "value": {
+            "kind": "object", "line": 7, "column": 30,
+            "entries": [
+              { "key": "asPlainText", "value": { "kind": "literal", "value": true, "line": 7, "column": 45 } }
+            ]
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "kind": "array", "line": 7, "column": 62,
+            "items": [
+              {
+                "value": {
+                  "kind": "object", "line": 7, "column": 63,
+                  "entries": [
+                    { "key": "label", "value": { "kind": "literal", "value": "A", "line": 7, "column": 72 } },
+                    { "key": "value", "value": { "kind": "literal", "value": "a", "line": 7, "column": 84 } }
+                  ]
+                }
+              },
+              { "spread": { "kind": "unresolved", "code": "global", "text": "more", "line": 7, "column": 94 } }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

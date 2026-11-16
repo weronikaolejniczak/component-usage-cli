@@ -18,9 +18,14 @@ enum Command {
         /// Root directory to scan
         dir: PathBuf,
 
-        /// Target components, by exported name, e.g. `Icon` or `Icon.Item`
-        #[arg(long, value_delimiter = ',', required = true, value_parser = component_name)]
-        components: Vec<String>,
+        /// Target components, by exported name, e.g. `Icon` or `Icon.Item`; every export of
+        /// `--from` if left out
+        #[arg(long, value_delimiter = ',', value_parser = component_name)]
+        components: Option<Vec<String>>,
+
+        /// Props to report; all if left out. Spreads are always reported
+        #[arg(long, value_delimiter = ',', value_parser = prop_name)]
+        props: Option<Vec<String>>,
 
         /// Module the components are exported from, resolved from DIR; matches any import that
         /// resolves to the same export
@@ -41,6 +46,7 @@ fn main() -> ExitCode {
         Command::Scan {
             dir,
             components,
+            props,
             from,
             owners,
         } => {
@@ -48,6 +54,7 @@ fn main() -> ExitCode {
                 root: dir,
                 components,
                 from,
+                props,
                 owners: owners
                     .map(|file| file.map_or(engine::Owners::Discover, engine::Owners::File)),
             };
@@ -75,6 +82,13 @@ fn main() -> ExitCode {
 fn component_name(value: &str) -> Result<String, String> {
     if value.split('.').any(str::is_empty) {
         return Err(format!("'{value}' isn't a component name"));
+    }
+    Ok(value.to_owned())
+}
+
+fn prop_name(value: &str) -> Result<String, String> {
+    if value.is_empty() {
+        return Err("a prop name can't be empty".to_owned());
     }
     Ok(value.to_owned())
 }

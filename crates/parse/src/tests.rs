@@ -3,7 +3,8 @@ use std::path::Path;
 use model::Location;
 
 use crate::{
-    Alias, AliasRoot, Binding, Export, FileSummary, Import, Imported, JsxElement, ParseError, parse,
+    Alias, AliasRoot, Attribute, Binding, Export, Expr, ExprKind, FileSummary, Import, Imported,
+    Item, JsxElement, Literal, Parent, ParseError, Reference, parse,
 };
 
 fn tsx(source: &str) -> FileSummary {
@@ -28,7 +29,158 @@ fn element(line: u32, column: u32, root: &str, members: &[&str], binding: Bindin
         root: root.to_owned(),
         members: members.iter().map(|&member| member.to_owned()).collect(),
         binding,
+        parent: None,
+        attributes: Vec::new(),
     }
+}
+
+/// Elements without their parents and attributes, which have their own tests.
+fn identities(summary: &FileSummary) -> Vec<JsxElement> {
+    summary
+        .elements
+        .iter()
+        .map(|element| JsxElement {
+            parent: None,
+            attributes: Vec::new(),
+            ..element.clone()
+        })
+        .collect()
+}
+
+fn parents(summary: &FileSummary) -> Vec<Option<Parent>> {
+    summary
+        .elements
+        .iter()
+        .map(|element| element.parent.clone())
+        .collect()
+}
+
+fn parent(line: u32, column: u32, attribute: Option<&str>) -> Option<Parent> {
+    Some(Parent {
+        location: Location { line, column },
+        attribute: attribute.map(str::to_owned),
+    })
+}
+
+fn expr(line: u32, column: u32, kind: ExprKind) -> Expr {
+    Expr {
+        location: Location { line, column },
+        kind,
+    }
+}
+
+#[test]
+fn parent_is_the_closest_element_with_a_binding() {
+    let summary = tsx(concat!(
+        "<A x={<div y={1}><B /></div>}>\n",
+        "  <>\n",
+        "    <C />\n",
+        "  </>\n",
+        "  <D render={() => <E />} {...{ f: <F /> }} />\n",
+        "</A>;\n",
+    ));
+    assert_eq!(
+        parents(&summary),
+        [
+            None,
+            parent(1, 1, Some("x")),
+            parent(1, 1, None),
+            parent(1, 1, None),
+            parent(5, 3, Some("render")),
+            parent(5, 3, None),
+        ]
+    );
+}
+
+#[test]
+fn attributes_in_source_order() {
+    let summary = tsx("<A a=\"s\" b c:d={x} {...y} e={<B />} f={<></>} g={} />;\n");
+    let global = |text: &str| ExprKind::Reference {
+        name: Reference::Global,
+        text: text.to_owned(),
+    };
+    assert_eq!(
+        summary.elements[0].attributes,
+        [
+            Attribute::Named {
+                name: "a".to_owned(),
+                value: expr(1, 6, ExprKind::Literal(Literal::String("s".to_owned()))),
+            },
+            Attribute::Named {
+                name: "b".to_owned(),
+                value: expr(1, 10, ExprKind::Literal(Literal::Boolean(true))),
+            },
+            Attribute::Named {
+                name: "c:d".to_owned(),
+                value: expr(1, 17, global("x")),
+            },
+            Attribute::Spread(expr(1, 24, global("y"))),
+            Attribute::Named {
+                name: "e".to_owned(),
+                value: expr(
+                    1,
+                    30,
+                    ExprKind::Element {
+                        tag: Some("B".to_owned()),
+                    },
+                ),
+            },
+            Attribute::Named {
+                name: "f".to_owned(),
+                value: expr(1, 40, ExprKind::Element { tag: None }),
+            },
+            Attribute::Named {
+                name: "g".to_owned(),
+                value: expr(1, 50, ExprKind::Undefined),
+            },
+        ]
+    );
+}
+
+#[test]
+fn references_are_classified_by_declaration() {
+    let summary = tsx(concat!(
+        "import { a } from 'lib';\n",
+        "const b = 1;\n",
+        "function F(c, { d }, ...e) {\n",
+        "  return <A p={[a, b, c, d, e, g, undefined, a.x?.y, h().i, 1e999]} />;\n",
+        "}\n",
+    ));
+    let [Attribute::Named { value, .. }] = summary.elements[0].attributes.as_slice() else {
+        panic!("expected one attribute");
+    };
+    let ExprKind::Array(items) = &value.kind else {
+        panic!("expected an array");
+    };
+    let kinds: Vec<&ExprKind> = items
+        .iter()
+        .map(|item| match item {
+            Item::Value(value) | Item::Spread(value) => &value.kind,
+        })
+        .collect();
+    let reference = |name, text: &str| ExprKind::Reference {
+        name,
+        text: text.to_owned(),
+    };
+    assert_eq!(
+        kinds,
+        [
+            &reference(Reference::Import(0), "a"),
+            &reference(Reference::Variable, "b"),
+            &reference(Reference::Parameter, "c"),
+            &reference(Reference::Parameter, "d"),
+            &reference(Reference::Parameter, "e"),
+            &reference(Reference::Global, "g"),
+            &ExprKind::Undefined,
+            &reference(Reference::Import(0), "a.x?.y"),
+            &ExprKind::Call {
+                text: "h().i".to_owned()
+            },
+            &ExprKind::Unsupported {
+                text: "1e999".to_owned()
+            },
+        ]
+    );
 }
 
 #[test]
@@ -36,7 +188,7 @@ fn named_import() {
     let summary = tsx("import { Icon } from 'lib';\n\nconst a = <Icon type=\"x\" />;\n");
     assert_eq!(summary.imports, [import("lib", name("Icon"), "Icon")]);
     assert_eq!(
-        summary.elements,
+        identities(&summary),
         [element(3, 11, "Icon", &[], Binding::Import(0))]
     );
 }
@@ -46,7 +198,7 @@ fn aliased_import() {
     let summary = tsx("import { Icon as I } from 'lib';\nconst a = <I />;\n");
     assert_eq!(summary.imports, [import("lib", name("Icon"), "I")]);
     assert_eq!(
-        summary.elements,
+        identities(&summary),
         [element(2, 11, "I", &[], Binding::Import(0))]
     );
 }
@@ -63,7 +215,7 @@ fn namespace_import() {
     let summary = tsx("import * as L from 'lib';\nconst a = <L.Icon />;\n");
     assert_eq!(summary.imports, [import("lib", Imported::Namespace, "L")]);
     assert_eq!(
-        summary.elements,
+        identities(&summary),
         [element(2, 11, "L", &["Icon"], Binding::Import(0))]
     );
 }
@@ -74,7 +226,7 @@ fn member_expressions() {
         "import { Icon } from 'lib';\nimport * as L from 'lib';\nconst a = (\n  <Icon>\n    <Icon.Item />\n    <L.Icon.Item />\n  </Icon>\n);\n",
     );
     assert_eq!(
-        summary.elements,
+        identities(&summary),
         [
             element(4, 3, "Icon", &[], Binding::Import(0)),
             element(5, 5, "Icon", &["Item"], Binding::Import(0)),
@@ -98,7 +250,7 @@ fn shadowed_import_is_local() {
         "import { Icon } from 'lib';\n\nconst a = <Icon />;\n\nfunction B() {\n  const Icon = () => null;\n  return <Icon />;\n}\n",
     );
     assert_eq!(
-        summary.elements,
+        identities(&summary),
         [
             element(3, 11, "Icon", &[], Binding::Import(0)),
             element(7, 10, "Icon", &[], Binding::Local),
@@ -110,7 +262,7 @@ fn shadowed_import_is_local() {
 fn local_and_global_bindings() {
     let summary = tsx("const Local = () => null;\nconst a = <><Local /><Missing /></>;\n");
     assert_eq!(
-        summary.elements,
+        identities(&summary),
         [
             element(2, 13, "Local", &[], Binding::Local),
             element(2, 22, "Missing", &[], Binding::Global),

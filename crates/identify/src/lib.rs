@@ -7,13 +7,15 @@
 use std::collections::HashMap;
 
 use graph::{ModuleGraph, Origin, OriginError};
-use model::{FileId, Location, Usage};
+use model::{FileId, Location, Parent, Usage};
 use parse::{AliasRoot, Binding, FileSummary, Imported, JsxElement};
 
 /// Resolved components to look for.
 #[derive(Debug)]
 pub struct Targets {
     by_key: HashMap<Key, String>,
+    /// For [`Targets::all`]: exports by origin, which match with any members.
+    by_origin: HashMap<Origin, String>,
 }
 
 /// `Icon.Item` is `Icon` with members `["Item"]`; a namespace hop removes one member.
@@ -51,7 +53,39 @@ impl Targets {
                 })?;
             by_key.entry(key).or_insert_with(|| component.clone());
         }
-        Ok(Self { by_key })
+        Ok(Self {
+            by_key,
+            by_origin: HashMap::new(),
+        })
+    }
+
+    /// Every export of `module` other than `default`. A tag with members after an export, like
+    /// `<Panel.Inner>`, is named with them. Exports whose origin can't be determined are left out.
+    #[must_use]
+    pub fn all(graph: &ModuleGraph, module: FileId) -> Self {
+        let mut by_origin = HashMap::new();
+        for name in graph.export_names(module) {
+            if let Ok(origin) = graph.export_origin(module, &name) {
+                by_origin.entry(origin).or_insert(name);
+            }
+        }
+        Self {
+            by_key: HashMap::new(),
+            by_origin,
+        }
+    }
+
+    fn component(&self, key: &Key) -> Option<String> {
+        if let Some(component) = self.by_key.get(key) {
+            return Some(component.clone());
+        }
+        let export = self.by_origin.get(&key.origin)?;
+        Some(
+            std::iter::once(export.as_str())
+                .chain(key.members.iter().map(String::as_str))
+                .collect::<Vec<_>>()
+                .join("."),
+        )
     }
 }
 
@@ -94,7 +128,9 @@ pub fn identify(graph: &ModuleGraph, files: &[FileId], targets: &Targets) -> Ide
         let Some(module) = graph.module(file) else {
             continue;
         };
-        for element in &module.summary.elements {
+        let elements = &module.summary.elements;
+        let mut components: Vec<Option<String>> = vec![None; elements.len()];
+        for (index, element) in elements.iter().enumerate() {
             let (origin, members, via) = match element.binding {
                 Binding::Import(import) => (origins.import(file, import), Vec::new(), None),
                 Binding::Alias(index) => {
@@ -120,15 +156,11 @@ pub fn identify(graph: &ModuleGraph, files: &[FileId], targets: &Targets) -> Ide
             let key = origin.and_then(|origin| origins.key(origin, members.collect()));
             match key {
                 Ok(key) => {
-                    let Some(component) = targets.by_key.get(&key).cloned() else {
+                    let Some(component) = targets.component(&key) else {
                         continue;
                     };
                     match via {
-                        None => identified.usages.push(Usage {
-                            file,
-                            location: element.location,
-                            component,
-                        }),
+                        None => components[index] = Some(component),
                         Some(AliasRoot::Import(_)) => identified
                             .unidentified
                             .push(unidentified(Cause::Alias { component })),
@@ -142,12 +174,57 @@ pub fn identify(graph: &ModuleGraph, files: &[FileId], targets: &Targets) -> Ide
                     .push(unidentified(Cause::Origin(error))),
             }
         }
+        let at: HashMap<Location, usize> = elements
+            .iter()
+            .enumerate()
+            .map(|(index, element)| (element.location, index))
+            .collect();
+        for (index, component) in components.iter().enumerate() {
+            let Some(component) = component else {
+                continue;
+            };
+            identified.usages.push(Usage {
+                file,
+                location: elements[index].location,
+                component: component.clone(),
+                element: index,
+                parents: parents(elements, &components, &at, index),
+            });
+        }
     }
-    identified.usages.sort();
+    identified
+        .usages
+        .sort_by_key(|usage| (usage.file, usage.location));
     identified
         .unidentified
         .sort_by_key(|unidentified| (unidentified.file, unidentified.location));
     identified
+}
+
+/// The usages enclosing `elements[index]`, nearest first. Each is paired with the attribute of
+/// its own that the chain enters it through.
+fn parents(
+    elements: &[JsxElement],
+    components: &[Option<String>],
+    at: &HashMap<Location, usize>,
+    index: usize,
+) -> Vec<Parent> {
+    let mut parents = Vec::new();
+    let mut link = elements[index].parent.as_ref();
+    while let Some(parent) = link {
+        let Some(&index) = at.get(&parent.location) else {
+            break;
+        };
+        if let Some(component) = &components[index] {
+            parents.push(Parent {
+                component: component.clone(),
+                location: parent.location,
+                prop: parent.attribute.clone(),
+            });
+        }
+        link = elements[index].parent.as_ref();
+    }
+    parents
 }
 
 fn tag(element: &JsxElement) -> String {

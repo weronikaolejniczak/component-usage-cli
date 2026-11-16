@@ -1,10 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    Argument, BindingPattern, Expression, IdentifierReference, JSXElementName, JSXMemberExpression,
-    JSXMemberExpressionObject, JSXOpeningElement, VariableDeclarator,
+    Argument, BindingIdentifier, BindingPattern, CatchParameter, Expression, FormalParameters,
+    FunctionBody, IdentifierReference, JSXAttribute, JSXElement, JSXElementName,
+    JSXMemberExpression, JSXMemberExpressionObject, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_diagnostics::OxcDiagnostic;
@@ -15,10 +16,13 @@ use oxc_syntax::module_record::{
     ExportEntry, ExportExportName, ExportImportName, ImportEntry, ImportImportName,
 };
 
+use model::Location;
+
+use crate::attributes::{Exprs, attribute_name};
 use crate::lines::LineIndex;
 use crate::{
-    Alias, AliasRoot, Binding, Export, FileSummary, Import, Imported, JsxElement, ParseError,
-    SyntaxError,
+    Alias, AliasRoot, Binding, Export, FileSummary, Import, Imported, JsxElement, Parent,
+    ParseError, SyntaxError,
 };
 
 pub(crate) fn extract(path: &Path, source: &str) -> Result<FileSummary, ParseError> {
@@ -73,6 +77,8 @@ pub(crate) fn extract(path: &Path, source: &str) -> Result<FileSummary, ParseErr
     let mut constants = Constants {
         scoping: semantic.scoping(),
         paths: HashMap::new(),
+        parameters: HashSet::new(),
+        in_parameters: false,
     };
     constants.visit_program(&parsed.program);
     let mut collector = Elements {
@@ -80,6 +86,14 @@ pub(crate) fn extract(path: &Path, source: &str) -> Result<FileSummary, ParseErr
         lines: &lines,
         import_at: &import_at,
         constants: &constants.paths,
+        exprs: Exprs {
+            source,
+            lines: &lines,
+            scoping: semantic.scoping(),
+            parameters: &constants.parameters,
+            import_at: &import_at,
+        },
+        frames: Vec::new(),
         alias_of: HashMap::new(),
         aliases: Vec::new(),
         elements: Vec::new(),
@@ -151,12 +165,39 @@ enum AccessRoot {
 
 /// Variable declarations whose initialiser is a binding, a `require` call or a static property
 /// chain on one, keyed by the declared symbol. Destructured names extend the path.
+/// Also collects the names function and `catch` parameters declare.
 struct Constants<'s> {
     scoping: &'s Scoping,
     paths: HashMap<SymbolId, Access>,
+    parameters: HashSet<SymbolId>,
+    in_parameters: bool,
 }
 
 impl<'a> Visit<'a> for Constants<'_> {
+    fn visit_formal_parameters(&mut self, parameters: &FormalParameters<'a>) {
+        let outer = std::mem::replace(&mut self.in_parameters, true);
+        walk::walk_formal_parameters(self, parameters);
+        self.in_parameters = outer;
+    }
+
+    fn visit_catch_parameter(&mut self, parameter: &CatchParameter<'a>) {
+        let outer = std::mem::replace(&mut self.in_parameters, true);
+        walk::walk_catch_parameter(self, parameter);
+        self.in_parameters = outer;
+    }
+
+    fn visit_function_body(&mut self, body: &FunctionBody<'a>) {
+        let outer = std::mem::replace(&mut self.in_parameters, false);
+        walk::walk_function_body(self, body);
+        self.in_parameters = outer;
+    }
+
+    fn visit_binding_identifier(&mut self, identifier: &BindingIdentifier<'a>) {
+        if self.in_parameters {
+            self.parameters.insert(identifier.symbol_id());
+        }
+    }
+
     fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
         if let Some(path) = declarator
             .init
@@ -233,23 +274,58 @@ struct Elements<'s> {
     lines: &'s LineIndex<'s>,
     import_at: &'s HashMap<u32, usize>,
     constants: &'s HashMap<SymbolId, Access>,
+    exprs: Exprs<'s>,
+    frames: Vec<Frame>,
     alias_of: HashMap<SymbolId, usize>,
     aliases: Vec<Alias>,
     elements: Vec<JsxElement>,
 }
 
+/// An element being visited. `location` is set when it's in [`Elements::elements`].
+struct Frame {
+    location: Option<Location>,
+    attribute: Option<String>,
+}
+
 impl<'a> Visit<'a> for Elements<'_> {
-    fn visit_jsx_opening_element(&mut self, element: &JSXOpeningElement<'a>) {
-        if let Some((root, members)) = tag(&element.name) {
+    fn visit_jsx_element(&mut self, element: &JSXElement<'a>) {
+        let opening = &element.opening_element;
+        let location = tag(&opening.name).map(|(root, members)| {
+            let location = self.lines.location(opening.span.start);
             let binding = self.binding(root);
+            let parent = self.frames.iter().rev().find_map(|frame| {
+                Some(Parent {
+                    location: frame.location?,
+                    attribute: frame.attribute.clone(),
+                })
+            });
+            let attributes = opening
+                .attributes
+                .iter()
+                .map(|attribute| self.exprs.attribute(attribute))
+                .collect();
             self.elements.push(JsxElement {
-                location: self.lines.location(element.span.start),
+                location,
                 root: root.name.to_string(),
                 members,
                 binding,
+                parent,
+                attributes,
             });
-        }
-        walk::walk_jsx_opening_element(self, element);
+            location
+        });
+        self.frames.push(Frame {
+            location,
+            attribute: None,
+        });
+        walk::walk_jsx_element(self, element);
+        self.frames.pop();
+    }
+
+    fn visit_jsx_attribute(&mut self, attribute: &JSXAttribute<'a>) {
+        self.set_attribute(Some(attribute_name(&attribute.name)));
+        walk::walk_jsx_attribute(self, attribute);
+        self.set_attribute(None);
     }
 }
 
@@ -276,6 +352,12 @@ fn member_tag<'t, 'a>(
 }
 
 impl Elements<'_> {
+    fn set_attribute(&mut self, attribute: Option<String>) {
+        if let Some(frame) = self.frames.last_mut() {
+            frame.attribute = attribute;
+        }
+    }
+
     fn binding(&mut self, root: &IdentifierReference) -> Binding {
         let Some(symbol) = symbol(self.scoping, root) else {
             return Binding::Global;

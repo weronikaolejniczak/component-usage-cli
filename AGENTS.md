@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Rust CLI built on Oxc. Reports React component usages. Resolving prop values across files is planned.
+Rust CLI built on Oxc. Reports React component usages and their props as written. Resolving prop values across bindings and files is planned.
 
 ## Decisions
 

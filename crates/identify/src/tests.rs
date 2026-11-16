@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use graph::{Module, ModuleGraph, OriginError};
-use model::{FileId, Location, Usage};
+use model::{FileId, Location, Parent, Usage};
 
 use crate::{Cause, Targets, identify};
 
@@ -28,11 +28,14 @@ fn targets(graph: &ModuleGraph, module: u32, components: &[&str]) -> Targets {
     Targets::resolve(graph, FileId(module), &components).unwrap()
 }
 
+/// A usage without its element index and parents, which have their own tests.
 fn usage(line: u32, column: u32, component: &str) -> Usage {
     Usage {
         file: FileId(0),
         location: Location { line, column },
         component: component.to_owned(),
+        element: 0,
+        parents: Vec::new(),
     }
 }
 
@@ -48,7 +51,18 @@ fn usages(app: &str, components: &[&str]) -> Vec<Usage> {
     let targets = targets(&graph, 1, components);
     let identified = identify(&graph, &[FileId(0)], &targets);
     assert_eq!(identified.unidentified, []);
-    identified.usages
+    identities(identified.usages)
+}
+
+fn identities(usages: Vec<Usage>) -> Vec<Usage> {
+    usages
+        .into_iter()
+        .map(|usage| Usage {
+            element: 0,
+            parents: Vec::new(),
+            ..usage
+        })
+        .collect()
 }
 
 #[test]
@@ -95,7 +109,7 @@ fn import_from_defining_module() {
         ICON,
     ]);
     let identified = identify(&graph, &[FileId(0)], &targets(&graph, 1, &["Icon"]));
-    assert_eq!(identified.usages, [usage(2, 11, "Icon")]);
+    assert_eq!(identities(identified.usages), [usage(2, 11, "Icon")]);
 }
 
 #[test]
@@ -130,7 +144,7 @@ fn namespace_reexport_target() {
         ICON,
     ]);
     let identified = identify(&graph, &[FileId(0)], &targets(&graph, 1, &["Icons.Icon"]));
-    assert_eq!(identified.usages, [usage(2, 11, "Icons.Icon")]);
+    assert_eq!(identities(identified.usages), [usage(2, 11, "Icons.Icon")]);
 }
 
 #[test]
@@ -231,4 +245,63 @@ fn aliases_of_targets_are_unidentified() {
             && unidentified.source == "lib"
             && unidentified.cause == Cause::Alias { component: "Icon.Item".to_owned() }
     ));
+}
+
+#[test]
+fn parents_skip_elements_that_arent_usages() {
+    let graph = graph(&[
+        (
+            "import { Icon, Other } from 'lib';\nconst Local = () => null;\nconst a = <Icon x={<Local><Other><Icon.Item /></Other></Local>} />;",
+            &[("lib", 1)],
+        ),
+        LIB,
+        ICON,
+    ]);
+    let identified = identify(
+        &graph,
+        &[FileId(0)],
+        &targets(&graph, 1, &["Icon", "Icon.Item"]),
+    );
+    let parents: Vec<(usize, Vec<Parent>)> = identified
+        .usages
+        .into_iter()
+        .map(|usage| (usage.element, usage.parents))
+        .collect();
+    assert_eq!(
+        parents,
+        [
+            (0, vec![]),
+            (
+                3,
+                vec![Parent {
+                    component: "Icon".to_owned(),
+                    location: Location {
+                        line: 3,
+                        column: 11
+                    },
+                    prop: Some("x".to_owned()),
+                }]
+            ),
+        ]
+    );
+}
+
+#[test]
+fn all_exports_are_targets() {
+    let graph = graph(&[
+        (
+            "import Default, { Icon, Other } from 'lib';\nconst a = <><Icon.Item /><Other /><Default /></>;",
+            &[("lib", 1)],
+        ),
+        (
+            "export * from './icon';\nexport default () => null;",
+            &[("./icon", 2)],
+        ),
+        ICON,
+    ]);
+    let identified = identify(&graph, &[FileId(0)], &Targets::all(&graph, FileId(1)));
+    assert_eq!(
+        identities(identified.usages),
+        [usage(2, 13, "Icon.Item"), usage(2, 26, "Other")]
+    );
 }

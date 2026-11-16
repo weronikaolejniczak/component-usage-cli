@@ -197,6 +197,7 @@ dependencies = [
  "component-usage-cli-owners",
  "component-usage-cli-parse",
  "component-usage-cli-report",
+ "component-usage-cli-values",
  "ignore",
  "rayon",
  "thiserror",

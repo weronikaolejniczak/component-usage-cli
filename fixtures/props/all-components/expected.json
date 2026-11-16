@@ -1,0 +1,19 @@
+{
+  "query": { "from": "lib" },
+  "usages": [
+    { "component": "Panel", "file": "App.tsx", "line": 7, "column": 5, "parents": [], "props": [] },
+    {
+      "component": "Panel.Inner", "file": "App.tsx", "line": 8, "column": 7,
+      "parents": [{ "component": "Panel", "line": 7, "column": 5 }],
+      "props": []
+    },
+    {
+      "component": "Icon", "file": "App.tsx", "line": 9, "column": 9,
+      "parents": [
+        { "component": "Panel.Inner", "line": 8, "column": 7 },
+        { "component": "Panel", "line": 7, "column": 5 }
+      ],
+      "props": []
+    }
+  ]
+}

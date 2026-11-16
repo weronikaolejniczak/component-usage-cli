@@ -1,10 +1,12 @@
-//! Parses one source file and extracts an owned `FileSummary`: imports, exports and JSX elements.
+//! Parses one source file and extracts an owned `FileSummary`: imports, exports and JSX elements
+//! with their attributes.
 //!
 //! Pure: takes a path and source text, does no I/O. The Oxc AST and its arena never leave this crate.
 //! The path only selects the dialect from its extension. JavaScript files always allow JSX;
 //! `.ts` files never do, since `<T>` there is a type assertion or generic.
 //! Type-only imports and exports are left out: they can't be rendered.
 
+mod attributes;
 mod extract;
 mod lines;
 
@@ -13,7 +15,7 @@ use std::path::Path;
 use model::Location;
 
 /// What later stages need from one file. Every list is in source order.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FileSummary {
     pub imports: Vec<Import>,
     pub exports: Vec<Export>,
@@ -62,7 +64,7 @@ pub enum Export {
 
 /// A JSX opening element whose tag refers to a binding, e.g. `<Icon>` or `<L.Icon.Item>`.
 /// Intrinsic (`<div>`), namespaced (`<a:b>`) and `this`-rooted tags are left out.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct JsxElement {
     /// Position of the `<`.
     pub location: Location,
@@ -71,6 +73,112 @@ pub struct JsxElement {
     /// Property accesses after the root: `["Icon", "Item"]` in `<L.Icon.Item>`.
     pub members: Vec<String>,
     pub binding: Binding,
+    /// The closest enclosing element of [`FileSummary::elements`].
+    pub parent: Option<Parent>,
+    pub attributes: Vec<Attribute>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Parent {
+    pub location: Location,
+    /// The parent's attribute this element is in, such as `button` in
+    /// `<Popover button={<Button />}>`. `None` for children.
+    pub attribute: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Attribute {
+    /// `name="value"`, `name={value}`, or `name` alone, which is `true`.
+    Named { name: String, value: Expr },
+    /// `{...value}`
+    Spread(Expr),
+}
+
+/// An expression as written, with what's needed to evaluate it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Expr {
+    pub location: Location,
+    pub kind: ExprKind,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExprKind {
+    Literal(Literal),
+    /// `undefined`, `void 0`, or an empty `{}`.
+    Undefined,
+    Object(Vec<Entry>),
+    Array(Vec<Item>),
+    /// A template literal with expressions, or any tagged template. `tag` is its source text.
+    Template {
+        tag: Option<String>,
+        parts: Vec<Part>,
+    },
+    /// A JSX element, with the tag as written, or a fragment.
+    Element {
+        tag: Option<String>,
+    },
+    Function,
+    /// Either branch of `?:`, either side of `||`, `&&` and `??`.
+    OneOf(Vec<Expr>),
+    /// An identifier, or a member access starting with one, such as `item.icon` or `ICONS[key]`.
+    Reference {
+        name: Reference,
+        text: String,
+    },
+    /// A call, or a member access on one.
+    Call {
+        text: String,
+    },
+    Unsupported {
+        text: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Literal {
+    String(String),
+    Number(f64),
+    Boolean(bool),
+    Null,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Entry {
+    Property {
+        key: String,
+        value: Expr,
+    },
+    /// A key that isn't static, with its source text.
+    Computed {
+        key: String,
+        value: Expr,
+    },
+    Spread(Expr),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Item {
+    Value(Expr),
+    Spread(Expr),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Part {
+    Text(String),
+    Value(Expr),
+}
+
+/// What the name a [`ExprKind::Reference`] starts with is bound to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Reference {
+    /// Index into [`FileSummary::imports`].
+    Import(usize),
+    /// A function or `catch` parameter, including a name destructured from one.
+    Parameter,
+    /// Any other declaration in this file.
+    Variable,
+    /// Not declared in this file.
+    Global,
 }
 
 /// What the root identifier of a JSX tag refers to in its scope.

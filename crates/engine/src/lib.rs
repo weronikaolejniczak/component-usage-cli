@@ -26,10 +26,12 @@ use crate::files::Files;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     pub root: PathBuf,
-    /// Exported names, e.g. `Icon` or `Icon.Item`.
-    pub components: Vec<String>,
+    /// Exported names, e.g. `Icon` or `Icon.Item`. `None` targets every export of `from`.
+    pub components: Option<Vec<String>>,
     /// Module specifier the components are exported from, resolved from `root`.
     pub from: String,
+    /// Props to report. `None` reports all of them; spreads are always reported.
+    pub props: Option<Vec<String>>,
     /// Attach code owners to results.
     pub owners: Option<Owners>,
 }
@@ -179,12 +181,15 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
     modules.resize_with(files.len(), || None);
 
     let graph = ModuleGraph::build(modules);
-    let targets = Targets::resolve(&graph, from, &config.components).map_err(|error| {
-        ScanError::Component {
-            component: error.component,
-            reason: describe(&error.error, &files, &root),
+    let targets = match &config.components {
+        Some(components) => {
+            Targets::resolve(&graph, from, components).map_err(|error| ScanError::Component {
+                component: error.component,
+                reason: describe(&error.error, &files, &root),
+            })?
         }
-    })?;
+        None => Targets::all(&graph, from),
+    };
     let identified = identify::identify(&graph, &scanned, &targets);
 
     report.usages = identified
@@ -194,6 +199,12 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
             file: files.display(usage.file, &root),
             location: usage.location,
             component: usage.component,
+            parents: usage.parents,
+            props: graph
+                .module(usage.file)
+                .and_then(|module| module.summary.elements.get(usage.element))
+                .map(|element| values::props(element, config.props.as_deref()))
+                .unwrap_or_default(),
             owners: None,
         })
         .collect();

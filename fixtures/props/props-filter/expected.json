@@ -1,0 +1,13 @@
+{
+  "query": { "components": ["Icon"], "from": "lib", "props": ["type"] },
+  "usages": [
+    {
+      "component": "Icon", "file": "App.tsx", "line": 3, "column": 38,
+      "parents": [],
+      "props": [
+        { "name": "type", "value": { "kind": "literal", "value": "gear", "line": 3, "column": 58 } },
+        { "spread": { "kind": "unresolved", "code": "parameter", "text": "rest", "line": 3, "column": 69 } }
+      ]
+    }
+  ]
+}

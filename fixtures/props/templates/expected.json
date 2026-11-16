@@ -1,0 +1,41 @@
+{
+  "query": { "components": ["Panel"], "from": "lib" },
+  "usages": [
+    {
+      "component": "Panel", "file": "App.tsx", "line": 7, "column": 3,
+      "props": [
+        {
+          "name": "css",
+          "value": {
+            "kind": "template", "tag": "css", "line": 8, "column": 10,
+            "parts": [
+              { "text": "\n      color: " },
+              { "value": { "kind": "unresolved", "code": "not-followed", "step": "variables", "text": "color", "line": 9, "column": 16 } },
+              { "text": ";\n    " }
+            ]
+          }
+        },
+        {
+          "name": "className",
+          "value": {
+            "kind": "template", "line": 11, "column": 16,
+            "parts": [
+              { "text": "panel " },
+              { "value": { "kind": "unresolved", "code": "not-followed", "step": "variables", "text": "color", "line": 11, "column": 25 } },
+              { "text": "-text" }
+            ]
+          }
+        },
+        {
+          "name": "title",
+          "value": {
+            "kind": "template", "line": 12, "column": 12,
+            "parts": [
+              { "value": { "kind": "literal", "value": "a", "line": 12, "column": 15 } }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

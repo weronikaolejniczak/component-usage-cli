@@ -266,3 +266,19 @@ fn invalid_import_index() {
         })
     );
 }
+
+#[test]
+fn export_names_follow_stars_and_skip_default() {
+    let graph = graph(&[
+        (
+            "export * from './a';\nexport { X as Y } from './a';\nexport * as ns from './a';\nexport default 1;",
+            &[("./a", 1)],
+        ),
+        (
+            "export const A = 1;\nexport default 2;\nexport * from './b';",
+            &[("./b", 2)],
+        ),
+        ("export const B = 1;\nexport * from './a';", &[("./a", 1)]),
+    ]);
+    assert_eq!(graph.export_names(FileId(0)), ["A", "B", "Y", "ns"]);
+}

@@ -19,8 +19,12 @@ struct Case {
 
 #[derive(Deserialize)]
 struct Query {
-    components: Vec<String>,
+    /// Absent scans every export of `from`.
+    #[serde(default)]
+    components: Option<Vec<String>>,
     from: String,
+    #[serde(default)]
+    props: Option<Vec<String>>,
     /// Scan root, relative to the case folder.
     #[serde(default)]
     dir: Option<String>,
@@ -49,6 +53,7 @@ struct Located {
     component: Option<String>,
 }
 
+/// `parents` and `props` are compared only when the expected usage lists them.
 #[derive(Debug, PartialEq, Eq, Deserialize)]
 struct Usage {
     component: String,
@@ -57,6 +62,10 @@ struct Usage {
     column: u32,
     #[serde(default)]
     owners: Option<Vec<String>>,
+    #[serde(default)]
+    parents: Option<serde_json::Value>,
+    #[serde(default)]
+    props: Option<serde_json::Value>,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize)]
@@ -117,13 +126,14 @@ fn run_case(group: &str, name: &str) {
     };
 
     let mut command = Command::new(env!("CARGO_BIN_EXE_component-usage-cli"));
-    command
-        .arg("scan")
-        .arg(&scan_dir)
-        .arg("--components")
-        .arg(case.query.components.join(","))
-        .arg("--from")
-        .arg(&case.query.from);
+    command.arg("scan").arg(&scan_dir);
+    if let Some(components) = &case.query.components {
+        command.arg("--components").arg(components.join(","));
+    }
+    command.arg("--from").arg(&case.query.from);
+    if let Some(props) = &case.query.props {
+        command.arg("--props").arg(props.join(","));
+    }
     match case.query.owners.as_deref() {
         Some("") => {
             command.arg("--owners");
@@ -141,7 +151,15 @@ fn run_case(group: &str, name: &str) {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    let report: Report = serde_json::from_slice(&output.stdout).unwrap();
+    let mut report: Report = serde_json::from_slice(&output.stdout).unwrap();
+    for (actual, expected) in report.usages.iter_mut().zip(&case.usages) {
+        if expected.parents.is_none() {
+            actual.parents = None;
+        }
+        if expected.props.is_none() {
+            actual.props = None;
+        }
+    }
     assert_eq!(report.usages, case.usages, "{group}/{name} usages");
     assert_eq!(
         report.unidentified, case.unidentified,
@@ -198,6 +216,16 @@ cases!(identify:
 
 cases!(errors:
     syntax_error,
+);
+
+cases!(props:
+    all_components,
+    expressions,
+    literals,
+    objects,
+    parents,
+    props_filter,
+    templates,
 );
 
 cases!(owners:

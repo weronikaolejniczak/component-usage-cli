@@ -1,0 +1,55 @@
+{
+  "query": { "components": ["Button", "Icon"], "from": "lib" },
+  "usages": [
+    {
+      "component": "Button", "file": "App.tsx", "line": 8, "column": 5,
+      "parents": [],
+      "props": [
+        { "name": "iconType", "value": { "kind": "unresolved", "code": "not-followed", "step": "variables", "text": "local", "line": 9, "column": 17 } },
+        { "name": "icon", "value": { "kind": "unresolved", "code": "not-followed", "step": "imports", "text": "ICON", "line": 10, "column": 13 } },
+        { "name": "type", "value": { "kind": "unresolved", "code": "parameter", "text": "icon", "line": 11, "column": 13 } },
+        { "name": "name", "value": { "kind": "unresolved", "code": "parameter", "text": "item.icon", "line": 12, "column": 13 } },
+        { "name": "title", "value": { "kind": "unresolved", "code": "global", "text": "ICONS[icon]", "line": 13, "column": 14 } },
+        { "name": "label", "value": { "kind": "unresolved", "code": "call", "text": "getLabel()", "line": 14, "column": 14 } },
+        {
+          "name": "color",
+          "value": {
+            "kind": "one-of", "line": 15, "column": 14,
+            "values": [
+              { "kind": "literal", "value": "primary", "line": 15, "column": 23 },
+              { "kind": "literal", "value": "text", "line": 15, "column": 35 }
+            ]
+          }
+        },
+        {
+          "name": "size",
+          "value": {
+            "kind": "one-of", "line": 16, "column": 13,
+            "values": [
+              { "kind": "unresolved", "code": "global", "text": "size", "line": 16, "column": 13 },
+              { "kind": "literal", "value": "s", "line": 16, "column": 21 }
+            ]
+          }
+        },
+        { "name": "fill", "value": { "kind": "unresolved", "code": "unsupported", "text": "!isOpen", "line": 17, "column": 13 } },
+        { "name": "onClick", "value": { "kind": "function", "line": 18, "column": 16 } },
+        { "name": "prepend", "value": { "kind": "element", "tag": "Icon", "line": 19, "column": 16 } },
+        { "spread": { "kind": "unresolved", "code": "global", "text": "rest", "line": 20, "column": 11 } }
+      ]
+    },
+    {
+      "component": "Icon", "file": "App.tsx", "line": 19, "column": 16,
+      "parents": [{ "component": "Button", "line": 8, "column": 5, "prop": "prepend" }],
+      "props": [
+        { "name": "type", "value": { "kind": "literal", "value": "plus", "line": 19, "column": 27 } }
+      ]
+    },
+    {
+      "component": "Icon", "file": "App.tsx", "line": 27, "column": 12,
+      "parents": [],
+      "props": [
+        { "name": "type", "value": { "kind": "unresolved", "code": "unsupported", "text": "this.props.type", "line": 27, "column": 24 } }
+      ]
+    }
+  ]
+}
