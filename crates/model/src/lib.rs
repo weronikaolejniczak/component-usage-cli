@@ -70,6 +70,18 @@ pub struct Value {
     pub kind: ValueKind,
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub location: Location,
+    /// The names followed to reach the value, outermost first.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
+    pub via: Vec<Via>,
+}
+
+/// A name followed to reach a value, with its source text and position.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct Via {
+    pub text: String,
+    #[cfg_attr(feature = "serde", serde(flatten))]
+    pub location: Location,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -168,6 +180,9 @@ pub enum Part {
 pub enum UnresolvedCode {
     /// A binding the scan would follow with [`Step`], which is off or not implemented.
     NotFollowed,
+    /// A binding that is assigned to after its declaration, declared more than once, or whose
+    /// contents are changed in the file.
+    Mutated,
     /// A function parameter, or a property of one.
     Parameter,
     /// A name not declared in the file.

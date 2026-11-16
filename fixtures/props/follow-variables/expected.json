@@ -1,0 +1,127 @@
+{
+  "query": { "components": ["Button"], "from": "lib", "follow": ["variables"] },
+  "usages": [
+    {
+      "component": "Button", "file": "App.tsx", "line": 24, "column": 5,
+      "parents": [],
+      "props": [
+        {
+          "name": "iconType",
+          "value": {
+            "kind": "literal", "value": "gear", "line": 3, "column": 14,
+            "via": [
+              { "text": "ALIAS", "line": 25, "column": 17 },
+              { "text": "ICON", "line": 4, "column": 15 }
+            ]
+          }
+        },
+        {
+          "name": "icon",
+          "value": {
+            "kind": "literal", "value": "pencil", "line": 5, "column": 23,
+            "via": [{ "text": "ICONS.edit", "line": 26, "column": 13 }]
+          }
+        },
+        {
+          "name": "type",
+          "value": {
+            "kind": "one-of", "line": 5, "column": 15,
+            "values": [
+              { "kind": "literal", "value": "pencil", "line": 5, "column": 23 },
+              { "kind": "literal", "value": "trash", "line": 5, "column": 41 }
+            ],
+            "via": [{ "text": "ICONS[status]", "line": 27, "column": 13 }]
+          }
+        },
+        {
+          "name": "size",
+          "value": {
+            "kind": "literal", "value": "s", "line": 6, "column": 16,
+            "via": [{ "text": "SIZES[0]", "line": 28, "column": 13 }]
+          }
+        },
+        {
+          "name": "name",
+          "value": {
+            "kind": "literal", "value": "pencil", "line": 5, "column": 23,
+            "via": [
+              { "text": "edit", "line": 29, "column": 13 },
+              { "text": "ICONS", "line": 7, "column": 18 }
+            ]
+          }
+        },
+        {
+          "name": "title",
+          "value": {
+            "kind": "literal", "value": "empty", "line": 8, "column": 19,
+            "via": [{ "text": "missing", "line": 30, "column": 14 }]
+          }
+        },
+        {
+          "name": "aria-label",
+          "value": {
+            "kind": "undefined", "line": 5, "column": 15,
+            "via": [{ "text": "ICONS.nope", "line": 31, "column": 19 }]
+          }
+        },
+        { "name": "label", "value": { "kind": "unresolved", "code": "mutated", "text": "mutable", "line": 32, "column": 14 } },
+        { "name": "options", "value": { "kind": "unresolved", "code": "mutated", "text": "list", "line": 33, "column": 16 } },
+        {
+          "name": "onClick",
+          "value": {
+            "kind": "function", "line": 13, "column": 1,
+            "via": [{ "text": "handle", "line": 34, "column": 16 }]
+          }
+        },
+        { "name": "color", "value": { "kind": "unresolved", "code": "not-followed", "step": "variables", "text": "Kind.A", "line": 35, "column": 14 } },
+        {
+          "name": "fill",
+          "value": {
+            "kind": "unresolved", "code": "parameter", "text": "props", "line": 21, "column": 20,
+            "via": [{ "text": "icon", "line": 36, "column": 13 }]
+          }
+        },
+        {
+          "name": "prepend",
+          "value": {
+            "kind": "one-of", "line": 22, "column": 17,
+            "values": [
+              { "kind": "literal", "value": "eye", "line": 22, "column": 26 },
+              {
+                "kind": "literal", "value": "gear", "line": 3, "column": 14,
+                "via": [{ "text": "ICON", "line": 22, "column": 34 }]
+              }
+            ],
+            "via": [{ "text": "local", "line": 37, "column": 16 }]
+          }
+        },
+        {
+          "name": "css",
+          "value": {
+            "kind": "template", "tag": "css", "line": 38, "column": 12,
+            "parts": [
+              { "text": "width: " },
+              {
+                "value": {
+                  "kind": "literal", "value": "m", "line": 6, "column": 21,
+                  "via": [{ "text": "SIZES[1]", "line": 38, "column": 25 }]
+                }
+              },
+              { "text": ";" }
+            ]
+          }
+        },
+        {
+          "name": "cycle",
+          "value": {
+            "kind": "unresolved", "code": "unsupported", "text": "a", "line": 18, "column": 11,
+            "via": [
+              { "text": "a", "line": 39, "column": 14 },
+              { "text": "b", "line": 17, "column": 11 }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -32,11 +32,22 @@ enum Command {
         #[arg(long)]
         from: String,
 
+        /// What to follow to find prop values: `variables` for names declared in the file, or
+        /// `none`
+        #[arg(long, value_delimiter = ',', value_enum)]
+        follow: Vec<Follow>,
+
         /// Add code owners to each result, from the repository's CODEOWNERS file, or from FILE
         /// with `--owners=FILE`
         #[arg(long, num_args = 0..=1, require_equals = true, value_name = "FILE")]
         owners: Option<Option<PathBuf>>,
     },
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum Follow {
+    None,
+    Variables,
 }
 
 fn main() -> ExitCode {
@@ -48,6 +59,7 @@ fn main() -> ExitCode {
             components,
             props,
             from,
+            follow,
             owners,
         } => {
             let config = engine::Config {
@@ -57,6 +69,7 @@ fn main() -> ExitCode {
                 props,
                 owners: owners
                     .map(|file| file.map_or(engine::Owners::Discover, engine::Owners::File)),
+                follow_variables: follow.contains(&Follow::Variables),
             };
             let report = match engine::scan(&config) {
                 Ok(report) => report,

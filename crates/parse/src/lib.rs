@@ -7,6 +7,7 @@
 //! Type-only imports and exports are left out: they can't be rendered.
 
 mod attributes;
+mod definitions;
 mod extract;
 mod lines;
 
@@ -22,6 +23,8 @@ pub struct FileSummary {
     pub elements: Vec<JsxElement>,
     /// Local constants that JSX elements refer to, indexed by [`Binding::Alias`].
     pub aliases: Vec<Alias>,
+    /// What the names in attributes are declared as, indexed by [`Reference::Variable`].
+    pub definitions: Vec<Definition>,
     /// Errors the parser recovered from. The lists above may be incomplete when this isn't empty.
     pub errors: Vec<SyntaxError>,
 }
@@ -124,6 +127,8 @@ pub enum ExprKind {
     Reference {
         name: Reference,
         text: String,
+        /// Property accesses after the name: `[Static("icon")]` in `item.icon`.
+        path: Vec<Key>,
     },
     /// A call, or a member access on one.
     Call {
@@ -168,6 +173,33 @@ pub enum Part {
     Value(Expr),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Key {
+    /// A property name, or an array index as a string: `a.b`, `a['b']`, `a[0]`.
+    Static(String),
+    /// Any other key, such as `a[key]`.
+    Dynamic,
+}
+
+/// What a name declared in the file holds, when [`Options::variables`] is set.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Definition {
+    /// `const name = init`, or a `let` or `var` that is never assigned to again. `path` is the
+    /// destructuring that leads to the name, as in `const { a: [name] } = init`, and `default`
+    /// its default, as in `const { name = default } = init`.
+    Value {
+        init: Expr,
+        path: Vec<String>,
+        default: Option<Expr>,
+    },
+    /// A function declaration, at its start.
+    Function(Location),
+    /// Assigned to after its declaration, declared more than once, or changed in place.
+    Mutated,
+    /// Not followed: following is off, or the declaration isn't supported.
+    NotFollowed,
+}
+
 /// What the name a [`ExprKind::Reference`] starts with is bound to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reference {
@@ -175,8 +207,8 @@ pub enum Reference {
     Import(usize),
     /// A function or `catch` parameter, including a name destructured from one.
     Parameter,
-    /// Any other declaration in this file.
-    Variable,
+    /// Any other declaration in this file. Index into [`FileSummary::definitions`].
+    Variable(usize),
     /// Not declared in this file.
     Global,
 }
@@ -228,9 +260,20 @@ pub enum ParseError {
     Syntax(SyntaxError),
 }
 
-/// Parses `source` as the dialect implied by `path`'s extension.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Options {
+    /// Record what the names in attributes are declared as; otherwise every
+    /// [`Definition`] is [`Definition::NotFollowed`].
+    pub variables: bool,
+}
+
+/// Parses `source` as the dialect implied by `path`'s extension, with default [`Options`].
 pub fn parse(path: &Path, source: &str) -> Result<FileSummary, ParseError> {
-    extract::extract(path, source)
+    parse_with(path, source, Options::default())
+}
+
+pub fn parse_with(path: &Path, source: &str, options: Options) -> Result<FileSummary, ParseError> {
+    extract::extract(path, source, options)
 }
 
 #[cfg(test)]

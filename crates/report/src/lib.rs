@@ -177,6 +177,7 @@ mod tests {
                                 line: 3,
                                 column: 17,
                             },
+                            via: Vec::new(),
                         },
                     },
                     Prop::Spread {
@@ -190,6 +191,7 @@ mod tests {
                                 line: 3,
                                 column: 25,
                             },
+                            via: Vec::new(),
                         },
                     },
                 ],

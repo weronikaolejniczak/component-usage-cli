@@ -25,6 +25,8 @@ struct Query {
     from: String,
     #[serde(default)]
     props: Option<Vec<String>>,
+    #[serde(default)]
+    follow: Option<Vec<String>>,
     /// Scan root, relative to the case folder.
     #[serde(default)]
     dir: Option<String>,
@@ -134,6 +136,9 @@ fn run_case(group: &str, name: &str) {
     if let Some(props) = &case.query.props {
         command.arg("--props").arg(props.join(","));
     }
+    if let Some(follow) = &case.query.follow {
+        command.arg("--follow").arg(follow.join(","));
+    }
     match case.query.owners.as_deref() {
         Some("") => {
             command.arg("--owners");
@@ -221,6 +226,7 @@ cases!(errors:
 cases!(props:
     all_components,
     expressions,
+    follow_variables,
     literals,
     objects,
     parents,

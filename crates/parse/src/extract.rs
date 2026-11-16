@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
@@ -18,14 +19,19 @@ use oxc_syntax::module_record::{
 
 use model::Location;
 
-use crate::attributes::{Exprs, attribute_name};
+use crate::attributes::{Exprs, Variables, attribute_name};
+use crate::definitions::definitions;
 use crate::lines::LineIndex;
 use crate::{
-    Alias, AliasRoot, Binding, Export, FileSummary, Import, Imported, JsxElement, Parent,
-    ParseError, SyntaxError,
+    Alias, AliasRoot, Binding, Definition, Export, FileSummary, Import, Imported, JsxElement,
+    Options, Parent, ParseError, SyntaxError,
 };
 
-pub(crate) fn extract(path: &Path, source: &str) -> Result<FileSummary, ParseError> {
+pub(crate) fn extract(
+    path: &Path,
+    source: &str,
+    options: Options,
+) -> Result<FileSummary, ParseError> {
     let source_type = SourceType::from_path(path).map_err(|_| ParseError::UnsupportedExtension)?;
     let source_type = source_type.with_jsx(source_type.is_jsx() || source_type.is_javascript());
     let lines = LineIndex::new(source);
@@ -81,18 +87,20 @@ pub(crate) fn extract(path: &Path, source: &str) -> Result<FileSummary, ParseErr
         in_parameters: false,
     };
     constants.visit_program(&parsed.program);
+    let exprs = Exprs {
+        source,
+        lines: &lines,
+        scoping: semantic.scoping(),
+        parameters: &constants.parameters,
+        import_at: &import_at,
+        variables: RefCell::new(Variables::default()),
+    };
     let mut collector = Elements {
         scoping: semantic.scoping(),
         lines: &lines,
         import_at: &import_at,
         constants: &constants.paths,
-        exprs: Exprs {
-            source,
-            lines: &lines,
-            scoping: semantic.scoping(),
-            parameters: &constants.parameters,
-            import_at: &import_at,
-        },
+        exprs: &exprs,
         frames: Vec::new(),
         alias_of: HashMap::new(),
         aliases: Vec::new(),
@@ -101,12 +109,19 @@ pub(crate) fn extract(path: &Path, source: &str) -> Result<FileSummary, ParseErr
     collector.visit_program(&parsed.program);
     let mut elements = collector.elements;
     elements.sort_by_key(|element| element.location);
+    let aliases = collector.aliases;
+    let definitions = if options.variables {
+        definitions(&parsed.program, &exprs, semantic.scoping(), &lines)
+    } else {
+        vec![Definition::NotFollowed; exprs.variables.borrow().symbols.len()]
+    };
 
     Ok(FileSummary {
         imports,
         exports,
         elements,
-        aliases: collector.aliases,
+        aliases,
+        definitions,
         errors,
     })
 }
@@ -274,7 +289,7 @@ struct Elements<'s> {
     lines: &'s LineIndex<'s>,
     import_at: &'s HashMap<u32, usize>,
     constants: &'s HashMap<SymbolId, Access>,
-    exprs: Exprs<'s>,
+    exprs: &'s Exprs<'s>,
     frames: Vec<Frame>,
     alias_of: HashMap<SymbolId, usize>,
     aliases: Vec<Alias>,

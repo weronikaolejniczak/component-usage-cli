@@ -4,7 +4,7 @@ use model::Location;
 
 use crate::{
     Alias, AliasRoot, Attribute, Binding, Export, Expr, ExprKind, FileSummary, Import, Imported,
-    Item, JsxElement, Literal, Parent, ParseError, Reference, parse,
+    Item, JsxElement, Key, Literal, Parent, ParseError, Reference, parse,
 };
 
 fn tsx(source: &str) -> FileSummary {
@@ -98,6 +98,7 @@ fn attributes_in_source_order() {
     let global = |text: &str| ExprKind::Reference {
         name: Reference::Global,
         text: text.to_owned(),
+        path: Vec::new(),
     };
     assert_eq!(
         summary.elements[0].attributes,
@@ -143,7 +144,7 @@ fn references_are_classified_by_declaration() {
         "import { a } from 'lib';\n",
         "const b = 1;\n",
         "function F(c, { d }, ...e) {\n",
-        "  return <A p={[a, b, c, d, e, g, undefined, a.x?.y, h().i, 1e999]} />;\n",
+        "  return <A p={[a, b, c, d, e, g, undefined, a.x?.y, h().i, h()?.i!, b?.[0]!, 1e999]} />;\n",
         "}\n",
     ));
     let [Attribute::Named { value, .. }] = summary.elements[0].attributes.as_slice() else {
@@ -158,24 +159,32 @@ fn references_are_classified_by_declaration() {
             Item::Value(value) | Item::Spread(value) => &value.kind,
         })
         .collect();
-    let reference = |name, text: &str| ExprKind::Reference {
+    let reference = |name, text: &str, path: &[&str]| ExprKind::Reference {
         name,
         text: text.to_owned(),
+        path: path
+            .iter()
+            .map(|key| Key::Static((*key).to_owned()))
+            .collect(),
     };
     assert_eq!(
         kinds,
         [
-            &reference(Reference::Import(0), "a"),
-            &reference(Reference::Variable, "b"),
-            &reference(Reference::Parameter, "c"),
-            &reference(Reference::Parameter, "d"),
-            &reference(Reference::Parameter, "e"),
-            &reference(Reference::Global, "g"),
+            &reference(Reference::Import(0), "a", &[]),
+            &reference(Reference::Variable(0), "b", &[]),
+            &reference(Reference::Parameter, "c", &[]),
+            &reference(Reference::Parameter, "d", &[]),
+            &reference(Reference::Parameter, "e", &[]),
+            &reference(Reference::Global, "g", &[]),
             &ExprKind::Undefined,
-            &reference(Reference::Import(0), "a.x?.y"),
+            &reference(Reference::Import(0), "a.x?.y", &["x", "y"]),
             &ExprKind::Call {
                 text: "h().i".to_owned()
             },
+            &ExprKind::Call {
+                text: "h()?.i!".to_owned()
+            },
+            &reference(Reference::Variable(0), "b?.[0]!", &["0"]),
             &ExprKind::Unsupported {
                 text: "1e999".to_owned()
             },

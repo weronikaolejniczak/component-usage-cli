@@ -1,14 +1,16 @@
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
 use oxc_ast::ast::{
     ArrayExpressionElement, ChainElement, Expression, IdentifierReference, JSXAttributeItem,
-    JSXAttributeName, JSXAttributeValue, JSXExpression, ObjectPropertyKind, TemplateLiteral,
+    JSXAttributeName, JSXAttributeValue, JSXExpression, MemberExpression, ObjectPropertyKind,
+    TemplateLiteral,
 };
 use oxc_semantic::{Scoping, SymbolId};
 use oxc_span::{GetSpan, Span};
 
 use crate::lines::LineIndex;
-use crate::{Attribute, Entry, Expr, ExprKind, Item, Literal, Part, Reference};
+use crate::{Attribute, Entry, Expr, ExprKind, Item, Key, Literal, Part, Reference};
 
 /// Converts attributes and the expressions in them to owned [`Expr`] trees.
 pub(crate) struct Exprs<'s> {
@@ -17,6 +19,14 @@ pub(crate) struct Exprs<'s> {
     pub(crate) scoping: &'s Scoping,
     pub(crate) parameters: &'s HashSet<SymbolId>,
     pub(crate) import_at: &'s HashMap<u32, usize>,
+    pub(crate) variables: RefCell<Variables>,
+}
+
+/// The local names referred to so far, in the order of [`Reference::Variable`] indices.
+#[derive(Default)]
+pub(crate) struct Variables {
+    index: HashMap<SymbolId, usize>,
+    pub(crate) symbols: Vec<SymbolId>,
 }
 
 impl<'a> Exprs<'_> {
@@ -92,6 +102,7 @@ impl<'a> Exprs<'_> {
                     ExprKind::Reference {
                         name,
                         text: self.text(span),
+                        path: Vec::new(),
                     }
                 }
             }
@@ -166,29 +177,63 @@ impl<'a> Exprs<'_> {
             Expression::CallExpression(_) => ExprKind::Call {
                 text: self.text(span),
             },
-            Expression::ChainExpression(chain) => match &chain.expression {
-                ChainElement::CallExpression(_) => ExprKind::Call {
-                    text: self.text(span),
-                },
-                element => match element.as_member_expression() {
-                    Some(member) => self.member(member.object(), span),
-                    None => self.unsupported(span),
-                },
-            },
-            Expression::StaticMemberExpression(member) => self.member(&member.object, span),
-            Expression::ComputedMemberExpression(member) => self.member(&member.object, span),
-            Expression::PrivateFieldExpression(member) => self.member(&member.object, span),
+            Expression::ChainExpression(_)
+            | Expression::StaticMemberExpression(_)
+            | Expression::ComputedMemberExpression(_)
+            | Expression::PrivateFieldExpression(_) => self.member(expression, span),
             _ => self.unsupported(span),
         };
         self.at(span, kind)
     }
 
-    /// A member access takes its kind from what it starts with.
-    fn member(&self, object: &Expression<'a>, span: Span) -> ExprKind {
+    /// A member access takes its kind from what it starts with, and keeps its keys when that is
+    /// a name.
+    fn member(&self, expression: &Expression<'a>, span: Span) -> ExprKind {
         let text = self.text(span);
-        match self.expr(object).kind {
-            ExprKind::Reference { name, .. } => ExprKind::Reference { name, text },
-            ExprKind::Call { .. } => ExprKind::Call { text },
+        let mut path = Vec::new();
+        let mut current = expression;
+        let root = loop {
+            let inner = current.get_inner_expression();
+            let member = match inner {
+                Expression::ChainExpression(chain) => match &chain.expression {
+                    ChainElement::CallExpression(_) => return ExprKind::Call { text },
+                    ChainElement::TSNonNullExpression(non_null) => {
+                        current = &non_null.expression;
+                        continue;
+                    }
+                    element => match element.as_member_expression() {
+                        Some(member) => member,
+                        None => return ExprKind::Unsupported { text },
+                    },
+                },
+                other => match other.as_member_expression() {
+                    Some(member) => member,
+                    None => break inner,
+                },
+            };
+            let (object, key) = match member {
+                MemberExpression::StaticMemberExpression(member) => (
+                    &member.object,
+                    Key::Static(member.property.name.to_string()),
+                ),
+                MemberExpression::ComputedMemberExpression(member) => {
+                    (&member.object, key(&member.expression))
+                }
+                MemberExpression::PrivateFieldExpression(_) => {
+                    return ExprKind::Unsupported { text };
+                }
+            };
+            path.push(key);
+            current = object;
+        };
+        path.reverse();
+        match root {
+            Expression::Identifier(identifier) => ExprKind::Reference {
+                name: self.reference(identifier),
+                text,
+                path,
+            },
+            Expression::CallExpression(_) => ExprKind::Call { text },
             _ => ExprKind::Unsupported { text },
         }
     }
@@ -235,10 +280,15 @@ impl<'a> Exprs<'_> {
             return Reference::Import(import);
         }
         if self.parameters.contains(&symbol) {
-            Reference::Parameter
-        } else {
-            Reference::Variable
+            return Reference::Parameter;
         }
+        let mut variables = self.variables.borrow_mut();
+        let next = variables.symbols.len();
+        let index = *variables.index.entry(symbol).or_insert(next);
+        if index == next {
+            variables.symbols.push(symbol);
+        }
+        Reference::Variable(index)
     }
 
     fn unsupported(&self, span: Span) -> ExprKind {
@@ -256,6 +306,25 @@ impl<'a> Exprs<'_> {
 
     fn text(&self, span: Span) -> String {
         self.source[span.start as usize..span.end as usize].to_owned()
+    }
+}
+
+/// Largest magnitude below which every integer is exactly representable as an `f64`.
+const SAFE_INTEGER: f64 = 9_007_199_254_740_992.0;
+
+fn key(expression: &Expression) -> Key {
+    match expression.get_inner_expression() {
+        Expression::StringLiteral(string) => Key::Static(string.value.display().to_string()),
+        Expression::NumericLiteral(number)
+            if number.value.fract() == 0.0 && (0.0..SAFE_INTEGER).contains(&number.value) =>
+        {
+            Key::Static((number.value as u64).to_string())
+        }
+        Expression::TemplateLiteral(template) => match template.single_quasi() {
+            Some(text) => Key::Static(text.display().to_string()),
+            None => Key::Dynamic,
+        },
+        _ => Key::Dynamic,
     }
 }
 

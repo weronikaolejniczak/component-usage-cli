@@ -48,6 +48,21 @@ Files that can't be scanned ([ADR-0010](../docs/decisions/0010-output.md)).
 |---|---|
 | `syntax-error` | A file that can't be parsed is an error with code `syntax`; other files are still scanned |
 
+## props
+
+Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-values.md)), compared only when the expected usage lists them. Extra `query` fields: `props` passes `--props`, `follow` passes `--follow`.
+
+| Case | Covers |
+|---|---|
+| `literals` | Strings, numbers, booleans, `null` and `undefined` |
+| `objects` | Object and array literals, with spreads and computed keys |
+| `templates` | Template literals, with and without tags |
+| `expressions` | The `unresolved` codes without `--follow`, ternaries, logical expressions, functions and elements |
+| `parents` | Enclosing usages, and the parent's attribute a usage is in |
+| `props-filter` | `--props` keeps the named props and spreads |
+| `all-components` | Every export of `--from` without `--components` ([ADR-0018](../docs/decisions/0018-all-components.md)) |
+| `follow-variables` | `--follow variables`: chains, property access, destructuring and defaults, `mutated`, function declarations, names that refer back to themselves ([ADR-0019](../docs/decisions/0019-follow-variables.md)) |
+
 ## owners
 
 Code owners of each usage ([ADR-0013](../docs/decisions/0013-code-owners.md)). Expected owners follow [GitHub's CODEOWNERS rules](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners).

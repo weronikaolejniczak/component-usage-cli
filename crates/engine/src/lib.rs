@@ -34,6 +34,8 @@ pub struct Config {
     pub props: Option<Vec<String>>,
     /// Attach code owners to results.
     pub owners: Option<Owners>,
+    /// Follow names declared in the file to their values.
+    pub follow_variables: bool,
 }
 
 /// Which `CODEOWNERS` file to use. Patterns always match paths relative to the repository root:
@@ -110,6 +112,9 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
         })?;
     let (from, _) = files.intern(from);
 
+    let options = parse::Options {
+        variables: config.follow_variables,
+    };
     let mut modules: Vec<Option<Module>> = Vec::new();
     let mut pending: Vec<FileId> = scanned.clone();
     if !scanned_set.contains(&from) {
@@ -120,7 +125,7 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
             .par_iter()
             .map(|&id| {
                 let path = files.path(id);
-                let summary = read_and_parse(path);
+                let summary = read_and_parse(path, options);
                 let resolved = summary.as_ref().ok().map(|summary| {
                     needed_specifiers(summary, scanned_set.contains(&id))
                         .into_iter()
@@ -202,8 +207,10 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
             parents: usage.parents,
             props: graph
                 .module(usage.file)
-                .and_then(|module| module.summary.elements.get(usage.element))
-                .map(|element| values::props(element, config.props.as_deref()))
+                .and_then(|module| Some((module, module.summary.elements.get(usage.element)?)))
+                .map(|(module, element)| {
+                    values::props(&module.summary, element, config.props.as_deref())
+                })
                 .unwrap_or_default(),
             owners: None,
         })
@@ -252,9 +259,9 @@ enum ReadError {
     Parse(ParseError),
 }
 
-fn read_and_parse(path: &Path) -> Result<FileSummary, ReadError> {
+fn read_and_parse(path: &Path, options: parse::Options) -> Result<FileSummary, ReadError> {
     let source = fs::read_to_string(path).map_err(ReadError::Io)?;
-    parse::parse(path, &source).map_err(ReadError::Parse)
+    parse::parse_with(path, &source, options).map_err(ReadError::Parse)
 }
 
 fn file_error(file: String, error: ReadError) -> FileError {
