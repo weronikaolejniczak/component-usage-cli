@@ -6,8 +6,8 @@ Usage:
   analyse.py selects <checkout> <report.json> <out.json>
   analyse.py styles  <checkout> <report.json> <out.json> -- <codeowners command...>
 
-<report.json> is a `scan --from <library> --owners` report, without
-`--components`, so every export of the library is a target. Prints a summary
+<report.json> is a `scan --from <library> --owners --follow variables` report,
+without `--components`, so every export of the library is a target. Prints a summary
 and writes the full findings, grouped by owner, to <out.json>.
 """
 
@@ -39,27 +39,30 @@ def spread(usage):
     return any("spread" in prop for prop in usage["props"])
 
 
-def walk(value, path=()):
+def walk(value, path=(), followed=False):
     """Every value inside `value`, with its path: object keys, `[]` for array items,
-    `...` for spreads and `${}` for template parts. JSX elements are usages of their own."""
-    yield path, value
+    `...` for spreads and `${}` for template parts; and whether it was reached by following a
+    name (`--follow`), so it's written at a definition rather than at the usage. JSX elements
+    are usages of their own."""
+    followed = followed or bool(value.get("via"))
+    yield path, value, followed
     kind = value["kind"]
     if kind == "one-of":
         for inner in value["values"]:
-            yield from walk(inner, path)
+            yield from walk(inner, path, followed)
     elif kind == "object":
         for entry in value["entries"]:
             if "spread" in entry:
-                yield from walk(entry["spread"], path + ("...",))
+                yield from walk(entry["spread"], path + ("...",), followed)
             else:
-                yield from walk(entry["value"], path + (entry.get("key", f"[{entry.get('computed')}]"),))
+                yield from walk(entry["value"], path + (entry.get("key", f"[{entry.get('computed')}]"),), followed)
     elif kind == "array":
         for item in value["items"]:
-            yield from walk(item.get("value") or item["spread"], path + ("[]" if "value" in item else "...",))
+            yield from walk(item.get("value") or item["spread"], path + ("[]" if "value" in item else "...",), followed)
     elif kind == "template":
         for part in value["parts"]:
             if "value" in part:
-                yield from walk(part["value"], path + ("${}",))
+                yield from walk(part["value"], path + ("${}",), followed)
 
 
 def string(value):
@@ -162,26 +165,40 @@ def icon_attribute(name, before):
     return name == "type" and bool(tags) and "Icon" in tags[-1]
 
 
+# Kinds of findings, most precise first. `eui-variable` is a literal in a variable that an icon
+# prop of an EUI usage reads, found with `--follow variables`.
+ORDER = ["eui-jsx", "eui-data", "eui-variable", "other-jsx", "icon-key", "eui-other-prop", "other-string"]
+
+
 def icons(checkout, report, out, command):
     aliases = load(os.path.join(HERE, "icon-aliases.json"))["aliases"]
-    found, review = [], []
-    seen = set()
+    # A value in a variable is one place to change, however many usages read it: findings and
+    # values to review are kept once per position, with the most precise kind.
+    found, review = {}, {}
     for usage in report["usages"]:
         base = {"component": usage["component"]}
         for name, value in named(usage).items():
-            for path, node in walk(value):
+            for path, node, followed in walk(value):
                 if node["kind"] == "one-of":
                     continue
                 icon = icon_value(usage["component"], name, path)
                 entry = base | {"prop": ".".join((name,) + path)}
+                position = (usage["file"], node["line"], node["column"])
                 if string(node):
-                    seen.add((usage["file"], node["line"], node["column"]))
+                    found.setdefault(position, None)
                     if node["value"] in aliases:
-                        kind = "eui-other-prop" if not icon else "eui-data" if path else "eui-jsx"
-                        found.append(at(usage, node) | entry | {
-                            "kind": kind, "alias": node["value"], "replacement": aliases[node["value"]]})
+                        kind = ("eui-other-prop" if not icon else "eui-variable" if followed
+                                else "eui-data" if path else "eui-jsx")
+                        current = found[position]
+                        if current is None or ORDER.index(kind) < ORDER.index(current["kind"]):
+                            found[position] = at(usage, node) | entry | {
+                                "kind": kind, "alias": node["value"], "replacement": aliases[node["value"]]}
                 elif icon and node["kind"] not in ("element", "function", "object", "array", "literal", "undefined"):
-                    review.append(at(usage, node) | entry | {"reason": reason(node), "text": node.get("text")})
+                    review.setdefault(position, at(usage, node) | entry | {
+                        "reason": reason(node), "text": node.get("text"), "followed": followed})
+    seen = set(found)
+    found = [entry for entry in found.values() if entry is not None]
+    review = list(review.values())
 
     names = "|".join(sorted(aliases, key=len, reverse=True))
     attribute = re.compile(r"\b([\w-]+)=\{?\s*$")
@@ -210,21 +227,22 @@ def icons(checkout, report, out, command):
     missing = {entry["file"] for entry in found + review} - owners.keys()
     owners |= owners_from_command(checkout, command, missing)
 
-    order = ["eui-jsx", "eui-data", "other-jsx", "icon-key", "eui-other-prop", "other-string"]
+    order = ORDER
     kinds = collections.Counter(entry["kind"] for entry in found)
     print(f"aliases: {len(aliases)}; findings: {len(found)}; icon values to review: {len(review)}\n")
     table(["kind", "findings"], [(kind, kinds[kind]) for kind in order])
-    table(["review reason", "values"], collections.Counter(entry["reason"] for entry in review).most_common())
+    table(["review reason", "values"], collections.Counter(
+        entry["reason"] + (", followed" if entry["followed"] else "") for entry in review).most_common())
     per_alias = collections.defaultdict(collections.Counter)
     for entry in found:
         per_alias[entry["alias"]][entry["kind"]] += 1
     table(["alias"] + order, sorted(
         ([alias] + [counts[kind] for kind in order] for alias, counts in per_alias.items()),
-        key=lambda row: (-sum(row[1:5]), -row[6], row[0]),
+        key=lambda row: (-sum(row[1:6]), -row[7], row[0]),
     ))
-    precise = [entry for entry in found if entry["kind"] in order[:4]]
+    precise = [entry for entry in found if entry["kind"] in order[:5]]
     grouped = by_owner(precise, owners)
-    table(["owner", "eui-jsx, eui-data, other-jsx, icon-key findings"],
+    table(["owner", "eui-jsx, eui-data, eui-variable, other-jsx, icon-key findings"],
           [(o, len(e)) for o, e in list(grouped.items())[:15]])
     write(out, {"findings": by_owner(found, owners), "review": by_owner(review, owners)})
 
@@ -264,12 +282,16 @@ def entry(value, key):
     return None
 
 
+def followed(value):
+    return ", followed" if value.get("via") else ""
+
+
 def options_shape(value):
     if value is None:
         return "absent"
     if value["kind"] != "array":
-        return reason(value)
-    return "array literal"
+        return reason(value) + followed(value)
+    return "array literal" + followed(value)
 
 
 def selects(checkout, report, out):
@@ -315,7 +337,7 @@ def selects(checkout, report, out):
     keys = sorted({k for counter in shapes.values() for k in counter}, key=lambda k: -sum(s[k] for s in shapes.values()))
     table(["options"] + SELECTS, [[k] + [shapes[c][k] for c in SELECTS] for k in keys])
     lengths = [sum("value" in i for i in named(u)["options"]["items"]) for u in usages
-               if options_shape(named(u).get("options")) == "array literal"]
+               if options_shape(named(u).get("options")).startswith("array literal")]
     if lengths:
         print(f"array literal `options`: {len(lengths)}; items median {statistics.median(lengths)}, max {max(lengths)}\n")
 
@@ -368,13 +390,13 @@ DECLARATION = re.compile(r"(?:^|[;{\s])([a-z-]+)\s*:(?!:)", re.MULTILINE)
 
 def shape(value):
     if value["kind"] == "template":
-        return f"template, tag {value['tag']}" if "tag" in value else "template"
-    return reason(value)
+        return (f"template, tag {value['tag']}" if "tag" in value else "template") + followed(value)
+    return reason(value) + followed(value)
 
 
 def css_properties(value):
     """CSS properties set in object keys and template text, at any depth."""
-    for path, node in walk(value):
+    for path, node, _ in walk(value):
         if path and path[-1] not in ("[]", "...", "${}") and node["kind"] != "object":
             yield path[-1]
         if node["kind"] == "template":
@@ -419,7 +441,7 @@ def styles(checkout, report, out, command):
         if value is None:
             continue
         tokens = set()
-        for _, node in walk(value):
+        for _, node, _ in walk(value):
             texts = [node["value"]] if string(node) else [p["text"] for p in node.get("parts", []) if "text" in p]
             tokens.update(t for text in texts for t in text.split() if t.startswith("eui"))
         classes.update(tokens)
