@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Answer the use cases in this folder from the reports of each tool.
+"""Answer the use cases in this folder from a component-usage-cli report.
 
 Usage:
-  analyse.py icons   <checkout> <react-scanner.json> <report.json> <out.json> -- <codeowners command...>
-  analyse.py selects <checkout> <react-scanner.json> <report.json> <out.json>
-  analyse.py styles  <checkout> <react-scanner.json> <report.json> <out.json> -- <codeowners command...>
+  analyse.py icons   <checkout> <report.json> <out.json> -- <codeowners command...>
+  analyse.py selects <checkout> <report.json> <out.json>
+  analyse.py styles  <checkout> <report.json> <out.json> -- <codeowners command...>
 
-<react-scanner.json> is a react-scanner raw report of every component
-imported from the library. <report.json> is a `scan --owners` report of the
-same components and is used for owners. Prints a summary and writes the full
-findings, grouped by owner, to <out.json>.
+<report.json> is a `scan --from <library> --owners` report, without
+`--components`, so every export of the library is a target. Prints a summary
+and writes the full findings, grouped by owner, to <out.json>.
 """
 
 import collections
@@ -17,6 +16,7 @@ import gzip
 import json
 import os
 import re
+import statistics
 import subprocess
 import sys
 
@@ -30,29 +30,51 @@ def load(path):
         return json.load(f)
 
 
-def instances(scanner, checkout):
-    def walk(name, node):
-        for instance in node.get("instances", []):
-            yield name, instance
-        for member, child in node.get("components", {}).items():
-            yield from walk(f"{name}.{member}", child)
-
-    prefix = checkout.rstrip("/") + "/"
-    for component, node in scanner.items():
-        for name, instance in walk(component, node):
-            location = instance["location"]
-            yield {
-                "component": name,
-                "file": location["file"].removeprefix(prefix),
-                "line": location["start"]["line"],
-                "column": location["start"]["column"],
-                "props": instance.get("props") or {},
-                "spread": instance.get("propsSpread", False),
-            }
+def named(usage):
+    """Named props of a usage; a later attribute overrides an earlier one, as in React."""
+    return {prop["name"]: prop["value"] for prop in usage["props"] if "name" in prop}
 
 
-def literal(value):
-    return not (isinstance(value, str) and value.startswith("(") and value.endswith(")"))
+def spread(usage):
+    return any("spread" in prop for prop in usage["props"])
+
+
+def walk(value, path=()):
+    """Every value inside `value`, with its path: object keys, `[]` for array items,
+    `...` for spreads and `${}` for template parts. JSX elements are usages of their own."""
+    yield path, value
+    kind = value["kind"]
+    if kind == "one-of":
+        for inner in value["values"]:
+            yield from walk(inner, path)
+    elif kind == "object":
+        for entry in value["entries"]:
+            if "spread" in entry:
+                yield from walk(entry["spread"], path + ("...",))
+            else:
+                yield from walk(entry["value"], path + (entry.get("key", f"[{entry.get('computed')}]"),))
+    elif kind == "array":
+        for item in value["items"]:
+            yield from walk(item.get("value") or item["spread"], path + ("[]" if "value" in item else "...",))
+    elif kind == "template":
+        for part in value["parts"]:
+            if "value" in part:
+                yield from walk(part["value"], path + ("${}",))
+
+
+def string(value):
+    return value["kind"] == "literal" and isinstance(value["value"], str)
+
+
+def reason(value):
+    """Why a value isn't a literal: an unresolved code, with the step that would follow it."""
+    if value["kind"] == "unresolved":
+        return value["code"] + (f" ({value['step']})" if "step" in value else "")
+    return value["kind"]
+
+
+def at(usage, value):
+    return {"file": usage["file"], "line": value["line"], "column": value["column"]}
 
 
 def rg(checkout, pattern, globs):
@@ -61,9 +83,11 @@ def rg(checkout, pattern, globs):
     for glob in globs:
         args += ["--glob", glob]
     out = subprocess.run(args + [pattern], cwd=checkout, capture_output=True, text=True).stdout
+    rows = []
     for row in out.splitlines():
         file, line, column, match = row.split(":", 3)
-        yield file.removeprefix("./"), int(line), int(column), match
+        rows.append((file.removeprefix("./"), int(line), int(column), match))
+    return sorted(rows)
 
 
 def lines(checkout, file):
@@ -113,11 +137,22 @@ def write(path, data):
         json.dump(data, f, indent=1)
 
 
-ICON_PROPS = {"iconType", "icon", "iconLeft", "iconRight"}
+# Props and keys typed `IconType` in EUI: `icon`, `iconType`, `iconLeft`, `iconRight`,
+# `childIconType`, `betaBadgeIconType`, `eventIcon`; `type` on `EuiIcon` and `EuiIconTip`, and
+# in an icon object such as `icon={{ type: 'gear', side: 'left' }}`; `logo` on `EuiLoadingLogo`.
+ICON_KEYS = {"icon", "iconType", "iconLeft", "iconRight", "childIconType", "betaBadgeIconType", "eventIcon"}
+TYPE_IS_ICON = {"EuiIcon", "EuiIconTip"}
 
 
-def icon_prop(component, prop):
-    return prop in ICON_PROPS or (prop == "type" and component == "EuiIcon")
+def icon_value(component, name, path):
+    if path and path[-1] in ("[]", "...", "${}"):
+        return False
+    keys = (name,) + tuple(key for key in path if key not in ("[]", "..."))
+    if keys[-1] in ICON_KEYS:
+        return True
+    if keys[-1] == "type":
+        return len(keys) == 1 and component in TYPE_IS_ICON or len(keys) > 1 and keys[-2] in ICON_KEYS
+    return keys == ("logo",) and component == "EuiLoadingLogo"
 
 
 def icon_attribute(name, before):
@@ -127,20 +162,26 @@ def icon_attribute(name, before):
     return name == "type" and bool(tags) and "Icon" in tags[-1]
 
 
-def icons(checkout, scanner, report, out, command):
+def icons(checkout, report, out, command):
     aliases = load(os.path.join(HERE, "icon-aliases.json"))["aliases"]
     found, review = [], []
-    unmatched = collections.defaultdict(list)
-    for usage in instances(scanner, checkout):
-        for prop, value in usage["props"].items():
-            if not icon_prop(usage["component"], prop):
-                continue
-            entry = {key: usage[key] for key in ("file", "line", "column", "component")} | {"prop": prop}
-            if not literal(value):
-                review.append(entry | {"expression": value})
-            elif value in aliases:
-                found.append(entry | {"kind": "eui-jsx", "alias": value, "replacement": aliases[value]})
-                unmatched[(usage["file"], value)].append(usage["line"])
+    seen = set()
+    for usage in report["usages"]:
+        base = {"component": usage["component"]}
+        for name, value in named(usage).items():
+            for path, node in walk(value):
+                if node["kind"] == "one-of":
+                    continue
+                icon = icon_value(usage["component"], name, path)
+                entry = base | {"prop": ".".join((name,) + path)}
+                if string(node):
+                    seen.add((usage["file"], node["line"], node["column"]))
+                    if node["value"] in aliases:
+                        kind = "eui-other-prop" if not icon else "eui-data" if path else "eui-jsx"
+                        found.append(at(usage, node) | entry | {
+                            "kind": kind, "alias": node["value"], "replacement": aliases[node["value"]]})
+                elif icon and node["kind"] not in ("element", "function", "object", "array", "literal", "undefined"):
+                    review.append(at(usage, node) | entry | {"reason": reason(node), "text": node.get("text")})
 
     names = "|".join(sorted(aliases, key=len, reverse=True))
     attribute = re.compile(r"\b([\w-]+)=\{?\s*$")
@@ -150,14 +191,10 @@ def icons(checkout, scanner, report, out, command):
         alias = match[1:-1]
         source = cache.setdefault(file, lines(checkout, file))
         text = source[line - 1]
-        before = text[: column - 1]
+        before = text.encode()[: column - 1].decode(errors="replace")
+        if (file, line, len(before.encode("utf-16-le")) // 2 + 1) in seen:
+            continue
         jsx = attribute.search(before)
-        if jsx:
-            starts = unmatched.get((file, alias), [])
-            near = [start for start in starts if start <= line]
-            if near:
-                starts.remove(max(near))
-                continue
         if jsx and icon_attribute(jsx.group(1), "\n".join(source[max(0, line - 10) : line - 1] + [before])):
             kind = "other-jsx"
         elif icon_key.search(before):
@@ -173,33 +210,41 @@ def icons(checkout, scanner, report, out, command):
     missing = {entry["file"] for entry in found + review} - owners.keys()
     owners |= owners_from_command(checkout, command, missing)
 
+    order = ["eui-jsx", "eui-data", "other-jsx", "icon-key", "eui-other-prop", "other-string"]
     kinds = collections.Counter(entry["kind"] for entry in found)
-    print(f"aliases: {len(aliases)}; findings: {len(found)}; dynamic icon props to review: {len(review)}\n")
-    table(["kind", "findings"], kinds.most_common())
+    print(f"aliases: {len(aliases)}; findings: {len(found)}; icon values to review: {len(review)}\n")
+    table(["kind", "findings"], [(kind, kinds[kind]) for kind in order])
+    table(["review reason", "values"], collections.Counter(entry["reason"] for entry in review).most_common())
     per_alias = collections.defaultdict(collections.Counter)
     for entry in found:
         per_alias[entry["alias"]][entry["kind"]] += 1
-    order = ["eui-jsx", "other-jsx", "icon-key", "other-string"]
     table(["alias"] + order, sorted(
         ([alias] + [counts[kind] for kind in order] for alias, counts in per_alias.items()),
-        key=lambda row: (-sum(row[1:4]), -row[4], row[0]),
+        key=lambda row: (-sum(row[1:5]), -row[6], row[0]),
     ))
-    precise = [entry for entry in found if entry["kind"] != "other-string"]
+    precise = [entry for entry in found if entry["kind"] in order[:4]]
     grouped = by_owner(precise, owners)
-    table(["owner", "eui-jsx, other-jsx, icon-key findings"], [(o, len(e)) for o, e in list(grouped.items())[:15]])
+    table(["owner", "eui-jsx, eui-data, other-jsx, icon-key findings"],
+          [(o, len(e)) for o, e in list(grouped.items())[:15]])
     write(out, {"findings": by_owner(found, owners), "review": by_owner(review, owners)})
 
 
 SELECTS = ["EuiSelect", "EuiSuperSelect", "EuiComboBox", "EuiSelectable"]
 NOISE = re.compile(r"^(data-test-subj|aria-.*|id|key|className|css|style|name)$")
+
+
+def false(value):
+    return value is not None and value["kind"] == "literal" and value["value"] is False
+
+
 FEATURES = {
-    "multiple selection": {"EuiComboBox": lambda p: p.get("singleSelection") in (None, False),
-                           "EuiSelectable": lambda p: p.get("singleSelection") in (None, False)},
+    "multiple selection": {"EuiComboBox": lambda p: p.get("singleSelection") is None or false(p["singleSelection"]),
+                           "EuiSelectable": lambda p: p.get("singleSelection") is None or false(p["singleSelection"])},
     "search": {"EuiComboBox": lambda p: True, "EuiSelectable": lambda p: "searchable" in p},
     "async search": {"EuiComboBox": lambda p: "onSearchChange" in p, "EuiSelectable": lambda p: "searchProps" in p and "isLoading" in p},
     "create option": {"EuiComboBox": lambda p: "onCreateOption" in p},
     "renderOption": {"EuiComboBox": lambda p: "renderOption" in p, "EuiSelectable": lambda p: "renderOption" in p},
-    "clearable": {"EuiComboBox": lambda p: p.get("isClearable", True) is not False},
+    "clearable": {"EuiComboBox": lambda p: not false(p.get("isClearable"))},
     "no initial selection": {"EuiSelect": lambda p: "hasNoInitialSelection" in p},
     "loading": {c: (lambda p: "isLoading" in p) for c in SELECTS},
     "invalid state": {c: (lambda p: "isInvalid" in p) for c in ["EuiSelect", "EuiSuperSelect", "EuiComboBox"]},
@@ -207,19 +252,37 @@ FEATURES = {
     "full width": {c: (lambda p: "fullWidth" in p) for c in ["EuiSelect", "EuiSuperSelect", "EuiComboBox"]},
     "prepend or append": {c: (lambda p: "prepend" in p or "append" in p) for c in ["EuiSelect", "EuiComboBox"]},
 }
+POPOVERS = {"EuiPopover", "EuiInputPopover", "EuiWrappingPopover"}
 
 
-def selects(checkout, scanner, report, out):
+def entry(value, key):
+    if value is None or value["kind"] != "object":
+        return None
+    for item in value["entries"]:
+        if item.get("key") == key:
+            return item["value"]
+    return None
+
+
+def options_shape(value):
+    if value is None:
+        return "absent"
+    if value["kind"] != "array":
+        return reason(value)
+    return "array literal"
+
+
+def selects(checkout, report, out):
     owners = owners_from_report(report)
-    usages = [u for u in instances(scanner, checkout) if u["component"] in SELECTS]
+    usages = [u for u in report["usages"] if u["component"] in SELECTS]
     per = {c: [u for u in usages if u["component"] == c] for c in SELECTS}
 
     rows = []
     for component, items in per.items():
         files = {u["file"] for u in items}
         teams = {o for f in files for o in owners.get(f, [])}
-        spread = sum(u["spread"] for u in items)
-        rows.append((component, len(items), len(files), len(teams), f"{spread} ({percent(spread, len(items))})"))
+        spreads = sum(spread(u) for u in items)
+        rows.append((component, len(items), len(files), len(teams), f"{spreads} ({percent(spreads, len(items))})"))
     table(["component", "usages", "files", "teams", "with {...spread}"], rows)
 
     teams = collections.Counter()
@@ -233,74 +296,134 @@ def selects(checkout, scanner, report, out):
           [[o] + [teams[(o, c)] for c in SELECTS] + [n] for o, n in totals.most_common(15)])
 
     for component, items in per.items():
-        props = collections.Counter(p for u in items for p in u["props"])
+        props = collections.Counter(p for u in items for p in named(u))
         print(f"{component}: most used props")
         table(["prop", "usages"], [(p, f"{n} ({percent(n, len(items))})") for p, n in props.most_common(15)])
         sets = collections.Counter(
-            ", ".join(sorted(p for p in u["props"] if not NOISE.match(p))) for u in items)
+            ", ".join(sorted(p for p in named(u) if not NOISE.match(p))) for u in items)
         print(f"{component}: most common prop sets (ignoring {NOISE.pattern})")
         table(["props", "usages"], [(s or "(none)", n) for s, n in sets.most_common(8)])
 
-    print("Features used, by prop presence (\"-\" means the component doesn't offer it)")
+    print("Features used, by prop presence and literal values (\"-\" means the component doesn't offer it)")
     table(["feature"] + SELECTS, [
-        [feature] + [percent(sum(bool(test[c](u["props"])) for u in per[c]), len(per[c])) if c in test else "-"
+        [feature] + [percent(sum(bool(test[c](named(u))) for u in per[c]), len(per[c])) if c in test else "-"
                      for c in SELECTS]
         for feature, test in FEATURES.items()])
 
-    single = [u for u in per["EuiComboBox"]
-              if u["props"].get("singleSelection") not in (None, False)
-              and not {"onCreateOption", "onSearchChange", "async"} & u["props"].keys()]
-    plain = [u for u in single if u["props"].get("singleSelection") == "(ObjectExpression)"]
+    print("`options`: what the value is")
+    shapes = {c: collections.Counter(options_shape(named(u).get("options")) for u in per[c]) for c in SELECTS}
+    keys = sorted({k for counter in shapes.values() for k in counter}, key=lambda k: -sum(s[k] for s in shapes.values()))
+    table(["options"] + SELECTS, [[k] + [shapes[c][k] for c in SELECTS] for k in keys])
+    lengths = [sum("value" in i for i in named(u)["options"]["items"]) for u in usages
+               if options_shape(named(u).get("options")) == "array literal"]
+    if lengths:
+        print(f"array literal `options`: {len(lengths)}; items median {statistics.median(lengths)}, max {max(lengths)}\n")
+
+    combo = per["EuiComboBox"]
+    single_values = collections.Counter()
+    for u in combo:
+        value = named(u).get("singleSelection")
+        if value is None or false(value):
+            continue
+        plain = entry(value, "asPlainText")
+        if value["kind"] == "object":
+            single_values["object, asPlainText: " + ("absent" if plain is None else
+                          json.dumps(plain["value"]) if plain["kind"] == "literal" else reason(plain))] += 1
+        else:
+            single_values[f"{value['kind']} {json.dumps(value.get('value'))}" if value["kind"] == "literal" else reason(value)] += 1
+    print("EuiComboBox `singleSelection` values")
+    table(["value", "usages"], single_values.most_common())
+
+    single = [u for u in combo
+              if named(u).get("singleSelection") is not None and not false(named(u)["singleSelection"])
+              and not {"onCreateOption", "onSearchChange", "async"} & named(u).keys()]
+    plain = [u for u in single if (lambda v: v is not None and v["kind"] == "literal" and v["value"] is True)(
+        entry(named(u)["singleSelection"], "asPlainText"))]
     labelless = [u for u in per["EuiSelect"] + per["EuiSuperSelect"] + per["EuiComboBox"]
-                 if not u["spread"] and not {"aria-label", "aria-labelledby", "id"} & u["props"].keys()]
+                 if not spread(u) and not {"aria-label", "aria-labelledby", "id"} & named(u).keys()]
+
+    def in_row(u):
+        return bool(u["parents"]) and u["parents"][0]["component"] == "EuiFormRow" and "prop" not in u["parents"][0]
+
+    in_popover = [u for u in per["EuiSelectable"] if any(p["component"] in POPOVERS for p in u["parents"])]
     findings = {
         "EuiComboBox single selection without create or async search": single,
-        "EuiComboBox single selection with an object value": plain,
-        "no aria-label, aria-labelledby or id (may still get a label from EuiFormRow)": labelless,
-        "props passed with {...spread} (wrappers or forwarding)": [u for u in usages if u["spread"]],
+        "EuiComboBox single selection with asPlainText: true": plain,
+        "no aria-label, aria-labelledby or id, inside an EuiFormRow": [u for u in labelless if in_row(u)],
+        "no aria-label, aria-labelledby or id, not inside an EuiFormRow": [u for u in labelless if not in_row(u)],
+        "EuiSelectable inside a popover": in_popover,
+        "props passed with {...spread} (wrappers or forwarding)": [u for u in usages if spread(u)],
     }
     table(["pattern", "usages"], [(name, len(items)) for name, items in findings.items()])
 
-    wrappers = collections.Counter(u["file"] for u in usages if u["spread"])
+    wrappers = collections.Counter(u["file"] for u in usages if spread(u))
     print("Files that spread props into a select (wrapper candidates)")
     table(["file", "usages"], wrappers.most_common(15))
     write(out, {name: by_owner(items, owners) for name, items in findings.items()})
 
 
 TEST = re.compile(r"(\.test\.|\.spec\.|\.stories\.|/__jest__/|/__mocks__/|/test/|/tests?_helpers?/|/cypress/|/e2e/|/ftr/|/scout/)")
+DECLARATION = re.compile(r"(?:^|[;{\s])([a-z-]+)\s*:(?!:)", re.MULTILINE)
 
 
-def styles(checkout, scanner, report, out, command):
+def shape(value):
+    if value["kind"] == "template":
+        return f"template, tag {value['tag']}" if "tag" in value else "template"
+    return reason(value)
+
+
+def css_properties(value):
+    """CSS properties set in object keys and template text, at any depth."""
+    for path, node in walk(value):
+        if path and path[-1] not in ("[]", "...", "${}") and node["kind"] != "object":
+            yield path[-1]
+        if node["kind"] == "template":
+            text = "".join(part.get("text", "") for part in node["parts"])
+            yield from DECLARATION.findall(text)
+
+
+def styles(checkout, report, out, command):
     owners = owners_from_report(report)
-    usages = list(instances(scanner, checkout))
+    usages = report["usages"]
     per = collections.defaultdict(list)
     for u in usages:
         per[u["component"]].append(u)
 
     kinds = ("css", "className", "style")
-    overridden = [u for u in usages if any(k in u["props"] for k in kinds)]
+    overridden = [u for u in usages if kinds[0] in named(u) or kinds[1] in named(u) or kinds[2] in named(u)]
     print(f"EUI usages: {len(usages)}; with css, className or style: {len(overridden)} ({percent(len(overridden), len(usages))})\n")
-    table(["prop", "usages", "literal values"], [
-        (k, sum(k in u["props"] for u in usages), sum(k in u["props"] and literal(u["props"][k]) for u in usages))
-        for k in kinds])
+    for k in kinds:
+        values = [named(u)[k] for u in usages if k in named(u)]
+        print(f"`{k}`: {len(values)} usages; what the value is")
+        table(["value", "usages"], collections.Counter(shape(v) for v in values).most_common(10))
 
     rows = []
     for component, items in per.items():
         if len(items) < 100:
             continue
-        counts = [sum(k in u["props"] for u in items) for k in kinds]
-        any_ = sum(any(k in u["props"] for k in kinds) for u in items)
+        counts = [sum(k in named(u) for u in items) for k in kinds]
+        any_ = sum(any(k in named(u) for k in kinds) for u in items)
         rows.append((component, len(items), any_, percent(any_, len(items)), *counts))
     rows.sort(key=lambda row: -row[2] / row[1])
     print("Components with at least 100 usages, by share of overridden usages")
     table(["component", "usages", "overridden", "share"] + list(kinds), rows[:20])
 
+    for k in ("css", "style"):
+        properties = collections.Counter(p for u in usages if k in named(u) for p in set(css_properties(named(u)[k])))
+        print(f"Properties set in `{k}`, in object keys and template text, by usages")
+        table(["property", "usages"], properties.most_common(20))
+
     classes = collections.Counter()
     for u in usages:
-        value = u["props"].get("className")
-        if isinstance(value, str) and literal(value):
-            classes.update(token for token in value.split() if token.startswith("eui"))
-    print("Literal className tokens that are EUI's own classes")
+        value = named(u).get("className")
+        if value is None:
+            continue
+        tokens = set()
+        for _, node in walk(value):
+            texts = [node["value"]] if string(node) else [p["text"] for p in node.get("parts", []) if "text" in p]
+            tokens.update(t for text in texts for t in text.split() if t.startswith("eui"))
+        classes.update(tokens)
+    print("className tokens that are EUI's own classes, in literals and template text")
     table(["class", "usages"], classes.most_common(15))
 
     styled = collections.Counter(
@@ -329,21 +452,21 @@ def styles(checkout, scanner, report, out, command):
           [(o, n, selector_teams[o]) for o, n in teams.most_common(15)])
     write(out, {
         "overrides": by_owner(
-            [{k: u[k] for k in ("file", "line", "column", "component")} | {k: u["props"][k] for k in kinds if k in u["props"]}
+            [{k: u[k] for k in ("file", "line", "column", "component")} | {k: named(u)[k] for k in kinds if k in named(u)}
              for u in overridden], owners),
         "selectors": by_owner([{"file": f, "line": l, "column": c, "class": m[1:]} for f, l, c, m in selectors], owners),
     })
 
 
 def main():
-    use_case, checkout, scanner, report, out, *rest = sys.argv[1:]
-    scanner, report = load(scanner), load(report)
+    use_case, checkout, report, out, *rest = sys.argv[1:]
+    report = load(report)
     if use_case == "icons":
-        icons(checkout, scanner, report, out, rest[1:])
+        icons(checkout, report, out, rest[1:])
     elif use_case == "selects":
-        selects(checkout, scanner, report, out)
+        selects(checkout, report, out)
     elif use_case == "styles":
-        styles(checkout, scanner, report, out, rest[1:])
+        styles(checkout, report, out, rest[1:])
     else:
         sys.exit(f"unknown use case: {use_case}")
 

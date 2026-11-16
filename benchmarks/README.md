@@ -20,17 +20,11 @@ benchmarks/alternatives/run.sh <checkout> <runs> <name> @elastic/eui
 benchmarks/owners.py <checkout> benchmarks/results/<name>/report.json.gz codeowners
 ```
 
-The use cases in [`use-cases/`](./use-cases/) are answered from the reports of `alternatives/run.sh`.
-
 ```sh
-# Every EUI component in a checkout, with react-scanner and with this tool; needs Node and npm.
-benchmarks/alternatives/run.sh <checkout> <runs> <name> @elastic/eui
-
-# Owners in a report against another implementation, here github.com/hmarr/codeowners v1.2.1.
-benchmarks/owners.py <checkout> benchmarks/results/<name>/report.json.gz codeowners
+# The use cases in use-cases/, from one report of every EUI export with owners. Exports Kibana
+# at <sha> into <work-dir>, with @elastic/eui and its @kbn packages; needs npm and codeowners.
+benchmarks/use-cases/run.sh <kibana> <sha> <work-dir>
 ```
-
-The use cases in [`use-cases/`](./use-cases/) are answered from the reports of `alternatives/run.sh`.
 
 ## Results
 
