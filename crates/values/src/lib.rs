@@ -1,4 +1,5 @@
-//! Resolves the values a prop can receive, following variables, imports and props as configured.
+//! Resolves the values a prop can receive, following the names [`parse`] recorded definitions
+//! for. What is recorded, and so followed, is set by [`parse::Options`].
 //!
 //! Pure. Every value has a kind and a location; unresolved values carry a code.
 
@@ -322,16 +323,10 @@ fn unresolved(code: UnresolvedCode, step: Option<Step>, text: &str) -> ValueKind
     }
 }
 
-/// Largest magnitude below which every integer is exactly representable as an `f64`.
-const SAFE_INTEGER: f64 = 9_007_199_254_740_992.0;
-
 fn literal_of(literal: &parse::Literal) -> Literal {
     match literal {
         parse::Literal::String(string) => Literal::String(string.clone()),
-        parse::Literal::Number(number) if number.fract() == 0.0 && number.abs() < SAFE_INTEGER => {
-            Literal::Integer(*number as i64)
-        }
-        parse::Literal::Number(number) => Literal::Float(*number),
+        parse::Literal::Number(number) => Literal::number(*number),
         parse::Literal::Boolean(boolean) => Literal::Boolean(*boolean),
         parse::Literal::Null => Literal::Null,
     }

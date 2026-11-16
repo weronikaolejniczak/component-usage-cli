@@ -1,24 +1,21 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use oxc_ast::ast::{
     ArrayExpressionElement, ChainElement, Expression, IdentifierReference, JSXAttributeItem,
     JSXAttributeName, JSXAttributeValue, JSXExpression, MemberExpression, ObjectPropertyKind,
     TemplateLiteral,
 };
-use oxc_semantic::{Scoping, SymbolId};
+use oxc_semantic::SymbolId;
 use oxc_span::{GetSpan, Span};
 
-use crate::lines::LineIndex;
+use crate::scope::{Declared, Scope};
 use crate::{Attribute, Entry, Expr, ExprKind, Item, Key, Literal, Part, Reference};
 
 /// Converts attributes and the expressions in them to owned [`Expr`] trees.
 pub(crate) struct Exprs<'s> {
     pub(crate) source: &'s str,
-    pub(crate) lines: &'s LineIndex<'s>,
-    pub(crate) scoping: &'s Scoping,
-    pub(crate) parameters: &'s HashSet<SymbolId>,
-    pub(crate) import_at: &'s HashMap<u32, usize>,
+    pub(crate) scope: &'s Scope<'s>,
     pub(crate) variables: RefCell<Variables>,
 }
 
@@ -269,26 +266,24 @@ impl<'a> Exprs<'_> {
     }
 
     fn reference(&self, identifier: &IdentifierReference) -> Reference {
-        let Some(symbol) = self
-            .scoping
-            .get_reference(identifier.reference_id())
-            .symbol_id()
-        else {
+        let Some(symbol) = self.scope.symbol(identifier) else {
             return Reference::Global;
         };
-        if let Some(&import) = self.import_at.get(&self.scoping.symbol_span(symbol).start) {
-            return Reference::Import(import);
+        match self.scope.declared(symbol) {
+            Declared::Import(import) => Reference::Import(import),
+            Declared::Parameter => Reference::Parameter,
+            Declared::Local => Reference::Variable(self.variable(symbol)),
         }
-        if self.parameters.contains(&symbol) {
-            return Reference::Parameter;
-        }
+    }
+
+    fn variable(&self, symbol: SymbolId) -> usize {
         let mut variables = self.variables.borrow_mut();
         let next = variables.symbols.len();
         let index = *variables.index.entry(symbol).or_insert(next);
         if index == next {
             variables.symbols.push(symbol);
         }
-        Reference::Variable(index)
+        index
     }
 
     fn unsupported(&self, span: Span) -> ExprKind {
@@ -299,7 +294,7 @@ impl<'a> Exprs<'_> {
 
     fn at(&self, span: Span, kind: ExprKind) -> Expr {
         Expr {
-            location: self.lines.location(span.start),
+            location: self.scope.lines.location(span.start),
             kind,
         }
     }
@@ -309,17 +304,13 @@ impl<'a> Exprs<'_> {
     }
 }
 
-/// Largest magnitude below which every integer is exactly representable as an `f64`.
-const SAFE_INTEGER: f64 = 9_007_199_254_740_992.0;
-
 fn key(expression: &Expression) -> Key {
     match expression.get_inner_expression() {
         Expression::StringLiteral(string) => Key::Static(string.value.display().to_string()),
-        Expression::NumericLiteral(number)
-            if number.value.fract() == 0.0 && (0.0..SAFE_INTEGER).contains(&number.value) =>
-        {
-            Key::Static((number.value as u64).to_string())
-        }
+        Expression::NumericLiteral(number) => match model::Literal::number(number.value) {
+            model::Literal::Integer(index) if index >= 0 => Key::Static(index.to_string()),
+            _ => Key::Dynamic,
+        },
         Expression::TemplateLiteral(template) => match template.single_quasi() {
             Some(text) => Key::Static(text.display().to_string()),
             None => Key::Dynamic,

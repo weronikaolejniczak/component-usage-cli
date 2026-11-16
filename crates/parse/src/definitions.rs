@@ -1,17 +1,18 @@
 use std::collections::{HashMap, HashSet};
 
 use oxc_ast::ast::{
-    Argument, BindingPattern, CallExpression, Expression, ForStatementLeft, Function, Program,
+    Argument, CallExpression, Expression, ForStatementLeft, Function, Program,
     SimpleAssignmentTarget, UnaryExpression, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
-use oxc_semantic::{Scoping, SymbolFlags, SymbolId};
+use oxc_semantic::{SymbolFlags, SymbolId};
 use oxc_span::GetSpan;
 use oxc_syntax::operator::UnaryOperator;
 use oxc_syntax::scope::ScopeFlags;
 
 use crate::attributes::Exprs;
-use crate::lines::LineIndex;
+use crate::patterns::{Segment, leaves};
+use crate::scope::Scope;
 use crate::{Definition, Expr, ExprKind};
 
 /// Array methods that change the array they're called on.
@@ -37,14 +38,10 @@ const MUTATING_OBJECT_FUNCTIONS: &[&str] = &[
 
 /// Defines every name [`Exprs`] has referred to, including names the definitions refer to. Each
 /// round walks the program for the names added by the round before.
-pub(crate) fn definitions(
-    program: &Program,
-    exprs: &Exprs,
-    scoping: &Scoping,
-    lines: &LineIndex,
-) -> Vec<Definition> {
+pub(crate) fn definitions(program: &Program, exprs: &Exprs) -> Vec<Definition> {
+    let scoping = exprs.scope.scoping;
     let mut changed = Changed {
-        scoping,
+        scope: exprs.scope,
         symbols: HashSet::new(),
     };
     changed.visit_program(program);
@@ -57,7 +54,6 @@ pub(crate) fn definitions(
         }
         let mut round = Round {
             exprs,
-            lines,
             wanted: symbols.iter().copied().collect(),
             found: HashMap::new(),
             in_loop_head: false,
@@ -85,7 +81,6 @@ pub(crate) fn definitions(
 
 struct Round<'e, 's> {
     exprs: &'e Exprs<'s>,
-    lines: &'e LineIndex<'s>,
     wanted: HashSet<SymbolId>,
     found: HashMap<SymbolId, Definition>,
     in_loop_head: bool,
@@ -100,25 +95,31 @@ impl<'a> Visit<'a> for Round<'_, '_> {
 
     fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
         if !self.in_loop_head {
-            let mut names = Vec::new();
-            leaves(&declarator.id, &mut Vec::new(), None, &mut names);
             let mut init: Option<Expr> = None;
-            for (symbol, path, default) in names {
-                if !self.wanted.contains(&symbol) {
+            for leaf in leaves(&declarator.id) {
+                if leaf.inner_default || !self.wanted.contains(&leaf.symbol) {
                     continue;
                 }
                 let init = init
                     .get_or_insert_with(|| match &declarator.init {
                         Some(init) => self.exprs.expr(init),
                         None => Expr {
-                            location: self.lines.location(declarator.id.span().start),
+                            location: self.exprs.scope.lines.location(declarator.id.span().start),
                             kind: ExprKind::Undefined,
                         },
                     })
                     .clone();
-                let default = default.map(|default| self.exprs.expr(default));
+                let path = leaf
+                    .path
+                    .into_iter()
+                    .map(|segment| match segment {
+                        Segment::Key(key) => key,
+                        Segment::Index(index) => index.to_string(),
+                    })
+                    .collect();
+                let default = leaf.default.map(|default| self.exprs.expr(default));
                 self.found.insert(
-                    symbol,
+                    leaf.symbol,
                     Definition::Value {
                         init,
                         path,
@@ -137,56 +138,17 @@ impl<'a> Visit<'a> for Round<'_, '_> {
         {
             self.found.insert(
                 id.symbol_id(),
-                Definition::Function(self.lines.location(function.span.start)),
+                Definition::Function(self.exprs.scope.lines.location(function.span.start)),
             );
         }
         walk::walk_function(self, function, flags);
     }
 }
 
-/// The names a pattern declares, each with the keys that lead to it and its default. Names
-/// behind a rest element or a default on an inner pattern are left out.
-fn leaves<'p, 'a>(
-    pattern: &'p BindingPattern<'a>,
-    path: &mut Vec<String>,
-    default: Option<&'p Expression<'a>>,
-    names: &mut Vec<(SymbolId, Vec<String>, Option<&'p Expression<'a>>)>,
-) {
-    match pattern {
-        BindingPattern::BindingIdentifier(identifier) => {
-            names.push((identifier.symbol_id(), path.clone(), default));
-        }
-        _ if default.is_some() => {}
-        BindingPattern::AssignmentPattern(assignment) => {
-            leaves(&assignment.left, path, Some(&assignment.right), names);
-        }
-        BindingPattern::ObjectPattern(object) => {
-            for property in &object.properties {
-                let key = property.key.static_name().filter(|_| !property.computed);
-                let Some(key) = key.as_ref().and_then(|key| key.as_str()) else {
-                    continue;
-                };
-                path.push(key.to_owned());
-                leaves(&property.value, path, None, names);
-                path.pop();
-            }
-        }
-        BindingPattern::ArrayPattern(array) => {
-            for (index, element) in array.elements.iter().enumerate() {
-                if let Some(element) = element {
-                    path.push(index.to_string());
-                    leaves(element, path, None, names);
-                    path.pop();
-                }
-            }
-        }
-    }
-}
-
 /// Names whose contents are changed in place: `a.b = c`, `a.b++`, `delete a.b`, `a.push(b)`,
 /// `Object.assign(a, b)`.
 struct Changed<'s> {
-    scoping: &'s Scoping,
+    scope: &'s Scope<'s>,
     symbols: HashSet<SymbolId>,
 }
 
@@ -235,10 +197,7 @@ impl Changed<'_> {
             object = member.object().get_inner_expression();
         }
         if let Expression::Identifier(identifier) = object
-            && let Some(symbol) = self
-                .scoping
-                .get_reference(identifier.reference_id())
-                .symbol_id()
+            && let Some(symbol) = self.scope.symbol(identifier)
         {
             self.symbols.insert(symbol);
         }

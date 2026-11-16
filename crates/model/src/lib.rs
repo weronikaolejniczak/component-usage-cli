@@ -139,6 +139,21 @@ pub enum Literal {
     Null,
 }
 
+/// Largest magnitude below which every integer is exactly representable as an `f64`.
+const SAFE_INTEGER: f64 = 9_007_199_254_740_992.0;
+
+impl Literal {
+    /// [`Literal::Integer`] when `number` has no fractional part and converts exactly.
+    #[must_use]
+    pub fn number(number: f64) -> Self {
+        if number.fract() == 0.0 && number.abs() < SAFE_INTEGER {
+            Self::Integer(number as i64)
+        } else {
+            Self::Float(number)
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize), serde(untagged))]
 pub enum Entry {

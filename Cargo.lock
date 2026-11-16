@@ -266,7 +266,6 @@ dependencies = [
 name = "component-usage-cli-values"
 version = "0.1.0"
 dependencies = [
- "component-usage-cli-graph",
  "component-usage-cli-model",
  "component-usage-cli-parse",
 ]

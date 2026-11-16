@@ -6,10 +6,14 @@
 //! `.ts` files never do, since `<T>` there is a type assertion or generic.
 //! Type-only imports and exports are left out: they can't be rendered.
 
+mod aliases;
 mod attributes;
 mod definitions;
+mod elements;
 mod extract;
 mod lines;
+mod patterns;
+mod scope;
 
 use std::path::Path;
 
