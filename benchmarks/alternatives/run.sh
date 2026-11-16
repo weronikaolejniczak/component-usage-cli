@@ -57,4 +57,4 @@ for file in "$OUT" "$out/react-scanner-stderr.txt"; do
   python3 -c 'import sys; p, f = sys.argv[1] + "/", sys.argv[2]; t = open(f).read(); open(f, "w").write(t.replace(p, ""))' \
     "$checkout" "$file"
 done
-gzip -f "$OUT" "$out/report.json"
+gzip -nf "$OUT" "$out/report.json"

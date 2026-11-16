@@ -39,7 +39,7 @@ cd "$checkout"
 for _ in $(seq "$runs"); do
   /usr/bin/time -p "$bin" scan "$@" 2>> "$out/times.txt" > "$out/report.json"
 done
-gzip -f "$out/report.json"
+gzip -nf "$out/report.json"
 
 python3 - "$out/times.txt" <<'EOF'
 import statistics, sys
