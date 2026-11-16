@@ -22,7 +22,7 @@ bin="$(cargo metadata --format-version 1 --no-deps --manifest-path "$repo/Cargo.
   python3 -c 'import json, sys; print(json.load(sys.stdin)["target_directory"])')/release/component-usage-cli"
 
 {
-  echo "tool commit: $(git -C "$repo" rev-parse HEAD)$(git -C "$repo" diff --quiet || echo ' (uncommitted changes)')"
+  echo "tool commit: $(git -C "$repo" rev-parse HEAD)$(git -C "$repo" diff --quiet -- . ":!benchmarks/results" || echo ' (uncommitted changes)')"
   echo "codebase: $(git -C "$checkout" remote get-url origin) $(git -C "$checkout" rev-parse HEAD)"
   echo "command: component-usage-cli scan $*"
   echo "rustc: $(rustc --version)"
