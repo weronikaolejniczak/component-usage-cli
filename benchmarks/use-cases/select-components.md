@@ -16,7 +16,7 @@ Hypothetical. EUI wants one select component. To scope it, we want to know how `
 benchmarks/use-cases/run.sh <kibana> 6dce6e1bbcf1fcc46be7011088c3aa1e81feba19 /tmp/kibana
 ```
 
-Usages, props, parents and owners all come from one report of this tool. The output, [`selects.json.gz`](../results/use-cases-kibana/selects.json.gz), lists the usages behind each pattern below, keyed by owner, with their props and parents.
+Usages, props, parents and owners all come from one report of this tool, with `--follow variables`. The output, [`selects.json.gz`](../results/use-cases-kibana/selects.json.gz), lists the usages behind each pattern below, keyed by owner, with their props and parents.
 
 ## Results
 
@@ -45,16 +45,16 @@ Features, by whether the prop is present, and for multiple selection and clearin
 
 The first version of this use case, with react-scanner's props, had 44.8% and 70.4% for multiple selection: react-scanner reports `singleSelection` without a value as `null`, the same as an absent prop, so 37 single selects were counted as multiple. Here it's `true`.
 
-`options` is a literal array in 67 of 1,265 usages, with a median of 2 items. In most others it's a variable (797), a call (189), a parameter (78) or an import (41), which aren't followed yet, so the shape of options can't be read.
+`options` is a literal array in 233 of 1,265 usages, with a median of 2 items and at most 14: 67 written inline and 166 in a variable. Without `--follow variables` ([results at `2b65387`](https://github.com/weronikaolejniczak/component-usage-cli/tree/2b65387/benchmarks/results/use-cases-kibana)), only the 67 could be read, and 797 were variables. Through variables, most options end in a call (573: `useMemo` 309, `.map` 91, `useState` 75), and 23 are arrays changed after they're declared, such as `availableAggs.push(...)`, reported `mutated`. What's left that isn't followed yet: calls written in the prop (189), parameters (83) and imports (42).
 
-`singleSelection` on `EuiComboBox`, when set: `{ asPlainText: true }` 217, `true` 33, a variable or import 26, a ternary 8, `{ asPlainText: false }` 2, an object with `asPlainText` from a parameter 2, other 3.
+`singleSelection` on `EuiComboBox`, when set: `{ asPlainText: true }` 234, `true` 33, a ternary 8, a call 5, an import 4, `{ asPlainText: false }` 2, an object with `asPlainText` from a parameter 2, other 3. Without following variables, 17 of the `{ asPlainText: true }` objects were variables.
 
 Patterns:
 
 | Pattern | Usages | Meaning |
 |---|---|---|
 | `EuiComboBox` with `singleSelection`, no `onCreateOption`, no `onSearchChange` | 203 | A searchable single select, which `EuiSuperSelect` and `EuiSelect` don't offer. |
-| …of which `singleSelection={{ asPlainText: true }}` | 159 | A single select that looks like one. |
+| …of which `singleSelection={{ asPlainText: true }}` | 171 | A single select that looks like one. |
 | `EuiSelect`, `EuiSuperSelect` or `EuiComboBox` with no `aria-label`, `aria-labelledby` or `id`, nearest EUI parent an `EuiFormRow` | 453 | Probably labelled by the row. 5 sampled were each the row's direct child. |
 | The same, not in an `EuiFormRow` | 13 | Each is in an `EuiFlexItem`. Of 2 read, one is in an `EuiFlexGroup` inside the row, which labels only its direct child; the other has no row. |
 | `EuiSelectable` inside a popover | 117 | A dropdown. |
@@ -67,11 +67,11 @@ Patterns:
 | Usages, imports resolved | Yes | Yes, by import name |
 | Owners | Yes | No |
 | Prop names | Yes | Yes |
-| Prop values | Literals, objects, arrays, ternaries, with positions; `unresolved` with a code otherwise | Literals; kind only for expressions |
-| Options' shape | When written inline; 67 usages | No |
+| Prop values | Literals, objects, arrays, ternaries, with positions, through variables; `unresolved` with a code otherwise | Literals; kind only for expressions |
+| Options' shape | When an array, inline or in a variable; 233 usages | No |
 | Parents | Yes | No |
 | Wrappers and their usages | No; spreads only | No; spreads only |
 
 ## What would answer it
 
-Following variables, calls aside, so that the 838 `options` values held in variables and imports can be read. Wrappers as targets, so that a local component rendering a select, with the props it forwards, is reported and its own usages counted like an EUI component's.
+Most `options` are built by a call, which the tool doesn't evaluate; following imports reads 42 more. Wrappers as targets, so that a local component rendering a select, with the props it forwards, is reported and its own usages counted like an EUI component's.
