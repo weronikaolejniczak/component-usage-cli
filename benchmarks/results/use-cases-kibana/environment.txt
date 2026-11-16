@@ -1,0 +1,6 @@
+tool commit: d8d835ed1d35168fc91fceac84a0671737e9a842 (uncommitted changes)
+codebase: https://github.com/weronikaolejniczak/kibana.git 6dce6e1bbcf1fcc46be7011088c3aa1e81feba19
+library: @elastic/eui 122.0.0
+codeowners: github.com/hmarr/codeowners v1.2.1
+python: Python 3.13.7
+rg: ripgrep 15.1.0-cursor5 (rev c3e3c2f7ec)

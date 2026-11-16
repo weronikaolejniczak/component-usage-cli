@@ -147,10 +147,10 @@ EuiSelectable: most common prop sets (ignoring ^(data-test-subj|aria-.*|id|key|c
 | listProps, onChange, options, renderOption | 6 |
 | listProps, onChange, options, searchProps, searchable, singleSelection | 5 |
 
-Features used, by prop presence ("-" means the component doesn't offer it)
+Features used, by prop presence and literal values ("-" means the component doesn't offer it)
 | feature | EuiSelect | EuiSuperSelect | EuiComboBox | EuiSelectable |
 |---|---|---|---|---|
-| multiple selection | - | - | 44.8% | 70.4% |
+| multiple selection | - | - | 42.4% | 57.0% |
 | search | - | - | 100.0% | 47.3% |
 | async search | - | - | 16.8% | 9.1% |
 | create option | - | - | 27.1% | - |
@@ -163,11 +163,39 @@ Features used, by prop presence ("-" means the component doesn't offer it)
 | full width | 43.7% | 60.8% | 64.2% | - |
 | prepend or append | 15.5% | - | 7.7% | - |
 
+`options`: what the value is
+| options | EuiSelect | EuiSuperSelect | EuiComboBox | EuiSelectable |
+|---|---|---|---|---|
+| not-followed (variables) | 214 | 102 | 335 | 146 |
+| call | 89 | 21 | 61 | 18 |
+| parameter | 36 | 3 | 23 | 16 |
+| array literal | 45 | 10 | 11 | 1 |
+| absent | 7 | 2 | 45 | 1 |
+| not-followed (imports) | 24 | 9 | 8 | 0 |
+| one-of | 6 | 1 | 14 | 3 |
+| unsupported | 5 | 0 | 8 | 1 |
+
+array literal `options`: 67; items median 2, max 11
+
+EuiComboBox `singleSelection` values
+| value | usages |
+|---|---|
+| object, asPlainText: true | 217 |
+| literal true | 33 |
+| not-followed (variables) | 22 |
+| one-of | 8 |
+| not-followed (imports) | 4 |
+| unsupported | 3 |
+| object, asPlainText: parameter | 2 |
+| object, asPlainText: false | 2 |
+
 | pattern | usages |
 |---|---|
-| EuiComboBox single selection without create or async search | 199 |
-| EuiComboBox single selection with an object value | 159 |
-| no aria-label, aria-labelledby or id (may still get a label from EuiFormRow) | 466 |
+| EuiComboBox single selection without create or async search | 203 |
+| EuiComboBox single selection with asPlainText: true | 159 |
+| no aria-label, aria-labelledby or id, inside an EuiFormRow | 453 |
+| no aria-label, aria-labelledby or id, not inside an EuiFormRow | 13 |
+| EuiSelectable inside a popover | 117 |
 | props passed with {...spread} (wrappers or forwarding) | 108 |
 
 Files that spread props into a select (wrapper candidates)
@@ -177,15 +205,15 @@ Files that spread props into a select (wrapper candidates)
 | x-pack/platform/plugins/shared/fleet/public/applications/fleet/sections/settings/components/edit_output_flyout/output_form_kafka_broker.tsx | 3 |
 | x-pack/solutions/observability/plugins/slo/public/pages/slo_edit/components/slo_edit_form_objective_section.tsx | 3 |
 | x-pack/solutions/observability/plugins/synthetics/public/apps/synthetics/components/monitor_add_edit/form/field_wrappers.tsx | 3 |
-| x-pack/platform/plugins/shared/fleet/public/applications/fleet/sections/settings/components/edit_output_flyout/output_form_kafka_compression.tsx | 2 |
-| x-pack/solutions/observability/plugins/observability/public/components/annotations/components/forward_refs.tsx | 2 |
 | src/platform/packages/shared/kbn-cps-utils/components/project_picker_update/blocks/frame/partials/body/filter_form/filter_input/filter_input.tsx | 2 |
 | x-pack/platform/plugins/shared/agent_builder/public/application/components/tools/form/components/mcp/mcp_editable_fields.tsx | 2 |
+| x-pack/platform/plugins/shared/fleet/public/applications/fleet/sections/settings/components/edit_output_flyout/output_form_kafka_compression.tsx | 2 |
 | x-pack/platform/plugins/shared/osquery/public/packs/queries/ecs_mapping_editor_field.tsx | 2 |
+| x-pack/solutions/observability/plugins/observability/public/components/annotations/components/forward_refs.tsx | 2 |
 | x-pack/solutions/observability/plugins/slo/public/pages/slo_edit/components/indicator_section/custom_metric/metric_indicator.tsx | 2 |
 | x-pack/solutions/observability/plugins/slo/public/pages/slo_edit/components/indicator_section/histogram/histogram_indicator.tsx | 2 |
 | x-pack/solutions/observability/plugins/slo/public/pages/slo_edit/components/indicator_section/timeslice_metric/metric_input.tsx | 2 |
-| src/platform/packages/shared/kbn-management/settings/components/field_input/input/select_input.tsx | 1 |
-| src/platform/plugins/shared/es_ui_shared/static/forms/components/fields/select_field.tsx | 1 |
-| src/platform/plugins/shared/unified_doc_viewer/public/components/observability/traces/components/span_links/index.tsx | 1 |
+| src/platform/packages/shared/content-management/content_list/kbn-content-list-toolbar/src/filters/selectable_filter_popover.tsx | 1 |
+| src/platform/packages/shared/content-management/table_list_view_table/src/components/tag_filter_panel.tsx | 1 |
+| src/platform/packages/shared/context-switcher-components/src/components/selectable_list.tsx | 1 |
 
