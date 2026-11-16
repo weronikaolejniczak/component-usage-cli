@@ -16,7 +16,7 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0009](./0009-opt-in-cache.md) | Cache scan results between runs, opt-in | proposed |
 | [0010](./0010-output.md) | Output formats and query options | proposed |
 | [0011](./0011-crate-layout.md) | Split the code into workspace crates by pipeline stage | superseded by [0012](./0012-architecture.md) |
-| [0012](./0012-architecture.md) | Crate boundaries and interfaces | accepted |
+| [0012](./0012-architecture.md) | Crate boundaries and interfaces | superseded by [0020](./0020-architecture.md) |
 | [0013](./0013-code-owners.md) | Attribute results to code owners | accepted |
 | [0014](./0014-file-discovery.md) | Support React JSX only, and discover files including hidden folders | accepted |
 | [0015](./0015-es-modules-only.md) | Follow ES module imports only, and report what isn't followed | accepted |
@@ -24,3 +24,4 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0017](./0017-prop-values.md) | Report every prop of a usage as a tree of values with kinds | accepted |
 | [0018](./0018-all-components.md) | Target every export of the module when no components are given | accepted |
 | [0019](./0019-follow-variables.md) | Follow variables on request, and report the path to each value | accepted |
+| [0020](./0020-architecture.md) | Crate boundaries and interfaces, with values | accepted |
