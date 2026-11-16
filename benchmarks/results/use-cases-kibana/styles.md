@@ -4,38 +4,41 @@ EUI usages: 87239; with css, className or style: 7291 (8.4%)
 | value | usages |
 |---|---|
 | template, tag css | 1585 |
-| not-followed (variables) | 1543 |
 | object | 1117 |
+| call, followed | 866 |
+| template, tag css, followed | 516 |
 | call | 171 |
 | not-followed (imports) | 145 |
 | one-of | 107 |
 | array | 101 |
-| function | 35 |
-| parameter | 24 |
-| literal | 11 |
+| function, followed | 87 |
+| object, followed | 61 |
 
 `className`: 1541 usages; what the value is
 | value | usages |
 |---|---|
 | literal | 1124 |
-| not-followed (variables) | 138 |
 | template, tag css | 87 |
+| template, tag css, followed | 66 |
 | call | 51 |
 | parameter | 48 |
+| call, followed | 47 |
 | one-of | 29 |
 | not-followed (imports) | 28 |
 | template | 23 |
-| unsupported | 12 |
-| template, tag classNameCss | 1 |
+| literal, followed | 14 |
 
 `style`: 1189 usages; what the value is
 | value | usages |
 |---|---|
 | object | 1072 |
-| not-followed (variables) | 76 |
+| object, followed | 53 |
 | one-of | 23 |
+| call, followed | 16 |
 | parameter | 13 |
 | not-followed (imports) | 5 |
+| mutated | 4 |
+| one-of, followed | 3 |
 
 Components with at least 100 usages, by share of overridden usages
 | component | usages | overridden | share | css | className | style |
@@ -64,55 +67,55 @@ Components with at least 100 usages, by share of overridden usages
 Properties set in `css`, in object keys and template text, by usages
 | property | usages |
 |---|---|
-| height | 275 |
-| width | 274 |
-| padding | 187 |
-| display | 183 |
-| overflow | 165 |
-| minWidth | 156 |
-| font-weight | 136 |
-| min-width | 133 |
-| color | 117 |
-| position | 94 |
-| min-height | 88 |
-| max-width | 88 |
-| maxWidth | 82 |
-| margin-left | 81 |
-| flex | 75 |
-| background-color | 69 |
-| gap | 60 |
-| margin | 56 |
-| marginLeft | 54 |
-| align-items | 53 |
+| height | 348 |
+| width | 344 |
+| padding | 253 |
+| display | 253 |
+| overflow | 223 |
+| min-width | 197 |
+| font-weight | 166 |
+| minWidth | 158 |
+| color | 156 |
+| max-width | 126 |
+| min-height | 118 |
+| position | 113 |
+| background-color | 106 |
+| maxWidth | 96 |
+| margin-left | 94 |
+| border-radius | 84 |
+| flex | 82 |
+| margin | 74 |
+| border | 71 |
+| align-items | 68 |
 
 Properties set in `style`, in object keys and template text, by usages
 | property | usages |
 |---|---|
-| width | 196 |
-| minWidth | 159 |
-| maxWidth | 129 |
-| height | 121 |
+| width | 214 |
+| minWidth | 174 |
+| maxWidth | 140 |
+| height | 127 |
 | minHeight | 72 |
-| padding | 44 |
-| marginRight | 39 |
-| fontWeight | 37 |
-| overflow | 32 |
-| marginLeft | 30 |
-| display | 30 |
-| backgroundColor | 29 |
-| position | 27 |
-| marginTop | 27 |
+| padding | 47 |
+| fontWeight | 41 |
+| marginRight | 40 |
+| overflow | 35 |
+| marginLeft | 32 |
+| display | 32 |
+| backgroundColor | 30 |
+| position | 28 |
+| marginTop | 28 |
+| marginBottom | 21 |
 | paddingTop | 20 |
 | alignItems | 20 |
-| flexBasis | 18 |
-| marginBottom | 17 |
-| maxHeight | 16 |
-| paddingRight | 16 |
+| flexBasis | 20 |
+| paddingRight | 18 |
+| lineHeight | 18 |
 
 className tokens that are EUI's own classes, in literals and template text
 | class | usages |
 |---|---|
-| eui-textTruncate | 161 |
+| eui-textTruncate | 163 |
 | eui-textBreakWord | 104 |
 | eui-alignTop | 81 |
 | eui-textNoWrap | 55 |
