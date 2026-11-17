@@ -185,9 +185,9 @@ def icon_attribute(name, before):
 # Kinds of findings, most precise first. `eui-variable` is a literal in a variable that an icon
 # prop of an EUI usage reads, in the same file or another, found with `--follow imports`.
 # `eui-caller` is a literal that a caller of the component the usage is in passes, found with
-# `--follow props`: a `via` step is the caller's tag. `eui-call` is a literal in a call that an
-# icon prop's value is, found with `--follow calls`: in its receiver or arguments, or returned by
-# a function among them; the call decides whether it's the icon.
+# `--follow props`: a `via` step is the caller's tag. `eui-call` is a literal inside a call, found
+# with `--follow calls`, in its receiver or arguments or returned by a function among them, where
+# the call is an icon prop's value or the literal is at an icon key; the call decides what's used.
 ORDER = ["eui-jsx", "eui-data", "eui-variable", "eui-caller", "eui-call", "other-jsx", "icon-key", "eui-other-prop", "other-string"]
 PRECISE = ORDER[: ORDER.index("icon-key") + 1]
 
@@ -215,7 +215,7 @@ def icons(checkout, report, out, command):
                     continue
                 outside = path[: next((i for i, key in enumerate(path) if key in CALL), len(path))]
                 icon = icon_value(usage["component"], name, path)
-                called = in_call(path) and icon_value(usage["component"], name, outside)
+                called = in_call(path) and (icon or icon_value(usage["component"], name, outside))
                 entry = base | {"prop": ".".join((name,) + path)}
                 position = tuple(at(usage, node).values())
                 if string(node):
