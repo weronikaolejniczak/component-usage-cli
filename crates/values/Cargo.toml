@@ -10,3 +10,4 @@ publish.workspace = true
 [dependencies]
 model.workspace = true
 parse.workspace = true
+graph.workspace = true

@@ -1,0 +1,85 @@
+{
+  "query": { "components": ["Button"], "from": "lib", "follow": ["imports"] },
+  "usages": [
+    {
+      "component": "Button", "file": "App.tsx", "line": 16, "column": 5,
+      "parents": [],
+      "props": [
+        {
+          "name": "iconType",
+          "value": {
+            "kind": "literal", "value": "pencil", "file": "constants.ts", "line": 1, "column": 14,
+            "via": [
+              { "text": "ICONS.edit", "line": 17, "column": 17 },
+              { "text": "EDIT", "file": "constants.ts", "line": 2, "column": 30 }
+            ]
+          }
+        },
+        {
+          "name": "type",
+          "value": {
+            "kind": "one-of", "file": "constants.ts", "line": 2, "column": 22,
+            "values": [
+              {
+                "kind": "literal", "value": "pencil", "file": "constants.ts", "line": 1, "column": 14,
+                "via": [{ "text": "EDIT", "file": "constants.ts", "line": 2, "column": 30 }]
+              },
+              { "kind": "literal", "value": "trash", "file": "constants.ts", "line": 2, "column": 44 }
+            ],
+            "via": [{ "text": "ICONS[status]", "line": 18, "column": 13 }]
+          }
+        },
+        {
+          "name": "size",
+          "value": {
+            "kind": "literal", "value": "s", "file": "constants.ts", "line": 3, "column": 21,
+            "via": [{ "text": "SIZE", "line": 19, "column": 13 }]
+          }
+        },
+        {
+          "name": "icon",
+          "value": {
+            "kind": "literal", "value": "trash", "file": "constants.ts", "line": 2, "column": 44,
+            "via": [{ "text": "all.ICONS.remove", "line": 20, "column": 13 }]
+          }
+        },
+        { "name": "name", "value": { "kind": "unresolved", "code": "unsupported", "text": "all[status]", "line": 21, "column": 13 } },
+        {
+          "name": "title",
+          "value": {
+            "kind": "literal", "value": "gear", "file": "default.ts", "line": 1, "column": 16,
+            "via": [{ "text": "icon", "line": 22, "column": 14 }]
+          }
+        },
+        {
+          "name": "label",
+          "value": {
+            "kind": "literal", "value": "s", "file": "constants.ts", "line": 3, "column": 21,
+            "via": [{ "text": "BARREL", "line": 23, "column": 14 }]
+          }
+        },
+        { "name": "color", "value": { "kind": "unresolved", "code": "mutated", "text": "Mutated", "line": 24, "column": 14 } },
+        { "name": "fill", "value": { "kind": "unresolved", "code": "unsupported", "text": "fromDeclare", "line": 25, "column": 13 } },
+        { "name": "aria-label", "value": { "kind": "unresolved", "code": "missing-export", "text": "missing", "line": 26, "column": 19 } },
+        { "name": "prepend", "value": { "kind": "unresolved", "code": "unresolved-import", "text": "gone", "line": 27, "column": 16 } },
+        { "name": "append", "value": { "kind": "unresolved", "code": "commonjs-module", "text": "cjs", "line": 28, "column": 15 } },
+        { "name": "data", "value": { "kind": "unresolved", "code": "unparsed", "text": "data", "line": 29, "column": 13 } },
+        {
+          "name": "cycle",
+          "value": {
+            "kind": "unresolved", "code": "unsupported", "text": "again", "file": "cycle.ts", "line": 2, "column": 21,
+            "via": [{ "text": "self", "line": 30, "column": 14 }]
+          }
+        },
+        { "name": "options", "value": { "kind": "unresolved", "code": "mutated", "text": "list", "line": 31, "column": 16 } },
+        {
+          "name": "width",
+          "value": {
+            "kind": "literal", "value": "s", "file": "constants.ts", "line": 3, "column": 21,
+            "via": [{ "text": "reexports.BARREL", "line": 32, "column": 14 }]
+          }
+        }
+      ]
+    }
+  ]
+}

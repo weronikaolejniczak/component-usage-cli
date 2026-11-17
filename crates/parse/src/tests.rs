@@ -500,3 +500,108 @@ fn other_constants_are_local() {
     );
     assert!(summary.aliases.is_empty());
 }
+
+fn with_imports(source: &str) -> FileSummary {
+    crate::parse_with(
+        Path::new("App.tsx"),
+        source,
+        crate::Options {
+            variables: true,
+            imports: true,
+        },
+    )
+    .unwrap()
+}
+
+#[test]
+fn exports_record_what_they_hold() {
+    let summary = with_imports(
+        "import { other } from './other';\n\
+         const local = 'a';\n\
+         export const { a, b: [c] } = value;\n\
+         export function handle() {}\n\
+         export { local as renamed, other };\n\
+         export default 'gear';\n\
+         export type T = string;\n",
+    );
+    let mut names: Vec<&str> = summary.exported.keys().map(String::as_str).collect();
+    names.sort_unstable();
+    assert_eq!(names, ["a", "c", "default", "handle", "renamed"]);
+    assert_eq!(
+        summary.exported["default"],
+        crate::Exported::Value(expr(
+            6,
+            16,
+            ExprKind::Literal(Literal::String("gear".to_owned()))
+        ))
+    );
+    let crate::Exported::Variable(renamed) = summary.exported["renamed"] else {
+        panic!("not a variable");
+    };
+    assert!(matches!(
+        &summary.definitions[renamed],
+        crate::Definition::Value { init, .. }
+            if init.kind == ExprKind::Literal(Literal::String("a".to_owned()))
+    ));
+}
+
+#[test]
+fn exports_are_recorded_only_when_following_imports() {
+    assert!(tsx("export const a = 'a';").exported.is_empty());
+}
+
+#[test]
+fn declarations_without_a_value_are_declared() {
+    let summary = with_imports(
+        "declare const a: string;\n\
+         export declare function f(): void;\n\
+         export const b = a;\n",
+    );
+    let crate::Exported::Variable(f) = summary.exported["f"] else {
+        panic!("not a variable");
+    };
+    assert_eq!(summary.definitions[f], crate::Definition::Declared);
+    let crate::Exported::Variable(b) = summary.exported["b"] else {
+        panic!("not a variable");
+    };
+    let crate::Definition::Value { init, .. } = &summary.definitions[b] else {
+        panic!("not a value");
+    };
+    let ExprKind::Reference {
+        name: Reference::Variable(a),
+        ..
+    } = init.kind
+    else {
+        panic!("not a variable reference");
+    };
+    assert_eq!(summary.definitions[a], crate::Definition::Declared);
+}
+
+#[test]
+fn imports_changed_in_place() {
+    let summary = with_imports(
+        "import { list, map, read } from './a';\n\
+         import * as all from './b';\n\
+         list.push(1);\n\
+         map.key = 1;\n\
+         all.x.y = 1;\n\
+         read.slice();\n",
+    );
+    assert_eq!(summary.changed_imports, [0, 1, 3]);
+}
+
+#[test]
+fn value_imports_follow_definitions_from_exports() {
+    let summary = with_imports(
+        "import { a } from './a';\n\
+         import { b } from './b';\n\
+         import { c } from './c';\n\
+         import { Button } from 'lib';\n\
+         const local = { a };\n\
+         export const value = local;\n\
+         const unused = c;\n\
+         <Button icon={b} />;\n",
+    );
+    assert_eq!(summary.value_imports(false), [0]);
+    assert_eq!(summary.value_imports(true), [0, 1]);
+}

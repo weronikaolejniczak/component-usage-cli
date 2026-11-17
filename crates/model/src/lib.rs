@@ -68,6 +68,9 @@ pub enum Prop {
 pub struct Value {
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub kind: ValueKind,
+    /// The file the value is in, when it isn't the usage's.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub file: Option<String>,
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub location: Location,
     /// The names followed to reach the value, outermost first.
@@ -80,6 +83,9 @@ pub struct Value {
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Via {
     pub text: String,
+    /// The file the name is in, when it isn't the usage's.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub file: Option<String>,
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub location: Location,
 }
@@ -204,6 +210,16 @@ pub enum UnresolvedCode {
     Global,
     /// The result of a call.
     Call,
+    /// An import whose specifier doesn't resolve to a file.
+    UnresolvedImport,
+    /// An import of a file that couldn't be parsed, or isn't JavaScript or TypeScript.
+    Unparsed,
+    /// An import of a name the module doesn't export.
+    MissingExport,
+    /// An import from a module without ES exports.
+    CommonjsModule,
+    /// An import of a name exported by more than one `export *`.
+    Ambiguous,
     Unsupported,
 }
 

@@ -66,6 +66,17 @@ impl ModuleGraph {
         Self { modules }
     }
 
+    /// Every parsed module, by [`FileId`].
+    pub fn modules(&self) -> impl Iterator<Item = (FileId, &Module)> {
+        self.modules
+            .iter()
+            .enumerate()
+            .filter_map(|(index, module)| {
+                let id = FileId(u32::try_from(index).ok()?);
+                Some((id, module.as_ref()?))
+            })
+    }
+
     #[must_use]
     pub fn module(&self, file: FileId) -> Option<&Module> {
         self.modules.get(file.0 as usize)?.as_ref()
@@ -314,6 +325,15 @@ pub fn export_specifiers(summary: &FileSummary) -> impl Iterator<Item = &str> {
             .then_some(import.source.as_str())
     });
     reexports.chain(exported_imports)
+}
+
+/// Specifiers of the imports that recorded values read, for following imports: in exports, and
+/// with `attributes`, in JSX attributes. See [`FileSummary::value_imports`].
+pub fn value_specifiers(summary: &FileSummary, attributes: bool) -> impl Iterator<Item = &str> {
+    summary
+        .value_imports(attributes)
+        .into_iter()
+        .filter_map(|index| Some(summary.imports.get(index)?.source.as_str()))
 }
 
 /// Specifiers of the imports and `require` calls that JSX elements in this file refer to.

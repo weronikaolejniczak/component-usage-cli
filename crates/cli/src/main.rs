@@ -32,8 +32,8 @@ enum Command {
         #[arg(long)]
         from: String,
 
-        /// What to follow to find prop values: `variables` for names declared in the file, or
-        /// `none`
+        /// What to follow to find prop values: `variables` for names declared in the file,
+        /// `imports` for imported names, which also follows variables, or `none`
         #[arg(long, value_delimiter = ',', value_enum)]
         follow: Vec<Follow>,
 
@@ -48,6 +48,7 @@ enum Command {
 enum Follow {
     None,
     Variables,
+    Imports,
 }
 
 fn main() -> ExitCode {
@@ -70,6 +71,7 @@ fn main() -> ExitCode {
                 owners: owners
                     .map(|file| file.map_or(engine::Owners::Discover, engine::Owners::File)),
                 follow_variables: follow.contains(&Follow::Variables),
+                follow_imports: follow.contains(&Follow::Imports),
             };
             let report = match engine::scan(&config) {
                 Ok(report) => report,

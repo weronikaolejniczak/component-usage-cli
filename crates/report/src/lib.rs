@@ -170,6 +170,7 @@ mod tests {
                     Prop::Named {
                         name: "size".to_owned(),
                         value: Value {
+                            file: None,
                             kind: ValueKind::Literal {
                                 value: Literal::Integer(16),
                             },
@@ -182,6 +183,7 @@ mod tests {
                     },
                     Prop::Spread {
                         spread: Value {
+                            file: None,
                             kind: ValueKind::Unresolved {
                                 code: UnresolvedCode::NotFollowed,
                                 step: Some(Step::Variables),

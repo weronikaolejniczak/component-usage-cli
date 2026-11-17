@@ -37,6 +37,11 @@ impl Files {
     pub(crate) fn display(&self, id: FileId, root: &Path) -> String {
         display(self.path(id), root)
     }
+
+    /// [`Files::display`] of every file, by [`FileId`].
+    pub(crate) fn displays(&self, root: &Path) -> Vec<String> {
+        self.paths.iter().map(|path| display(path, root)).collect()
+    }
 }
 
 /// Relative to `root` with `/` separators, `.` for `root` itself, or absolute if outside it.

@@ -36,6 +36,8 @@ pub struct Config {
     pub owners: Option<Owners>,
     /// Follow names declared in the file to their values.
     pub follow_variables: bool,
+    /// Follow imported names to the exported value in another file. Implies `follow_variables`.
+    pub follow_imports: bool,
 }
 
 /// Which `CODEOWNERS` file to use. Patterns always match paths relative to the repository root:
@@ -113,7 +115,8 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
     let (from, _) = files.intern(from);
 
     let options = parse::Options {
-        variables: config.follow_variables,
+        variables: config.follow_variables || config.follow_imports,
+        imports: config.follow_imports,
     };
     let mut modules: Vec<Option<Module>> = Vec::new();
     let mut pending: Vec<FileId> = scanned.clone();
@@ -127,7 +130,7 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
                 let path = files.path(id);
                 let summary = read_and_parse(path, options);
                 let resolved = summary.as_ref().ok().map(|summary| {
-                    needed_specifiers(summary, scanned_set.contains(&id))
+                    needed_specifiers(summary, scanned_set.contains(&id), options.imports)
                         .into_iter()
                         .map(|specifier| {
                             let target = resolver.resolve(path, specifier);
@@ -196,6 +199,8 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
         None => Targets::all(&graph, from),
     };
     let identified = identify::identify(&graph, &scanned, &targets);
+    let paths = files.displays(&root);
+    let context = values::Context::new(&graph, &paths, config.follow_imports);
 
     report.usages = identified
         .usages
@@ -207,9 +212,9 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
             parents: usage.parents,
             props: graph
                 .module(usage.file)
-                .and_then(|module| Some((module, module.summary.elements.get(usage.element)?)))
-                .map(|(module, element)| {
-                    values::props(&module.summary, element, config.props.as_deref())
+                .and_then(|module| module.summary.elements.get(usage.element))
+                .map(|element| {
+                    values::props(&context, usage.file, element, config.props.as_deref())
                 })
                 .unwrap_or_default(),
             owners: None,
@@ -284,10 +289,13 @@ fn file_error(file: String, error: ReadError) -> FileError {
     }
 }
 
-fn needed_specifiers(summary: &FileSummary, scanned: bool) -> Vec<&str> {
+fn needed_specifiers(summary: &FileSummary, scanned: bool, imports: bool) -> Vec<&str> {
     let mut specifiers: Vec<&str> = graph::export_specifiers(summary).collect();
     if scanned {
         specifiers.extend(graph::element_specifiers(summary));
+    }
+    if imports {
+        specifiers.extend(graph::value_specifiers(summary, scanned));
     }
     specifiers.sort_unstable();
     specifiers.dedup();

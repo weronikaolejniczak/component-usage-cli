@@ -10,11 +10,14 @@ mod aliases;
 mod attributes;
 mod definitions;
 mod elements;
+mod exported;
 mod extract;
 mod lines;
 mod patterns;
+mod reads;
 mod scope;
 
+use std::collections::HashMap;
 use std::path::Path;
 
 use model::Location;
@@ -28,8 +31,15 @@ pub struct FileSummary {
     /// Local names that JSX tags refer to imports or `require` through, indexed by
     /// [`Binding::Alias`].
     pub aliases: Vec<Alias>,
-    /// What the names in attributes are declared as, indexed by [`Reference::Variable`].
+    /// What the names in attributes and exports are declared as, indexed by
+    /// [`Reference::Variable`].
     pub definitions: Vec<Definition>,
+    /// What each export of this file holds, by exported name, when [`Options::imports`] is set.
+    /// Re-exports and exported imports are left to the module graph.
+    pub exported: HashMap<String, Exported>,
+    /// Imports whose contents this file changes in place, such as `ICONS.push(…)`, as indices
+    /// into [`FileSummary::imports`], when [`Options::imports`] is set.
+    pub changed_imports: Vec<usize>,
     /// Errors the parser recovered from. The lists above may be incomplete when this isn't empty.
     pub errors: Vec<SyntaxError>,
 }
@@ -217,8 +227,19 @@ pub enum Definition {
     Function(Location),
     /// Assigned to after its declaration, declared more than once, or changed in place.
     Mutated,
+    /// Declared without a value: `declare const name: T`.
+    Declared,
     /// Not followed: following is off, or the declaration isn't supported.
     NotFollowed,
+}
+
+/// What an export of the file holds.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Exported {
+    /// A name declared in the file. Index into [`FileSummary::definitions`].
+    Variable(usize),
+    /// `export default` followed by an expression or an anonymous declaration.
+    Value(Expr),
 }
 
 /// What the name a [`ExprKind::Reference`] starts with is bound to.
@@ -286,6 +307,19 @@ pub struct Options {
     /// Record what the names in attributes are declared as; otherwise every
     /// [`Definition`] is [`Definition::NotFollowed`].
     pub variables: bool,
+    /// Also record what each export holds and which imports are changed in place. Implies
+    /// `variables`.
+    pub imports: bool,
+}
+
+impl FileSummary {
+    /// Imports that the recorded values read: in exports, in definitions those lead to, and with
+    /// `attributes`, in JSX attributes. Changed imports too. Sorted indices into
+    /// [`FileSummary::imports`].
+    #[must_use]
+    pub fn value_imports(&self, attributes: bool) -> Vec<usize> {
+        reads::value_imports(self, attributes)
+    }
 }
 
 /// Parses `source` as the dialect implied by `path`'s extension, with default [`Options`].

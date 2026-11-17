@@ -226,6 +226,7 @@ cases!(errors:
 cases!(props:
     all_components,
     expressions,
+    follow_imports,
     follow_variables,
     literals,
     objects,

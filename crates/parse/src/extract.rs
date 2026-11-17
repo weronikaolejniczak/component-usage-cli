@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use oxc_allocator::Allocator;
@@ -13,10 +13,11 @@ use oxc_syntax::module_record::{
 
 use crate::aliases::alias;
 use crate::attributes::Exprs;
-use crate::definitions::{Mode, definitions};
+use crate::definitions::{Mode, changed, definitions};
 use crate::elements::elements;
+use crate::exported::exported;
 use crate::lines::LineIndex;
-use crate::scope::Scope;
+use crate::scope::{Declared, Scope};
 use crate::{
     Alias, Binding, Definition, Export, FileSummary, Import, Imported, JsxElement, Options,
     ParseError, SyntaxError,
@@ -79,11 +80,33 @@ pub(crate) fn extract(
     let exprs = Exprs::new(source, &scope);
     let elements = elements(&parsed.program, &exprs);
     let (elements, aliases) = bind_aliases(&parsed.program, &scope, source, elements);
-    let definitions = if options.variables {
-        definitions(&parsed.program, &exprs, Mode::Values)
+    let exported = if options.imports {
+        exported(&parsed.program, &exprs)
+    } else {
+        HashMap::new()
+    };
+    let changed = if options.variables || options.imports {
+        changed(&parsed.program, &scope)
+    } else {
+        HashSet::new()
+    };
+    let definitions = if options.variables || options.imports {
+        definitions(&parsed.program, &exprs, Mode::Values, &changed)
     } else {
         vec![Definition::NotFollowed; exprs.variables.borrow().symbols.len()]
     };
+    let mut changed_imports: Vec<usize> = if options.imports {
+        changed
+            .iter()
+            .filter_map(|&symbol| match scope.declared(symbol) {
+                Declared::Import(import) => Some(import),
+                Declared::Parameter | Declared::Local => None,
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    changed_imports.sort_unstable();
 
     Ok(FileSummary {
         imports,
@@ -91,6 +114,8 @@ pub(crate) fn extract(
         elements,
         aliases,
         definitions,
+        exported,
+        changed_imports,
         errors,
     })
 }
@@ -109,7 +134,7 @@ fn bind_aliases(
         .iter()
         .map(|(_, local)| local.map(|symbol| tags.variable(symbol)))
         .collect();
-    let definitions = definitions(program, &tags, Mode::Tags);
+    let definitions = definitions(program, &tags, Mode::Tags, &HashSet::new());
     let mut aliases = Vec::new();
     let mut alias_of: HashMap<usize, Option<usize>> = HashMap::new();
     let elements = elements

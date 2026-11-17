@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use oxc_ast::ast::{
     Argument, CallExpression, Expression, ForStatementLeft, Function, Program,
-    SimpleAssignmentTarget, UnaryExpression, VariableDeclarator,
+    SimpleAssignmentTarget, UnaryExpression, VariableDeclaration, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::{SymbolFlags, SymbolId};
@@ -49,17 +49,15 @@ pub(crate) enum Mode {
 
 /// Defines every name `exprs` has referred to, including names the definitions refer to. Each
 /// round walks the program for the names added by the round before.
-pub(crate) fn definitions(program: &Program, exprs: &Exprs, mode: Mode) -> Vec<Definition> {
+/// `changed` are the names changed in place, from [`changed`], for [`Mode::Values`].
+pub(crate) fn definitions(
+    program: &Program,
+    exprs: &Exprs,
+    mode: Mode,
+    changed: &HashSet<SymbolId>,
+) -> Vec<Definition> {
     let mutations = mode == Mode::Values;
     let scoping = exprs.scope.scoping;
-    let mut changed = Changed {
-        scope: exprs.scope,
-        symbols: HashSet::new(),
-    };
-    if mutations {
-        changed.visit_program(program);
-    }
-
     let mut definitions = Vec::new();
     loop {
         let symbols = exprs.variables.borrow().symbols[definitions.len()..].to_vec();
@@ -72,15 +70,15 @@ pub(crate) fn definitions(program: &Program, exprs: &Exprs, mode: Mode) -> Vec<D
             wanted: symbols.iter().copied().collect(),
             found: HashMap::new(),
             in_loop_head: false,
+            in_declare: false,
         };
         round.visit_program(program);
         for symbol in symbols {
             let flags = scoping.symbol_flags(symbol);
             let redeclared = flags.contains(SymbolFlags::FunctionScopedVariable)
                 && scoping.symbol_declarations(symbol).count() > 1;
-            let mutated = scoping.symbol_is_mutated(symbol)
-                || redeclared
-                || changed.symbols.contains(&symbol);
+            let mutated =
+                scoping.symbol_is_mutated(symbol) || redeclared || changed.contains(&symbol);
             let definition = if mutations && mutated {
                 Definition::Mutated
             } else {
@@ -100,9 +98,16 @@ struct Round<'e, 's> {
     wanted: HashSet<SymbolId>,
     found: HashMap<SymbolId, Definition>,
     in_loop_head: bool,
+    in_declare: bool,
 }
 
 impl<'a> Visit<'a> for Round<'_, '_> {
+    fn visit_variable_declaration(&mut self, declaration: &VariableDeclaration<'a>) {
+        let outer = std::mem::replace(&mut self.in_declare, declaration.declare);
+        walk::walk_variable_declaration(self, declaration);
+        self.in_declare = outer;
+    }
+
     fn visit_for_statement_left(&mut self, left: &ForStatementLeft<'a>) {
         let outer = std::mem::replace(&mut self.in_loop_head, true);
         walk::walk_for_statement_left(self, left);
@@ -116,6 +121,10 @@ impl<'a> Visit<'a> for Round<'_, '_> {
                 if (leaf.inner_default && self.mode == Mode::Values)
                     || !self.wanted.contains(&leaf.symbol)
                 {
+                    continue;
+                }
+                if self.in_declare {
+                    self.found.insert(leaf.symbol, Definition::Declared);
                     continue;
                 }
                 let init = init
@@ -144,13 +153,16 @@ impl<'a> Visit<'a> for Round<'_, '_> {
 
     fn visit_function(&mut self, function: &Function<'a>, flags: ScopeFlags) {
         if let Some(id) = &function.id
-            && function.body.is_some()
             && self.wanted.contains(&id.symbol_id())
         {
-            self.found.insert(
-                id.symbol_id(),
-                Definition::Function(self.exprs.scope.lines.location(function.span.start)),
-            );
+            if function.body.is_some() {
+                self.found.insert(
+                    id.symbol_id(),
+                    Definition::Function(self.exprs.scope.lines.location(function.span.start)),
+                );
+            } else if function.declare {
+                self.found.insert(id.symbol_id(), Definition::Declared);
+            }
         }
         walk::walk_function(self, function, flags);
     }
@@ -158,6 +170,15 @@ impl<'a> Visit<'a> for Round<'_, '_> {
 
 /// Names whose contents are changed in place: `a.b = c`, `a.b++`, `delete a.b`, `a.push(b)`,
 /// `Object.assign(a, b)`.
+pub(crate) fn changed(program: &Program, scope: &Scope) -> HashSet<SymbolId> {
+    let mut changed = Changed {
+        scope,
+        symbols: HashSet::new(),
+    };
+    changed.visit_program(program);
+    changed.symbols
+}
+
 struct Changed<'s> {
     scope: &'s Scope<'s>,
     symbols: HashSet<SymbolId>,

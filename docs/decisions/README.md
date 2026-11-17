@@ -24,4 +24,5 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0017](./0017-prop-values.md) | Report every prop of a usage as a tree of values with kinds | accepted |
 | [0018](./0018-all-components.md) | Target every export of the module when no components are given | accepted |
 | [0019](./0019-follow-variables.md) | Follow variables on request, and report the path to each value | accepted |
-| [0020](./0020-architecture.md) | Crate boundaries and interfaces, with values | accepted |
+| [0020](./0020-architecture.md) | Crate boundaries and interfaces, with values | accepted; `values` interface superseded by [0021](./0021-follow-imports.md) |
+| [0021](./0021-follow-imports.md) | Follow imports to the exported value, and say which file each value is in | accepted |

@@ -61,6 +61,7 @@ Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-value
 | `parents` | Enclosing usages, and the parent's attribute a usage is in |
 | `props-filter` | `--props` keeps the named props and spreads |
 | `all-components` | Every export of `--from` without `--components` ([ADR-0018](../docs/decisions/0018-all-components.md)) |
+| `follow-imports` | `--follow imports`: named, default and namespace imports, re-exports, values in other files, imports changed in place, and each code for an import that can't be followed ([ADR-0021](../docs/decisions/0021-follow-imports.md)) |
 | `follow-variables` | `--follow variables`: chains, property access, destructuring and defaults, `mutated`, function declarations, names that refer back to themselves ([ADR-0019](../docs/decisions/0019-follow-variables.md)) |
 
 ## owners

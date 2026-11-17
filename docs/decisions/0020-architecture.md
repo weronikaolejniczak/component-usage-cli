@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; values interface superseded by ADR-0021
 date: 2026-11-16
 decision-makers: Weronika Olejniczak
 ---
