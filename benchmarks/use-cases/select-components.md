@@ -16,7 +16,7 @@ Hypothetical. EUI wants one select component. To scope it, we want to know how `
 benchmarks/use-cases/run.sh <kibana> 6dce6e1bbcf1fcc46be7011088c3aa1e81feba19 /tmp/kibana
 ```
 
-Usages, props, parents and owners all come from one report of this tool, with `--follow props`, which also follows variables and imports. The output, [`selects.json.gz`](../results/use-cases-kibana/selects.json.gz), lists the usages behind each pattern below, keyed by owner, with their props and parents.
+Usages, props, parents and owners all come from one report of this tool, with `--follow props,calls`, which also follows variables and imports and describes calls. The output, [`selects.json.gz`](../results/use-cases-kibana/selects.json.gz), lists the usages behind each pattern below, keyed by owner, with their props and parents.
 
 ## Results
 
@@ -47,6 +47,8 @@ The first version of this use case, with react-scanner's props, had 44.8% and 70
 
 `options` is a literal array in 270 of 1,265 usages, with a median of 3 items and at most 14: 67 written inline and 203 in a variable, in the same file or imported, or passed by a caller. Without following ([results at `2b65387`](https://github.com/weronikaolejniczak/component-usage-cli/tree/2b65387/benchmarks/results/use-cases-kibana)), only the 67 could be read, and 797 were variables; following variables but not imports, 166 more were read, and 42 were imports. Through variables, imports and callers, most options end in a call (627: `useMemo` 316, `useState` 74), and 23 are arrays changed after they're declared, such as `availableAggs.push(...)`, reported `mutated`. What's left: calls written in the prop (189) and parameters (7), and 1 component that isn't rendered anywhere. Following imports but not props ([results at `9c5b591`](https://github.com/weronikaolejniczak/component-usage-cli/tree/9c5b591/benchmarks/results/use-cases-kibana)), 83 were parameters; following them, 26 more are a `one-of` of what each caller passes, 52 in all, and 2 more are literal arrays.
 
+Describing calls, the calls are read but not evaluated, so the counts above stay the same. Of the 316 `useMemo` calls, the function passed returns an array literal in 60, another call in 200, such as `options.map(…)` or `.filter(…)`, a ternary or `||` in 30, and only names from the call's arguments, `in-call`, in 20. The other calls are `useState` (74), whose argument is the initial value, `.map` on a variable or a sequence, such as `makeSequence(0, 59).map(…)`, and local helpers such as `getTimeOptions`.
+
 `singleSelection` on `EuiComboBox`, when set: `{ asPlainText: true }` 238, `true` 33, a ternary 8, a call 5, `{ asPlainText: false }` 2, an object with `asPlainText` from callers 2, which pass the result of a `useValues(…)` call, `unsupported` 3. Without following, 21 of the `{ asPlainText: true }` objects weren't read: 17 in variables and 4 imported.
 
 Patterns:
@@ -68,10 +70,10 @@ Patterns:
 | Owners | Yes | No |
 | Prop names | Yes | Yes |
 | Prop values | Literals, objects, arrays, ternaries, with positions, through variables, imports and callers; `unresolved` with a code otherwise | Literals; kind only for expressions |
-| Options' shape | When an array, inline, in a variable, imported or passed by a caller; 270 usages | No |
+| Options' shape | When an array, inline, in a variable, imported or passed by a caller, 270 usages; when a call, what's called and what the functions passed return | No |
 | Parents | Yes | No |
 | Wrappers and their usages | Values they forward are followed to their callers; their usages aren't counted | No; spreads only |
 
 ## What would answer it
 
-Most `options` are built by a call, which the tool doesn't evaluate. Wrappers as targets, so that a local component rendering a select, with the props it forwards, is reported and its own usages counted like an EUI component's.
+Most `options` are built by a call, which the tool describes but doesn't evaluate: what `useMemo(() => items.map(…))` returns depends on `items`, a name in the call's arguments, which isn't followed. Wrappers as targets, so that a local component rendering a select, with the props it forwards, is reported and its own usages counted like an EUI component's.

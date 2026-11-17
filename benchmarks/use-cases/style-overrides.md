@@ -18,7 +18,7 @@ For patterns, the CSS properties and values matter as much as the components.
 benchmarks/use-cases/run.sh <kibana> 6dce6e1bbcf1fcc46be7011088c3aa1e81feba19 /tmp/kibana
 ```
 
-Props come from this tool's report, with `--follow props`, which also follows variables and imports, owners from it and `codeowners`. CSS properties are object keys at any depth, and declarations in template text, such as `color:` in `` css`color: red` ``. Wrappers and selectors come from a text search: `styled(Eui…)` and `euiStyled(Eui…)` calls, and `.eui…` after a character that can start a selector, in source files and stylesheets. Selectors in tests, stories and mocks are counted apart. The output, [`styles.json.gz`](../results/use-cases-kibana/styles.json.gz), has `overrides` and `selectors`, keyed by owner.
+Props come from this tool's report, with `--follow props,calls`, which also follows variables and imports and describes calls, owners from it and `codeowners`. CSS properties are object keys at any depth, and declarations in template text, such as `color:` in `` css`color: red` ``. Wrappers and selectors come from a text search: `styled(Eui…)` and `euiStyled(Eui…)` calls, and `.eui…` after a character that can start a selector, in source files and stylesheets. Selectors in tests, stories and mocks are counted apart. The output, [`styles.json.gz`](../results/use-cases-kibana/styles.json.gz), has `overrides` and `selectors`, keyed by owner.
 
 ## Results
 
@@ -37,6 +37,8 @@ Without `--follow variables` ([results at `2b65387`](https://github.com/weronika
 Following imports too reads 64 of the 147 imported `css` values, 23 of the 29 `className`s and all 5 `style`s. The other imported `css` values hold a function (50) or a call (33), all `css(…)`, which now hold 160 values.
 
 Following props too, `parameter` values go from 25 to 4 for `css`, from 49 to 17 for `className` and from 13 to 1 for `style`, and the followed `one-of` values from 9, 7 and 3 to 24, 34 and 14: each value the callers pass is a branch. Of their branches, 83 of 117 for `css`, 170 of 221 for `className` and 50 of 89 for `style` are `undefined`: a caller that doesn't set the prop, or a ternary branch that sets nothing.
+
+Describing calls too, the calls are read: 1,076 for `css`, 105 for `className` and 16 for `style`. For `css`, they're `useMemoCss` 194, `useStyles` 188, `css(…)` 232, of which 72 are written in the prop, and `useMemo` 134. 223 of the `css(…)` calls are given an object, which sets `minWidth` in 42, `height` in 39 and `width` in 26. For `className`, they're `classNames`, `cx` and `classnames` (62 in all), given literals, objects such as `{ 'cm-favorite-button--active': … }` in `favorite_button.tsx`, and names from their scope, `in-call` (34 arguments). The tables below count only what's set outside calls, since a function's arguments aren't necessarily CSS.
 
 The first version, with react-scanner, read only the 1,121 literal `className`s; it has 20 fewer usages, all behind a local module re-exporting EUI.
 
@@ -73,11 +75,11 @@ Most selected: `euiAccordion` 119, `euiDataGridRowCell` 93, `euiFlyoutBody` 83, 
 | Need | component-usage-cli | react-scanner 1.2.0 | ripgrep |
 |---|---|---|---|
 | Which usages have `css`, `className`, `style` | Yes | Yes | No |
-| What they set | When written inline, in a variable, imported or passed by a caller, with positions | `className` literals only | Text only |
+| What they set | When written inline, in a variable, imported or passed by a caller, with positions; the arguments of the calls that build them | `className` literals only | Text only |
 | `styled()` wrappers | No | No | Text only |
 | Selectors on EUI classes | No | No | Text only |
 | Owners | Yes, for usages | No | No |
 
 ## What would answer it
 
-Reading the argument of `css(…)` calls, 160 values in variables and imports; and components passed as values, so that `styled(EuiPanel)` is a usage of `EuiPanel` with its styles. Selectors in stylesheets are outside a JSX scan; a text search, as here, covers them.
+What hooks such as `useMemoCss` and `useStyles` return, which is in the function they're given or in another file: names in a call's arguments aren't followed. Components passed as values, so that `styled(EuiPanel)` is a usage of `EuiPanel` with its styles. Selectors in stylesheets are outside a JSX scan; a text search, as here, covers them.

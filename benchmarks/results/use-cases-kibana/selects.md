@@ -180,6 +180,20 @@ Features used, by prop presence and literal values ("-" means the component does
 | parameter, followed | 0 | 0 | 1 | 1 |
 | no-callers | 1 | 0 | 0 | 0 |
 
+`options` that are a call: what's called, and whether a function among its arguments returns an array literal
+| callee | calls | returns an array literal |
+|---|---|---|
+| useMemo | 316 | 60 |
+| useState | 74 | 0 |
+| options.map | 14 | 0 |
+| makeSequence(0, 59).map | 10 | 0 |
+| makeSequence(0, 23).map | 8 | 0 |
+| getTimeOptions | 8 | 0 |
+| fieldSuggestions.map | 5 | 0 |
+| getUnitSelectOptions | 5 | 0 |
+| formatFieldsToComboBox | 4 | 0 |
+| makeSequence(1, 31).map | 4 | 0 |
+
 array literal `options`: 270; items median 3.0, max 14
 
 EuiComboBox `singleSelection` values

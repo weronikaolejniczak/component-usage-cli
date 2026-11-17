@@ -14,6 +14,20 @@ EUI usages: 87239; with css, className or style: 7291 (8.4%)
 | object, followed | 93 |
 | function | 35 |
 
+`css`: calls it's built by, outside other calls
+| callee | calls |
+|---|---|
+| useEuiTheme | 1843 |
+| css | 264 |
+| useMemoCss | 246 |
+| useStyles | 208 |
+| useMemo | 163 |
+| useEuiFontSize | 37 |
+| useListDetailPageStyles | 23 |
+| logicalCSS | 19 |
+| euiFullHeight | 15 |
+| visorStyles | 13 |
+
 `className`: 1541 usages; what the value is
 | value | usages |
 |---|---|
@@ -28,6 +42,20 @@ EUI usages: 87239; with css, className or style: 7291 (8.4%)
 | template | 23 |
 | parameter | 17 |
 
+`className`: calls it's built by, outside other calls
+| callee | calls |
+|---|---|
+| useEuiTheme | 63 |
+| classNames | 37 |
+| cx | 20 |
+| useMemo | 11 |
+| classnames | 7 |
+| css | 4 |
+| useStyles | 4 |
+| getClasses | 2 |
+| actionButtonCss | 2 |
+| fieldAndParamCss | 2 |
+
 `style`: 1189 usages; what the value is
 | value | usages |
 |---|---|
@@ -39,6 +67,20 @@ EUI usages: 87239; with css, className or style: 7291 (8.4%)
 | mutated | 4 |
 | parameter | 1 |
 | no-callers | 1 |
+
+`style`: calls it's built by, outside other calls
+| callee | calls |
+|---|---|
+| useEuiTheme | 183 |
+| useState | 17 |
+| useMemo | 11 |
+| useContext | 4 |
+| makeProps | 3 |
+| useTimeRangeAsync | 3 |
+| getAssignmentColor | 2 |
+| getEmptyDroppableStyle | 2 |
+| euiFontSize | 2 |
+| useEuiBackgroundColor | 2 |
 
 Components with at least 100 usages, by share of overridden usages
 | component | usages | overridden | share | css | className | style |
@@ -121,15 +163,15 @@ className tokens that are EUI's own classes, in literals and template text
 | eui-textNoWrap | 55 |
 | eui-fullHeight | 30 |
 | eui-fullWidth | 22 |
+| eui-yScroll | 21 |
 | eui-textCenter | 21 |
-| eui-yScroll | 20 |
 | eui-textLeft | 16 |
 | eui-alignCenter | 11 |
 | eui-displayInline | 11 |
 | eui-textRight | 11 |
+| eui-scrollBar | 10 |
 | eui-textBreakAll | 10 |
 | eui-displayInlineBlock | 10 |
-| eui-alignMiddle | 10 |
 
 styled(Eui*) wrappers: 492
 | component | wrappers |
