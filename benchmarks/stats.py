@@ -30,6 +30,37 @@ for (code, component), count in collections.Counter(
 ).most_common():
     print(f"  {code} {component}: {count}")
 
+def label(value):
+    parts = [value["kind"]]
+    if value["kind"] == "unresolved":
+        parts.append(value["code"] + (f" ({value['step']})" if "step" in value else ""))
+    if value.get("via"):
+        parts.append("followed")
+    return ", ".join(parts)
+
+
+def nested(value):
+    """Values inside a value: entries, items, branches and template parts."""
+    for child in value.get("values", []):
+        yield child
+    for holder in value.get("entries", []) + value.get("items", []) + value.get("parts", []):
+        if isinstance(holder, dict) and isinstance(holder.get("value"), dict):
+            yield holder["value"]
+
+
+props = [prop["value"] for u in usages for prop in u.get("props", []) if isinstance(prop.get("value"), dict)]
+print(f"prop values: {len(props)}")
+for kind, count in collections.Counter(label(v) for v in props).most_common():
+    print(f"  {kind}: {count}")
+everything, stack = collections.Counter(), list(props)
+while stack:
+    value = stack.pop()
+    everything[label(value)] += 1
+    stack.extend(nested(value))
+print(f"values at any depth: {sum(everything.values())}")
+for kind, count in everything.most_common():
+    print(f"  {kind}: {count}")
+
 print(f"errors: {len(report['errors'])}")
 for code, count in collections.Counter(e["code"] for e in report["errors"]).most_common():
     print(f"  {code}: {count}")
