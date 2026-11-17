@@ -198,7 +198,7 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
     }
     modules.resize_with(files.len(), || None);
 
-    let graph = ModuleGraph::build(modules);
+    let mut graph = ModuleGraph::build(modules);
     let targets = match &config.components {
         Some(components) => {
             Targets::resolve(&graph, from, components).map_err(|error| ScanError::Component {
@@ -208,7 +208,10 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
         }
         None => Targets::all(&graph, from),
     };
+    let references = identify::references(&graph, &scanned, &targets);
+    graph.clear_references();
     let identified = identify::identify(&graph, &scanned, &targets, config.wrappers);
+    let references = identify::outside_wrappers(references, &identified.usages);
     let paths = files.displays(&root);
     let context = values::Context::new(&graph, &paths, options.imports, options.props);
 
@@ -245,8 +248,7 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
             }
         })
         .collect();
-    report.references = identified
-        .references
+    report.references = references
         .into_iter()
         .map(|reference| report::Reference {
             file: files.display(reference.file, &root),

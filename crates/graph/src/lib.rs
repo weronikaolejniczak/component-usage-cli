@@ -66,6 +66,13 @@ impl ModuleGraph {
         Self { modules }
     }
 
+    /// Drops [`FileSummary::references`], once they've been read, to free their memory.
+    pub fn clear_references(&mut self) {
+        for module in self.modules.iter_mut().flatten() {
+            module.summary.references = Vec::new();
+        }
+    }
+
     /// Every parsed module, by [`FileId`].
     pub fn modules(&self) -> impl Iterator<Item = (FileId, &Module)> {
         self.modules

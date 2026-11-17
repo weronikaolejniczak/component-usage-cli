@@ -129,8 +129,6 @@ pub struct Identified {
     /// Sorted by file, then location.
     pub usages: Vec<Usage>,
     /// Sorted by file, then location.
-    pub references: Vec<Reference>,
-    /// Sorted by file, then location.
     pub unidentified: Vec<Unidentified>,
 }
 
@@ -227,23 +225,6 @@ pub fn identify(
                 }
             }
         }
-        for reference in &module.summary.references {
-            let origin = state.origins.import(file, reference.import);
-            let Some(key) = origin
-                .and_then(|origin| state.origins.key(origin, reference.members.clone()))
-                .ok()
-            else {
-                continue;
-            };
-            if let Some(component) = targets.value(&key) {
-                identified.references.push(Reference {
-                    file,
-                    location: reference.location,
-                    component,
-                    passed: reference.passed.clone(),
-                });
-            }
-        }
         let at: HashMap<Location, usize> = elements
             .iter()
             .enumerate()
@@ -266,22 +247,53 @@ pub fn identify(
     identified
         .usages
         .sort_by_key(|usage| (usage.file, usage.location));
-    let steps: HashSet<(FileId, Location)> = identified
-        .usages
-        .iter()
-        .flat_map(|usage| &usage.through)
-        .map(|step| (step.file, step.location))
-        .collect();
-    identified
-        .references
-        .retain(|reference| !steps.contains(&(reference.file, reference.location)));
-    identified
-        .references
-        .sort_by_key(|reference| (reference.file, reference.location));
     identified
         .unidentified
         .sort_by_key(|unidentified| (unidentified.file, unidentified.location));
     identified
+}
+
+/// The places in `files` where `targets` are read as values, sorted by file, then location.
+#[must_use]
+pub fn references(graph: &ModuleGraph, files: &[FileId], targets: &Targets) -> Vec<Reference> {
+    let mut origins = Origins::new(graph);
+    let mut references = Vec::new();
+    for &file in files {
+        let Some(module) = graph.module(file) else {
+            continue;
+        };
+        for reference in &module.summary.references {
+            let origin = origins.import(file, reference.import);
+            let Some(key) = origin
+                .and_then(|origin| origins.key(origin, reference.members.clone()))
+                .ok()
+            else {
+                continue;
+            };
+            if let Some(component) = targets.value(&key) {
+                references.push(Reference {
+                    file,
+                    location: reference.location,
+                    component,
+                    passed: reference.passed.clone(),
+                });
+            }
+        }
+    }
+    references.sort_by_key(|reference| (reference.file, reference.location));
+    references
+}
+
+/// `references` without those that are a step of a usage's [`Usage::through`].
+#[must_use]
+pub fn outside_wrappers(mut references: Vec<Reference>, usages: &[Usage]) -> Vec<Reference> {
+    let steps: HashSet<(FileId, Location)> = usages
+        .iter()
+        .flat_map(|usage| &usage.through)
+        .map(|step| (step.file, step.location))
+        .collect();
+    references.retain(|reference| !steps.contains(&(reference.file, reference.location)));
+    references
 }
 
 /// The usages enclosing `elements[index]`, nearest first. Each is paired with the attribute of
