@@ -18,7 +18,7 @@ For patterns, the CSS properties and values matter as much as the components.
 benchmarks/use-cases/run.sh <kibana> 6dce6e1bbcf1fcc46be7011088c3aa1e81feba19 /tmp/kibana
 ```
 
-Props come from this tool's report, with `--follow imports`, which also follows variables, owners from it and `codeowners`. CSS properties are object keys at any depth, and declarations in template text, such as `color:` in `` css`color: red` ``. Wrappers and selectors come from a text search: `styled(Eui…)` and `euiStyled(Eui…)` calls, and `.eui…` after a character that can start a selector, in source files and stylesheets. Selectors in tests, stories and mocks are counted apart. The output, [`styles.json.gz`](../results/use-cases-kibana/styles.json.gz), has `overrides` and `selectors`, keyed by owner.
+Props come from this tool's report, with `--follow props`, which also follows variables and imports, owners from it and `codeowners`. CSS properties are object keys at any depth, and declarations in template text, such as `color:` in `` css`color: red` ``. Wrappers and selectors come from a text search: `styled(Eui…)` and `euiStyled(Eui…)` calls, and `.eui…` after a character that can start a selector, in source files and stylesheets. Selectors in tests, stories and mocks are counted apart. The output, [`styles.json.gz`](../results/use-cases-kibana/styles.json.gz), has `overrides` and `selectors`, keyed by owner.
 
 ## Results
 
@@ -26,15 +26,17 @@ Kibana at `6dce6e1bbcf1fcc46be7011088c3aa1e81feba19`; full tables in the [summar
 
 7,291 of 87,239 EUI usages (8.4%) have `css`, `className` or `style`. What the values are:
 
-| Prop | Usages | Read inline | Read through a variable or import | Not read |
+| Prop | Usages | Read inline | Read through a variable, an import or a caller | Not read |
 |---|---|---|---|---|
-| `css` | 4,844 | `` css`…` `` 1,585, object 1,117, ternary 107, array 101 | `` css`…` `` 548, object 93, ternary 9, array 1 | call 1,070, function 172, parameter 25 |
-| `className` | 1,541 | literal 1,124, template 111, ternary 29 | template 78, literal 27, ternary 7 | call 104, parameter 49, unsupported 12 |
-| `style` | 1,189 | object 1,072, ternary 23 | object 58, ternary 3 | call 16, parameter 13, mutated 4 |
+| `css` | 4,844 | `` css`…` `` 1,585, object 1,117, ternary 107, array 101 | `` css`…` `` 548, object 93, one-of 24, array 1 | call 1,076, function 172, parameter 4 |
+| `className` | 1,541 | literal 1,124, template 111, ternary 29 | template 78, literal 27, one-of 34 | call 105, parameter 17, unsupported 12, no callers 3 |
+| `style` | 1,189 | object 1,072, ternary 23 | object 58, one-of 14 | call 16, mutated 4, parameter 1, no callers 1 |
 
 Without `--follow variables` ([results at `2b65387`](https://github.com/weronikaolejniczak/component-usage-cli/tree/2b65387/benchmarks/results/use-cases-kibana)), the 1,543 `css`, 138 `className` and 76 `style` values in variables weren't read. Following them reads 587, 89 and 56; most of the other `css` variables hold a call (866): `useMemoCss` 192, `useStyles` 188, `useMemo` 133 and `css(…)` 127, among others; or a function (87).
 
 Following imports too reads 64 of the 147 imported `css` values, 23 of the 29 `className`s and all 5 `style`s. The other imported `css` values hold a function (50) or a call (33), all `css(…)`, which now hold 160 values.
+
+Following props too, `parameter` values go from 25 to 4 for `css`, from 49 to 17 for `className` and from 13 to 1 for `style`, and the followed `one-of` values from 9, 7 and 3 to 24, 34 and 14: each value the callers pass is a branch. Of their branches, 83 of 117 for `css`, 170 of 221 for `className` and 50 of 89 for `style` are `undefined`: a caller that doesn't set the prop, or a ternary branch that sets nothing.
 
 The first version, with react-scanner, read only the 1,121 literal `className`s; it has 20 fewer usages, all behind a local module re-exporting EUI.
 
@@ -42,16 +44,16 @@ What `css` and `style` set, by usages:
 
 | `css` | Usages | `style` | Usages |
 |---|---|---|---|
-| `width` | 364 | `width` | 214 |
-| `height` | 350 | `minWidth` | 174 |
-| `display` | 264 | `maxWidth` | 140 |
-| `padding` | 257 | `height` | 127 |
-| `overflow` | 244 | `minHeight` | 72 |
-| `min-width` | 214 | `padding` | 47 |
-| `minWidth` | 169 | `fontWeight` | 41 |
+| `width` | 365 | `width` | 214 |
+| `height` | 351 | `minWidth` | 174 |
+| `display` | 265 | `maxWidth` | 140 |
+| `padding` | 258 | `height` | 130 |
+| `overflow` | 245 | `minHeight` | 73 |
+| `min-width` | 214 | `padding` | 48 |
+| `minWidth` | 169 | `fontWeight` | 43 |
 | `font-weight` | 166 | `marginRight` | 40 |
 
-In `style`, the five most set are widths and heights; in `css`, `width` and `height` lead. Only values that are read are counted: following variables raised `width` in `css` from 274 to 344 and `height` from 275 to 348, and following imports to 364 and 350.
+In `style`, the five most set are widths and heights; in `css`, `width` and `height` lead. Only values that are read are counted: following variables raised `width` in `css` from 274 to 344 and `height` from 275 to 348, and following imports to 364 and 350, and following props to 365 and 351.
 
 Most overridden, among components with at least 100 usages: `EuiModal` 30.4%, `EuiSplitPanel.Inner` 28.7%, `EuiBetaBadge` 27.9%, `EuiCard` 23.8%, `EuiPanel` 23.3%. In absolute numbers: `EuiFlexItem` 1,694, `EuiFlexGroup` 1,164, `EuiText` 823, `EuiPanel` 443.
 
@@ -71,7 +73,7 @@ Most selected: `euiAccordion` 119, `euiDataGridRowCell` 93, `euiFlyoutBody` 83, 
 | Need | component-usage-cli | react-scanner 1.2.0 | ripgrep |
 |---|---|---|---|
 | Which usages have `css`, `className`, `style` | Yes | Yes | No |
-| What they set | When written inline, in a variable or imported, with positions | `className` literals only | Text only |
+| What they set | When written inline, in a variable, imported or passed by a caller, with positions | `className` literals only | Text only |
 | `styled()` wrappers | No | No | Text only |
 | Selectors on EUI classes | No | No | Text only |
 | Owners | Yes, for usages | No | No |

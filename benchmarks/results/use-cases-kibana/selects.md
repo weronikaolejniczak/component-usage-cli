@@ -166,20 +166,21 @@ Features used, by prop presence and literal values ("-" means the component does
 `options`: what the value is
 | options | EuiSelect | EuiSuperSelect | EuiComboBox | EuiSelectable |
 |---|---|---|---|---|
-| call, followed | 94 | 78 | 271 | 137 |
-| array literal, followed | 122 | 30 | 44 | 5 |
+| call, followed | 123 | 78 | 280 | 146 |
+| array literal, followed | 124 | 30 | 44 | 5 |
 | call | 89 | 21 | 61 | 18 |
-| parameter | 36 | 3 | 23 | 16 |
 | array literal | 45 | 10 | 11 | 1 |
 | absent | 7 | 2 | 45 | 1 |
-| one-of, followed | 8 | 3 | 15 | 0 |
+| one-of, followed | 13 | 6 | 25 | 8 |
 | one-of | 6 | 1 | 14 | 3 |
 | mutated | 11 | 0 | 11 | 1 |
 | unsupported | 5 | 0 | 8 | 1 |
-| parameter, followed | 2 | 0 | 0 | 3 |
+| parameter | 1 | 0 | 3 | 1 |
 | unsupported, followed | 1 | 0 | 2 | 0 |
+| parameter, followed | 0 | 0 | 1 | 1 |
+| no-callers | 1 | 0 | 0 | 0 |
 
-array literal `options`: 268; items median 3.0, max 14
+array literal `options`: 270; items median 3.0, max 14
 
 EuiComboBox `singleSelection` values
 | value | usages |
@@ -189,7 +190,7 @@ EuiComboBox `singleSelection` values
 | one-of | 8 |
 | call | 5 |
 | unsupported | 3 |
-| object, asPlainText: parameter | 2 |
+| object, asPlainText: one-of | 2 |
 | object, asPlainText: false | 2 |
 
 | pattern | usages |
