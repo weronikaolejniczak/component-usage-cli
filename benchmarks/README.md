@@ -71,6 +71,21 @@ python3 benchmarks/stats.py benchmarks/results/<name>/report.json.gz 0
 
 The differences in time are smaller than the spread between runs of the same command; one run of `none` and one of `imports` took about twice the others. Peak memory varied between runs only without following. Of the 23,195 prop values, without following, 5,960 are `not-followed` variables and 597 `not-followed` imports. With `--follow imports`, 8 are left, all `not-followed` with step `variables`: 5 enum members, such as `TRANSFORM_LIST_COLUMN.ID`, and 3 names from destructuring with a rest element or a default, such as `const { isResizable, ...restOptions } = options`. The values that don't resolve are, by code: `call` 1,621 and 4,532 followed, `parameter` 1,440 and 82 followed, `unsupported` 304 and 79 followed, `mutated` 74, `unparsed` 72. Counts for each kind are in each result's `stats.txt`.
 
+### Following props
+
+The same scan with `--follow props`, at tool commit `5be0b90`, on the same export, with `--follow imports` rerun at that commit right before it for comparison. Same machine, warm cache, 5 runs each.
+
+| `--follow` | Median | Min | Max | Peak memory | Report | Values at any depth |
+|---|---|---|---|---|---|---|
+| [`imports`](./results/kibana-5be0b90-follow-imports/) | 5.48 s | 5.20 s | 5.83 s | 3.07 GB | 22.9 MB | 37,394 |
+| [`props`](./results/kibana-5be0b90-follow-props/) | 7.33 s | 6.86 s | 7.59 s | 3.57–3.64 GB | 60.5 MB | 55,120 |
+
+The `imports` report differs from the one at `973261e` in 4 values: a destructuring default now replaces `undefined` inside a `one-of`, as in `const { icon = 'processor' } = map.get(id) ?? {}`.
+
+Of the 23,195 prop values, `parameter` goes from 1,440 and 82 followed to 214 and 48 followed, and `one-of` followed from 316 to 1,251. 23 and 3 followed are `no-callers`. At any depth, 655 values are `other-callers`: a component on the way is also used other than as a JSX tag.
+
+The largest value, 5.2 MB of the 19.3 MB of prop values as compact JSON, is a `{...otherProps}` spread on `EuiDataGrid` in `x-pack/solutions/security/packages/data-table/components/data_table/index.tsx`. It is a `one-of` of 15 callers; 12 are in `index.test.tsx` and each spreads the test's `props` object, directly or through another object, which holds imported mock data such as `mockTimelineData`: about 430 KB per caller.
+
 ### Checked by hand
 
 `EuiIcon` positions were compared with a text search for `<EuiIcon` followed by whitespace, `>`, `/` or the end of the line. The scan found every match the search found, except 20, and none the search missed. Each of the 20 was read: all are in comments or template strings, such as inline snapshots, so they aren't usages. The search can't see usages through generics (`<EuiBasicTable<T>`), which is why `EuiBasicTable` has more usages than a text search finds.

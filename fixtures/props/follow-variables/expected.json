@@ -122,6 +122,25 @@
           }
         }
       ]
+    },
+    {
+      "component": "Button", "file": "App.tsx", "line": 48, "column": 10,
+      "props": [
+        {
+          "name": "size",
+          "value": {
+            "kind": "one-of", "line": 47, "column": 26,
+            "values": [
+              {
+                "kind": "literal", "value": "s", "line": 44, "column": 23,
+                "via": [{ "text": "FOUND", "line": 47, "column": 33 }]
+              },
+              { "kind": "literal", "value": "m", "line": 47, "column": 18 }
+            ],
+            "via": [{ "text": "size", "line": 48, "column": 24 }]
+          }
+        }
+      ]
     }
   ]
 }

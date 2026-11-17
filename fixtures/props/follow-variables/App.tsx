@@ -40,3 +40,10 @@ export function App({ status, props }: { status: 'edit' | 'remove'; props: { ico
     />
   );
 }
+
+const FOUND = { size: 's' };
+
+export function Fallback({ open }: { open: boolean }) {
+  const { size = 'm' } = open ? FOUND : {};
+  return <Button size={size} />;
+}
