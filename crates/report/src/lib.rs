@@ -26,13 +26,27 @@ pub struct Usage {
     #[serde(flatten)]
     pub location: Location,
     pub component: String,
+    /// The wrappers from the element to the component, outermost first. Absent for an element
+    /// of the component itself.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub through: Vec<Through>,
     /// Enclosing usages, nearest first.
     pub parents: Vec<Parent>,
-    /// Attributes in source order.
+    /// Attributes in source order, without those a wrapper doesn't pass on.
     pub props: Vec<Prop>,
     /// Code owners of `file`; empty if unowned. Absent unless owners were requested.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub owners: Option<Vec<String>>,
+}
+
+/// A wrapper a usage goes through, with the position where it passes its props on: the element
+/// it spreads them into, or the argument of the call it holds.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Through {
+    pub component: String,
+    pub file: String,
+    #[serde(flatten)]
+    pub location: Location,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -161,6 +175,7 @@ mod tests {
                 file: "src/App.tsx".to_owned(),
                 location: Location { line: 3, column: 5 },
                 component: "Icon".to_owned(),
+                through: Vec::new(),
                 parents: vec![Parent {
                     component: "Popover".to_owned(),
                     location: Location { line: 2, column: 3 },

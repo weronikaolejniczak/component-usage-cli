@@ -10,7 +10,7 @@ mod resolver;
 use std::collections::{HashMap, HashSet};
 
 use model::{ExportRef, FileId};
-use parse::{AliasRoot, Binding, Export, FileSummary, Imported};
+use parse::{AliasRoot, Binding, Export, Exported, FileSummary, Forwarded, Imported};
 
 pub use resolver::{ResolveError, Resolver};
 
@@ -147,6 +147,27 @@ impl ModuleGraph {
                     }
                 }
             }
+        }
+    }
+
+    /// The component `module` declares and exports as `name`, as an index into its
+    /// [`FileSummary::components`].
+    #[must_use]
+    pub fn component(&self, module: FileId, name: &str) -> Option<usize> {
+        let summary = &self.module(module)?.summary;
+        match summary.exported.get(name)? {
+            Exported::Variable(variable) => summary
+                .components
+                .iter()
+                .position(|component| component.variables.contains(variable)),
+            Exported::Value(_) => (name == "default")
+                .then(|| {
+                    summary
+                        .components
+                        .iter()
+                        .position(|component| component.default)
+                })
+                .flatten(),
         }
     }
 
@@ -336,7 +357,8 @@ pub fn value_specifiers(summary: &FileSummary, attributes: bool) -> impl Iterato
         .filter_map(|index| Some(summary.imports.get(index)?.source.as_str()))
 }
 
-/// Specifiers of the imports and `require` calls that JSX elements in this file refer to.
+/// Specifiers of the imports and `require` calls that JSX elements in this file refer to, and
+/// of the imports components pass their props on to.
 pub fn element_specifiers(summary: &FileSummary) -> impl Iterator<Item = &str> {
     let import = |index: usize| {
         summary
@@ -344,7 +366,7 @@ pub fn element_specifiers(summary: &FileSummary) -> impl Iterator<Item = &str> {
             .get(index)
             .map(|import| import.source.as_str())
     };
-    summary
+    let elements = summary
         .elements
         .iter()
         .filter_map(move |element| match element.binding {
@@ -354,7 +376,16 @@ pub fn element_specifiers(summary: &FileSummary) -> impl Iterator<Item = &str> {
                 AliasRoot::Require(specifier) => Some(specifier.as_str()),
             },
             Binding::Local | Binding::Global => None,
-        })
+        });
+    let forwards = summary
+        .components
+        .iter()
+        .flat_map(|component| &component.forwards)
+        .filter_map(move |forward| match forward.to {
+            Forwarded::Import { import: index, .. } => import(index),
+            Forwarded::Element(_) | Forwarded::Component(_) => None,
+        });
+    elements.chain(forwards)
 }
 
 #[cfg(test)]

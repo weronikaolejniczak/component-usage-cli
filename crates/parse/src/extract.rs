@@ -13,7 +13,7 @@ use oxc_syntax::module_record::{
 
 use crate::aliases::alias;
 use crate::attributes::Exprs;
-use crate::components::components;
+use crate::components::{components, spreads};
 use crate::definitions::{Mode, changed, definitions};
 use crate::elements::elements;
 use crate::exported::exported;
@@ -80,7 +80,8 @@ pub(crate) fn extract(
     let scope = Scope::new(&parsed.program, semantic.scoping(), &lines, import_at);
     let mut exprs = Exprs::new(source, &scope);
     exprs.calls = options.calls;
-    let found = options.props.then(|| components(&parsed.program, &exprs));
+    let found = (options.props || options.wrappers)
+        .then(|| components(&parsed.program, &exprs, options.wrappers));
     let mut elements = elements(&parsed.program, &exprs);
     if let Some(found) = &found {
         for (element, local) in &mut elements {
@@ -90,7 +91,7 @@ pub(crate) fn extract(
         }
     }
     let (elements, aliases) = bind_aliases(&parsed.program, &scope, source, elements);
-    let exported = if options.imports || options.props {
+    let exported = if options.imports || options.props || options.wrappers {
         exported(&parsed.program, &exprs)
     } else {
         HashMap::new()
@@ -118,9 +119,13 @@ pub(crate) fn extract(
         Vec::new()
     };
     changed_imports.sort_unstable();
-    let (components, parameters, escaping_imports) = found.map_or_else(Default::default, |found| {
-        (found.components, found.parameters, found.escaping_imports)
-    });
+    let (mut components, parameters, escaping_imports) = found
+        .map_or_else(Default::default, |found| {
+            (found.components, found.parameters, found.escaping_imports)
+        });
+    if options.wrappers {
+        spreads(&mut components, &parameters, &elements);
+    }
 
     Ok(FileSummary {
         imports,

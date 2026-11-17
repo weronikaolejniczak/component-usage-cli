@@ -27,6 +27,8 @@ struct Query {
     props: Option<Vec<String>>,
     #[serde(default)]
     follow: Option<Vec<String>>,
+    #[serde(default)]
+    wrappers: bool,
     /// Scan root, relative to the case folder.
     #[serde(default)]
     dir: Option<String>,
@@ -64,6 +66,8 @@ struct Usage {
     column: u32,
     #[serde(default)]
     owners: Option<Vec<String>>,
+    #[serde(default)]
+    through: Option<serde_json::Value>,
     #[serde(default)]
     parents: Option<serde_json::Value>,
     #[serde(default)]
@@ -138,6 +142,9 @@ fn run_case(group: &str, name: &str) {
     }
     if let Some(follow) = &case.query.follow {
         command.arg("--follow").arg(follow.join(","));
+    }
+    if case.query.wrappers {
+        command.arg("--wrappers");
     }
     match case.query.owners.as_deref() {
         Some("") => {
@@ -235,6 +242,7 @@ cases!(props:
     parents,
     props_filter,
     templates,
+    wrappers,
 );
 
 cases!(owners:

@@ -42,6 +42,9 @@ pub struct Config {
     pub follow_props: bool,
     /// Describe calls and what the functions passed to them return.
     pub follow_calls: bool,
+    /// Report the elements of components that pass all their props on to a target as usages of
+    /// it.
+    pub wrappers: bool,
 }
 
 /// Which `CODEOWNERS` file to use. Patterns always match paths relative to the repository root:
@@ -123,6 +126,7 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
         imports: config.follow_imports || config.follow_props,
         props: config.follow_props,
         calls: config.follow_calls,
+        wrappers: config.wrappers,
     };
     let mut modules: Vec<Option<Module>> = Vec::new();
     let mut pending: Vec<FileId> = scanned.clone();
@@ -204,26 +208,41 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
         }
         None => Targets::all(&graph, from),
     };
-    let identified = identify::identify(&graph, &scanned, &targets);
+    let identified = identify::identify(&graph, &scanned, &targets, config.wrappers);
     let paths = files.displays(&root);
     let context = values::Context::new(&graph, &paths, options.imports, options.props);
 
     report.usages = identified
         .usages
         .into_iter()
-        .map(|usage| report::Usage {
-            file: files.display(usage.file, &root),
-            location: usage.location,
-            component: usage.component,
-            parents: usage.parents,
-            props: graph
+        .map(|usage| {
+            let mut props = graph
                 .module(usage.file)
                 .and_then(|module| module.summary.elements.get(usage.element))
                 .map(|element| {
                     values::props(&context, usage.file, element, config.props.as_deref())
                 })
-                .unwrap_or_default(),
-            owners: None,
+                .unwrap_or_default();
+            props.retain(|prop| {
+                !matches!(prop, report::Prop::Named { name, .. } if usage.excluded.contains(name))
+            });
+            report::Usage {
+                file: files.display(usage.file, &root),
+                location: usage.location,
+                component: usage.component,
+                through: usage
+                    .through
+                    .into_iter()
+                    .map(|through| report::Through {
+                        component: through.component,
+                        file: files.display(through.file, &root),
+                        location: through.location,
+                    })
+                    .collect(),
+                parents: usage.parents,
+                props,
+                owners: None,
+            }
         })
         .collect();
     report.unidentified = identified

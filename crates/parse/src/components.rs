@@ -9,11 +9,49 @@ use oxc_ast::ast::{
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::{ReferenceId, SymbolId};
+use oxc_span::GetSpan;
 use oxc_syntax::scope::ScopeFlags;
 
 use crate::attributes::Exprs;
 use crate::scope::Declared;
-use crate::{Component, Parameter, Segment};
+use crate::{
+    Attribute, Component, ExprKind, Forward, Forwarded, JsxElement, Parameter, Reference, Segment,
+};
+
+/// Adds to [`Component::forwards`] the elements given a spread of a component's props, or of a
+/// rest element of them.
+pub(crate) fn spreads(
+    components: &mut [Component],
+    parameters: &[Parameter],
+    elements: &[JsxElement],
+) {
+    for (index, element) in elements.iter().enumerate() {
+        for attribute in &element.attributes {
+            let Attribute::Spread(spread) = attribute else {
+                continue;
+            };
+            let ExprKind::Reference {
+                name: Reference::Parameter(Some(parameter)),
+                path,
+                ..
+            } = &spread.kind
+            else {
+                continue;
+            };
+            let Some(parameter) = parameters.get(*parameter) else {
+                continue;
+            };
+            if !path.is_empty() || !parameter.path.is_empty() {
+                continue;
+            }
+            components[parameter.component].forwards.push(Forward {
+                location: element.location,
+                to: Forwarded::Element(index),
+                excluded: parameter.rest.clone().unwrap_or_default(),
+            });
+        }
+    }
+}
 
 /// What [`components`] finds in a file.
 pub(crate) struct Components {
@@ -27,13 +65,16 @@ pub(crate) struct Components {
 
 /// The components of the file and the names their props declare. Sets [`Exprs::parameters`],
 /// so expressions built afterwards refer to props by [`crate::Reference::Parameter`] index.
-pub(crate) fn components(program: &Program, exprs: &Exprs) -> Components {
+/// With `calls`, also the `const`s and default exports holding a call that passes a name on, as
+/// [`Forwarded::Import`] or [`Forwarded::Component`].
+pub(crate) fn components(program: &Program, exprs: &Exprs, calls: bool) -> Components {
     let mut collector = Collector {
         exprs,
         in_const: false,
         in_type: false,
         found: Vec::new(),
         wrappers: Vec::new(),
+        calls: calls.then(Vec::new),
         allowed: HashSet::new(),
         members: HashSet::new(),
     };
@@ -41,6 +82,7 @@ pub(crate) fn components(program: &Program, exprs: &Exprs) -> Components {
     let Collector {
         found,
         wrappers,
+        calls,
         mut allowed,
         members,
         ..
@@ -63,6 +105,7 @@ pub(crate) fn components(program: &Program, exprs: &Exprs) -> Components {
                 .collect(),
             default: found.symbol.is_none(),
             escapes: false,
+            forwards: Vec::new(),
         });
         if let Some(symbol) = found.symbol {
             by_symbol.insert(symbol, index);
@@ -97,6 +140,42 @@ pub(crate) fn components(program: &Program, exprs: &Exprs) -> Components {
             }
             None => components[index].default = true,
         }
+    }
+    for called in calls.into_iter().flatten() {
+        if allowed.contains(&called.argument) {
+            continue;
+        }
+        let Some(symbol) = scoping.get_reference(called.argument).symbol_id() else {
+            continue;
+        };
+        let to = match (by_symbol.get(&symbol), exprs.scope.declared(symbol)) {
+            (Some(&index), _) if called.members.is_empty() => Forwarded::Component(index),
+            (None, Declared::Import(import)) => Forwarded::Import {
+                import,
+                members: called.members,
+            },
+            _ => continue,
+        };
+        let lines = &exprs.scope.lines;
+        if let Some(symbol) = called.symbol {
+            by_symbol.insert(symbol, components.len());
+        }
+        components.push(Component {
+            name: called.name,
+            location: lines.location(called.start),
+            variables: called
+                .symbol
+                .map(|symbol| exprs.variable(symbol))
+                .into_iter()
+                .collect(),
+            default: called.symbol.is_none(),
+            escapes: false,
+            forwards: vec![Forward {
+                location: lines.location(called.at),
+                to,
+                excluded: Vec::new(),
+            }],
+        });
     }
 
     *exprs.parameters.borrow_mut() = parameter_of;
@@ -153,11 +232,66 @@ struct Collector<'e, 's> {
     /// `const Wrapper = memo(Inner)`, or `export default memo(Inner)` without a symbol: the
     /// wrapper's symbol and the reference to `Inner`.
     wrappers: Vec<(Option<SymbolId>, ReferenceId)>,
+    /// When recorded, `const`s and default exports holding a call that passes a name on.
+    calls: Option<Vec<Called>>,
     /// References that don't make a name escape: JSX tags, exports and types.
     allowed: HashSet<ReferenceId>,
     /// Objects of member expressions, such as `Name` in `Name.displayName = …`: they don't make
     /// a component escape, but do an import, whose member can be a component.
     members: HashSet<ReferenceId>,
+}
+
+/// `const Styled = wrap(Button)`, or `export default wrap(Button)` without a symbol.
+struct Called {
+    name: String,
+    symbol: Option<SymbolId>,
+    /// The name's start, or the expression's.
+    start: u32,
+    argument: ReferenceId,
+    members: Vec<String>,
+    /// The argument's start.
+    at: u32,
+}
+
+/// The name a call passes on as its first argument, through member calls and tagged templates
+/// on its result and calls in the argument: `Button` in `` wrap(Button).with(…)`…` `` or
+/// `wrap(memo(Button))`. With its property accesses and its start.
+fn passed(expression: &Expression) -> Option<(ReferenceId, Vec<String>, u32)> {
+    match expression.get_inner_expression() {
+        Expression::TaggedTemplateExpression(tagged) => passed(&tagged.tag),
+        Expression::CallExpression(call) => {
+            if let Some(member) = call.callee.get_inner_expression().as_member_expression()
+                && matches!(
+                    member.object().get_inner_expression(),
+                    Expression::CallExpression(_) | Expression::TaggedTemplateExpression(_)
+                )
+            {
+                return passed(member.object());
+            }
+            let argument = call.arguments.first()?.as_expression()?;
+            named(argument).or_else(|| passed(argument))
+        }
+        _ => None,
+    }
+}
+
+/// An identifier, or static property accesses on one.
+fn named(expression: &Expression) -> Option<(ReferenceId, Vec<String>, u32)> {
+    let mut members = Vec::new();
+    let mut current = expression.get_inner_expression();
+    loop {
+        match current {
+            Expression::Identifier(identifier) => {
+                members.reverse();
+                return Some((identifier.reference_id(), members, expression.span().start));
+            }
+            Expression::StaticMemberExpression(member) => {
+                members.push(member.property.name.to_string());
+                current = member.object.get_inner_expression();
+            }
+            _ => return None,
+        }
+    }
 }
 
 /// What a `const` or `export default` holds, through `memo(…)` and `forwardRef(…)`.
@@ -204,6 +338,26 @@ impl Collector<'_, '_> {
             props,
         });
     }
+
+    fn call_default(&mut self, expression: &Expression) {
+        let start = expression.span().start;
+        self.call("default".to_owned(), None, start, expression);
+    }
+
+    fn call(&mut self, name: String, symbol: Option<SymbolId>, start: u32, held: &Expression) {
+        if let Some(calls) = &mut self.calls
+            && let Some((argument, members, at)) = passed(held)
+        {
+            calls.push(Called {
+                name,
+                symbol,
+                start,
+                argument,
+                members,
+                at,
+            });
+        }
+    }
 }
 
 impl<'a> Visit<'a> for Collector<'_, '_> {
@@ -230,8 +384,21 @@ impl<'a> Visit<'a> for Collector<'_, '_> {
                         params,
                     );
                 }
-                Some(Held::Name(argument)) => self.wrappers.push((Some(id.symbol_id()), argument)),
-                None => {}
+                Some(Held::Name(argument)) => {
+                    self.wrappers.push((Some(id.symbol_id()), argument));
+                    self.call(
+                        id.name.to_string(),
+                        Some(id.symbol_id()),
+                        id.span.start,
+                        init,
+                    );
+                }
+                None => self.call(
+                    id.name.to_string(),
+                    Some(id.symbol_id()),
+                    id.span.start,
+                    init,
+                ),
             }
         }
         walk::walk_variable_declarator(self, declarator);
@@ -273,8 +440,11 @@ impl<'a> Visit<'a> for Collector<'_, '_> {
                         Some(Held::Function(params, start)) => {
                             self.add("default".to_owned(), None, start, params);
                         }
-                        Some(Held::Name(argument)) => self.wrappers.push((None, argument)),
-                        None => {}
+                        Some(Held::Name(argument)) => {
+                            self.wrappers.push((None, argument));
+                            self.call_default(expression);
+                        }
+                        None => self.call_default(expression),
                     }
                 }
             }

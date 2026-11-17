@@ -43,6 +43,20 @@ pub struct Usage {
     pub element: usize,
     /// Enclosing usages, nearest first.
     pub parents: Vec<Parent>,
+    /// The wrappers from the element to the component, outermost first; empty for an element
+    /// of the component itself.
+    pub through: Vec<Through>,
+    /// Props the wrappers don't pass on.
+    pub excluded: Vec<String>,
+}
+
+/// A wrapper a usage goes through, and where it passes its props on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct Through {
+    pub component: String,
+    pub file: FileId,
+    pub location: Location,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

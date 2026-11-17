@@ -36,6 +36,8 @@ fn usage(line: u32, column: u32, component: &str) -> Usage {
         component: component.to_owned(),
         element: 0,
         parents: Vec::new(),
+        through: Vec::new(),
+        excluded: Vec::new(),
     }
 }
 
@@ -49,7 +51,7 @@ const ICON: (&str, &[(&str, u32)]) = (
 fn usages(app: &str, components: &[&str]) -> Vec<Usage> {
     let graph = graph(&[(app, &[("lib", 1), ("other-lib", 3)]), LIB, ICON, ICON]);
     let targets = targets(&graph, 1, components);
-    let identified = identify(&graph, &[FileId(0)], &targets);
+    let identified = identify(&graph, &[FileId(0)], &targets, false);
     assert_eq!(identified.unidentified, []);
     identities(identified.usages)
 }
@@ -108,7 +110,7 @@ fn import_from_defining_module() {
         LIB,
         ICON,
     ]);
-    let identified = identify(&graph, &[FileId(0)], &targets(&graph, 1, &["Icon"]));
+    let identified = identify(&graph, &[FileId(0)], &targets(&graph, 1, &["Icon"]), false);
     assert_eq!(identities(identified.usages), [usage(2, 11, "Icon")]);
 }
 
@@ -143,7 +145,12 @@ fn namespace_reexport_target() {
         ("export * as Icons from './icon';", &[("./icon", 2)]),
         ICON,
     ]);
-    let identified = identify(&graph, &[FileId(0)], &targets(&graph, 1, &["Icons.Icon"]));
+    let identified = identify(
+        &graph,
+        &[FileId(0)],
+        &targets(&graph, 1, &["Icons.Icon"]),
+        false,
+    );
     assert_eq!(identities(identified.usages), [usage(2, 11, "Icons.Icon")]);
 }
 
@@ -185,7 +192,7 @@ fn unidentified_elements_are_reported() {
         LIB,
         ICON,
     ]);
-    let identified = identify(&graph, &[FileId(0)], &targets(&graph, 1, &["Icon"]));
+    let identified = identify(&graph, &[FileId(0)], &targets(&graph, 1, &["Icon"]), false);
     assert_eq!(identified.usages, []);
     assert_eq!(
         identified
@@ -211,7 +218,7 @@ fn missing_namespace_member_is_unidentified() {
         LIB,
         ICON,
     ]);
-    let identified = identify(&graph, &[FileId(0)], &targets(&graph, 1, &["Icon"]));
+    let identified = identify(&graph, &[FileId(0)], &targets(&graph, 1, &["Icon"]), false);
     assert!(matches!(
         &identified.unidentified[..],
         [unidentified] if matches!(unidentified.cause, Cause::Origin(OriginError::MissingExport { .. }))
@@ -237,7 +244,12 @@ fn aliases_of_targets_are_unidentified() {
         LIB,
         ICON,
     ]);
-    let identified = identify(&graph, &[FileId(0)], &targets(&graph, 1, &["Icon.Item"]));
+    let identified = identify(
+        &graph,
+        &[FileId(0)],
+        &targets(&graph, 1, &["Icon.Item"]),
+        false,
+    );
     assert_eq!(identified.usages, []);
     assert!(matches!(
         &identified.unidentified[..],
@@ -261,6 +273,7 @@ fn parents_skip_elements_that_arent_usages() {
         &graph,
         &[FileId(0)],
         &targets(&graph, 1, &["Icon", "Icon.Item"]),
+        false,
     );
     let parents: Vec<(usize, Vec<Parent>)> = identified
         .usages
@@ -299,7 +312,12 @@ fn all_exports_are_targets() {
         ),
         ICON,
     ]);
-    let identified = identify(&graph, &[FileId(0)], &Targets::all(&graph, FileId(1)));
+    let identified = identify(
+        &graph,
+        &[FileId(0)],
+        &Targets::all(&graph, FileId(1)),
+        false,
+    );
     assert_eq!(
         identities(identified.usages),
         [usage(2, 13, "Icon.Item"), usage(2, 26, "Other")]

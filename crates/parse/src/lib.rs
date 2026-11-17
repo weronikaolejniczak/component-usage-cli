@@ -41,7 +41,8 @@ pub struct FileSummary {
     /// Imports whose contents this file changes in place, such as `ICONS.push(…)`, as indices
     /// into [`FileSummary::imports`], when [`Options::imports`] is set.
     pub changed_imports: Vec<usize>,
-    /// The components declared in the file, when [`Options::props`] is set.
+    /// The components declared in the file, when [`Options::props`] or [`Options::wrappers`] is
+    /// set.
     pub components: Vec<Component>,
     /// The names declared by the props of [`FileSummary::components`], indexed by
     /// [`Reference::Parameter`].
@@ -106,7 +107,7 @@ pub struct JsxElement {
     /// The position of the first child other than whitespace, if any.
     pub children: Option<Location>,
     /// The component of [`FileSummary::components`] the tag refers to by its local name, when
-    /// [`Options::props`] is set.
+    /// [`Options::props`] or [`Options::wrappers`] is set.
     pub component: Option<usize>,
 }
 
@@ -126,6 +127,29 @@ pub struct Component {
     /// Whether one of its names is used other than as a JSX tag, an export or the argument of
     /// `memo` or `forwardRef`.
     pub escapes: bool,
+    /// With [`Options::wrappers`], where it passes all its props on, in source order.
+    pub forwards: Vec<Forward>,
+}
+
+/// Where a component passes all its props on: an element given a spread of its props or of a
+/// rest element of them, or the first argument of the call a `const` or the default export holds.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Forward {
+    /// The spreading element's `<`, or the argument.
+    pub location: Location,
+    pub to: Forwarded,
+    /// The keys the rest pattern takes, which aren't passed on.
+    pub excluded: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Forwarded {
+    /// Index into [`FileSummary::elements`].
+    Element(usize),
+    /// An import, with the property accesses after it: `L.Button` in `wrap(L.Button)`.
+    Import { import: usize, members: Vec<String> },
+    /// Index into [`FileSummary::components`].
+    Component(usize),
 }
 
 /// A name declared by a component's props, its first parameter: `props`, or `iconType` and
@@ -382,6 +406,9 @@ pub struct Options {
     pub props: bool,
     /// Describe calls, with [`Call`], and what functions return.
     pub calls: bool,
+    /// Also record components, the elements that render them, what each export holds, and
+    /// [`Component::forwards`].
+    pub wrappers: bool,
 }
 
 impl FileSummary {

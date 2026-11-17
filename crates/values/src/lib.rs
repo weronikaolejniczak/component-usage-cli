@@ -154,22 +154,7 @@ impl<'g> Context<'g> {
 
     /// The component `module` exports as `name`.
     fn component(&self, module: FileId, name: &str) -> Option<ComponentRef> {
-        let summary = &self.graph.module(module)?.summary;
-        let index = match summary.exported.get(name)? {
-            Exported::Variable(variable) => summary
-                .components
-                .iter()
-                .position(|component| component.variables.contains(variable)),
-            Exported::Value(_) => (name == "default")
-                .then(|| {
-                    summary
-                        .components
-                        .iter()
-                        .position(|component| component.default)
-                })
-                .flatten(),
-        }?;
-        Some((module, index))
+        Some((module, self.graph.component(module, name)?))
     }
 }
 

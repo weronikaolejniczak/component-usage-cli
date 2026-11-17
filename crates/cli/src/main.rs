@@ -39,6 +39,11 @@ enum Command {
         #[arg(long, value_delimiter = ',', value_enum)]
         follow: Vec<Follow>,
 
+        /// Also report the elements of components that pass all their props on to a target, with
+        /// a spread or as a call's argument, as usages of the target
+        #[arg(long)]
+        wrappers: bool,
+
         /// Add code owners to each result, from the repository's CODEOWNERS file, or from FILE
         /// with `--owners=FILE`
         #[arg(long, num_args = 0..=1, require_equals = true, value_name = "FILE")]
@@ -65,6 +70,7 @@ fn main() -> ExitCode {
             props,
             from,
             follow,
+            wrappers,
             owners,
         } => {
             let config = engine::Config {
@@ -78,6 +84,7 @@ fn main() -> ExitCode {
                 follow_imports: follow.contains(&Follow::Imports),
                 follow_props: follow.contains(&Follow::Props),
                 follow_calls: follow.contains(&Follow::Calls),
+                wrappers,
             };
             let report = match engine::scan(&config) {
                 Ok(report) => report,

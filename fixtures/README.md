@@ -50,7 +50,7 @@ Files that can't be scanned ([ADR-0010](../docs/decisions/0010-output.md)).
 
 ## props
 
-Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-values.md)), compared only when the expected usage lists them. Extra `query` fields: `props` passes `--props`, `follow` passes `--follow`.
+Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-values.md)), compared only when the expected usage lists them. Extra `query` fields: `props` passes `--props`, `follow` passes `--follow`, `wrappers: true` passes `--wrappers`. A usage's `through` is always compared.
 
 | Case | Covers |
 |---|---|
@@ -65,6 +65,7 @@ Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-value
 | `follow-imports` | `--follow imports`: named, default and namespace imports, re-exports, values in other files, imports changed in place, and each code for an import that can't be followed ([ADR-0021](../docs/decisions/0021-follow-imports.md)) |
 | `follow-props` | `--follow props`: props as names, patterns with defaults and rest elements, and in the body; callers through imports, namespaces, default exports, `memo` and `forwardRef`; chains of components, `{...props}` and `{...rest}`, `children`, a component that renders itself, callback parameters, `displayName`, and the `no-callers` and `other-callers` codes ([ADR-0022](../docs/decisions/0022-follow-props.md), [ADR-0023](../docs/decisions/0023-component-properties.md)) |
 | `follow-variables` | `--follow variables`: chains, property access, destructuring and defaults, `mutated`, function declarations, names that refer back to themselves ([ADR-0019](../docs/decisions/0019-follow-variables.md)) |
+| `wrappers` | `--wrappers`: spreads of props and of a rest element, which leaves out the keys it takes, calls with member calls and tagged templates on their result, the default export, wrappers of wrappers, a wrapper of two targets, a component passing one prop, which isn't a wrapper, a wrapper that renders itself, and a usage through a wrapper inside a target ([ADR-0026](../docs/decisions/0026-wrappers.md)) |
 
 ## owners
 

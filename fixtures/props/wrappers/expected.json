@@ -1,0 +1,80 @@
+{
+  "query": { "components": ["Button", "Icon"], "from": "lib", "wrappers": true },
+  "usages": [
+    {
+      "component": "Button", "file": "App.jsx", "line": 6, "column": 5,
+      "through": [{ "component": "Spread", "file": "components.jsx", "line": 4, "column": 10 }],
+      "props": [{ "name": "size", "value": { "kind": "literal", "value": "s", "line": 6, "column": 18 } }]
+    },
+    {
+      "component": "Button", "file": "App.jsx", "line": 7, "column": 5,
+      "through": [{ "component": "Rest", "file": "components.jsx", "line": 6, "column": 44 }],
+      "props": [{ "name": "color", "value": { "kind": "literal", "value": "primary", "line": 7, "column": 26 } }]
+    },
+    {
+      "component": "Button", "file": "App.jsx", "line": 8, "column": 5,
+      "through": [{ "component": "Styled", "file": "components.jsx", "line": 7, "column": 28 }],
+      "props": [{ "name": "onClick", "value": { "kind": "unresolved", "code": "global", "text": "go", "line": 8, "column": 22 } }]
+    },
+    {
+      "component": "Button", "file": "App.jsx", "line": 9, "column": 5,
+      "through": [{ "component": "Chained", "file": "components.jsx", "line": 8, "column": 29 }],
+      "props": []
+    },
+    {
+      "component": "Button", "file": "App.jsx", "line": 10, "column": 5,
+      "through": [
+        { "component": "Nested", "file": "components.jsx", "line": 9, "column": 34 },
+        { "component": "Spread", "file": "components.jsx", "line": 4, "column": 10 }
+      ],
+      "props": [{ "name": "size", "value": { "kind": "literal", "value": "l", "line": 10, "column": 18 } }]
+    },
+    {
+      "component": "Button", "file": "App.jsx", "line": 13, "column": 5,
+      "through": [{ "component": "Both", "file": "components.jsx", "line": 14, "column": 5 }],
+      "props": [{ "name": "b", "value": { "kind": "literal", "value": "2", "line": 13, "column": 13 } }]
+    },
+    {
+      "component": "Icon", "file": "App.jsx", "line": 13, "column": 5,
+      "through": [{ "component": "Both", "file": "components.jsx", "line": 15, "column": 5 }],
+      "props": [{ "name": "b", "value": { "kind": "literal", "value": "2", "line": 13, "column": 13 } }]
+    },
+    {
+      "component": "Icon", "file": "App.jsx", "line": 14, "column": 5,
+      "through": [{ "component": "default", "file": "components.jsx", "line": 18, "column": 21 }],
+      "props": [{ "name": "type", "value": { "kind": "literal", "value": "x", "line": 14, "column": 19 } }]
+    },
+    { "component": "Button", "file": "App.jsx", "line": 15, "column": 5, "props": [] },
+    {
+      "component": "Button", "file": "App.jsx", "line": 16, "column": 7,
+      "through": [{ "component": "Spread", "file": "components.jsx", "line": 4, "column": 10 }],
+      "parents": [{ "component": "Button", "line": 15, "column": 5 }],
+      "props": []
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 4, "column": 10,
+      "props": [{ "spread": { "kind": "unresolved", "code": "parameter", "text": "props", "line": 4, "column": 22 } }]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 6, "column": 44,
+      "props": [{ "spread": { "kind": "unresolved", "code": "parameter", "text": "rest", "line": 6, "column": 56 } }]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 9, "column": 34,
+      "through": [{ "component": "Spread", "file": "components.jsx", "line": 4, "column": 10 }],
+      "props": [{ "spread": { "kind": "unresolved", "code": "parameter", "text": "props", "line": 9, "column": 46 } }]
+    },
+    {
+      "component": "Icon", "file": "components.jsx", "line": 10, "column": 36,
+      "props": [{ "name": "type", "value": { "kind": "unresolved", "code": "parameter", "text": "type", "line": 10, "column": 48 } }]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 14, "column": 5,
+      "props": [{ "spread": { "kind": "unresolved", "code": "parameter", "text": "props", "line": 14, "column": 17 } }]
+    },
+    {
+      "component": "Icon", "file": "components.jsx", "line": 15, "column": 5,
+      "props": [{ "spread": { "kind": "unresolved", "code": "parameter", "text": "props", "line": 15, "column": 15 } }]
+    }
+  ]
+}

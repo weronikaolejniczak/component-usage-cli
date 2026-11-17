@@ -515,6 +515,7 @@ fn with_imports(source: &str) -> FileSummary {
             imports: true,
             props: false,
             calls: false,
+            wrappers: false,
         },
     )
     .unwrap()
@@ -622,6 +623,7 @@ fn with_props(source: &str) -> FileSummary {
             imports: true,
             props: true,
             calls: false,
+            wrappers: false,
         },
     )
     .unwrap()
