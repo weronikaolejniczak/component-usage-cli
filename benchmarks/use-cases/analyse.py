@@ -6,7 +6,7 @@ Usage:
   analyse.py selects <checkout> <report.json> <out.json>
   analyse.py styles  <checkout> <report.json> <out.json> -- <codeowners command...>
 
-<report.json> is a `scan --from <library> --owners --follow props` report,
+<report.json> is a `scan --from <library> --owners --follow props,calls` report,
 without `--components`, so every export of the library is a target. Prints a summary
 and writes the full findings, grouped by owner, to <out.json>.
 """
@@ -39,11 +39,15 @@ def spread(usage):
     return any("spread" in prop for prop in usage["props"])
 
 
+CALL = ("(receiver)", "(argument)", "(returns)")
+
+
 def walk(value, path=(), steps=()):
     """Every value inside `value`, with its path: object keys, `[]` for array items,
-    `...` for spreads and `${}` for template parts; and the `via` steps followed to reach it
-    (`--follow`), when it's written at a definition or a caller rather than at the usage. JSX
-    elements are usages of their own."""
+    `...` for spreads, `${}` for template parts, and `(receiver)`, `(argument)` and `(returns)`
+    for a call's receiver, its arguments and what functions among them return; and the `via`
+    steps followed to reach it (`--follow`), when it's written at a definition or a caller
+    rather than at the usage. JSX elements are usages of their own."""
     steps = steps + tuple(value.get("via", ()))
     yield path, value, steps
     kind = value["kind"]
@@ -63,6 +67,18 @@ def walk(value, path=(), steps=()):
         for part in value["parts"]:
             if "value" in part:
                 yield from walk(part["value"], path + ("${}",), steps)
+    elif kind == "call":
+        if "receiver" in value:
+            yield from walk(value["receiver"], path + ("(receiver)",), steps)
+        for item in value["arguments"]:
+            yield from walk(item.get("value") or item["spread"], path + ("(argument)",), steps)
+    elif kind == "function":
+        for returned in value.get("returns", ()):
+            yield from walk(returned, path + ("(returns)",), steps)
+
+
+def in_call(path):
+    return any(key in CALL for key in path)
 
 
 def string(value):
@@ -169,8 +185,11 @@ def icon_attribute(name, before):
 # Kinds of findings, most precise first. `eui-variable` is a literal in a variable that an icon
 # prop of an EUI usage reads, in the same file or another, found with `--follow imports`.
 # `eui-caller` is a literal that a caller of the component the usage is in passes, found with
-# `--follow props`: a `via` step is the caller's tag.
-ORDER = ["eui-jsx", "eui-data", "eui-variable", "eui-caller", "other-jsx", "icon-key", "eui-other-prop", "other-string"]
+# `--follow props`: a `via` step is the caller's tag. `eui-call` is a literal in a call that an
+# icon prop's value is, found with `--follow calls`: in its receiver or arguments, or returned by
+# a function among them; the call decides whether it's the icon.
+ORDER = ["eui-jsx", "eui-data", "eui-variable", "eui-caller", "eui-call", "other-jsx", "icon-key", "eui-other-prop", "other-string"]
+PRECISE = ORDER[: ORDER.index("icon-key") + 1]
 
 
 def through_caller(checkout, usage, steps, cache):
@@ -194,13 +213,16 @@ def icons(checkout, report, out, command):
                 followed = bool(steps)
                 if node["kind"] == "one-of":
                     continue
+                outside = path[: next((i for i, key in enumerate(path) if key in CALL), len(path))]
                 icon = icon_value(usage["component"], name, path)
+                called = in_call(path) and icon_value(usage["component"], name, outside)
                 entry = base | {"prop": ".".join((name,) + path)}
                 position = tuple(at(usage, node).values())
                 if string(node):
                     found.setdefault(position, None)
                     if node["value"] in aliases:
-                        kind = ("eui-other-prop" if not icon
+                        kind = ("eui-call" if called
+                                else "eui-other-prop" if not icon
                                 else "eui-caller" if followed and through_caller(checkout, usage, steps, cache)
                                 else "eui-variable" if followed else "eui-data" if path else "eui-jsx")
                         current = found[position]
@@ -251,11 +273,11 @@ def icons(checkout, report, out, command):
         per_alias[entry["alias"]][entry["kind"]] += 1
     table(["alias"] + order, sorted(
         ([alias] + [counts[kind] for kind in order] for alias, counts in per_alias.items()),
-        key=lambda row: (-sum(row[1:7]), -row[8], row[0]),
+        key=lambda row: (-sum(row[1 : len(PRECISE) + 1]), -row[-1], row[0]),
     ))
-    precise = [entry for entry in found if entry["kind"] in order[:6]]
+    precise = [entry for entry in found if entry["kind"] in PRECISE]
     grouped = by_owner(precise, owners)
-    table(["owner", "eui-jsx, eui-data, eui-variable, eui-caller, other-jsx, icon-key findings"],
+    table(["owner", ", ".join(PRECISE) + " findings"],
           [(o, len(e)) for o, e in list(grouped.items())[:15]])
     write(out, {"findings": by_owner(found, owners), "review": by_owner(review, owners)})
 
@@ -307,6 +329,13 @@ def options_shape(value):
     return "array literal" + followed(value)
 
 
+def returns_array(call):
+    return any(
+        returned["kind"] == "array"
+        for item in call["arguments"] if item.get("value", {}).get("kind") == "function"
+        for returned in item["value"].get("returns", ()))
+
+
 def selects(checkout, report, out):
     owners = owners_from_report(report)
     usages = [u for u in report["usages"] if u["component"] in SELECTS]
@@ -349,6 +378,11 @@ def selects(checkout, report, out):
     shapes = {c: collections.Counter(options_shape(named(u).get("options")) for u in per[c]) for c in SELECTS}
     keys = sorted({k for counter in shapes.values() for k in counter}, key=lambda k: -sum(s[k] for s in shapes.values()))
     table(["options"] + SELECTS, [[k] + [shapes[c][k] for c in SELECTS] for k in keys])
+    calls = [named(u)["options"] for u in usages if options_shape(named(u).get("options")).startswith("call")]
+    print("`options` that are a call: what's called, and whether a function among its arguments returns an array literal")
+    table(["callee", "calls", "returns an array literal"], [
+        (callee, n, sum(returns_array(v) for v in calls if v["callee"] == callee))
+        for callee, n in collections.Counter(v["callee"] for v in calls).most_common(10)])
     lengths = [sum("value" in i for i in named(u)["options"]["items"]) for u in usages
                if options_shape(named(u).get("options")).startswith("array literal")]
     if lengths:
@@ -408,8 +442,11 @@ def shape(value):
 
 
 def css_properties(value):
-    """CSS properties set in object keys and template text, at any depth."""
+    """CSS properties set in object keys and template text, at any depth outside calls, whose
+    arguments may be anything."""
     for path, node, _ in walk(value):
+        if in_call(path):
+            continue
         if path and path[-1] not in ("[]", "...", "${}") and node["kind"] != "object":
             yield path[-1]
         if node["kind"] == "template":
@@ -431,6 +468,10 @@ def styles(checkout, report, out, command):
         values = [named(u)[k] for u in usages if k in named(u)]
         print(f"`{k}`: {len(values)} usages; what the value is")
         table(["value", "usages"], collections.Counter(shape(v) for v in values).most_common(10))
+        callees = collections.Counter(node["callee"] for v in values for path, node, _ in walk(v)
+                                      if node["kind"] == "call" and not in_call(path))
+        print(f"`{k}`: calls it's built by, outside other calls")
+        table(["callee", "calls"], callees.most_common(10))
 
     rows = []
     for component, items in per.items():

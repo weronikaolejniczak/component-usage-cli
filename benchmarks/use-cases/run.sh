@@ -8,7 +8,7 @@
 # version its package.json pins and links its @kbn packages into node_modules, as bootstrap does.
 # Other dependencies aren't installed, so elements imported from them are `unidentified`; that
 # doesn't change EUI usages. Then scans every export of @elastic/eui with owners, following
-# variables, imports and props, and writes
+# variables, imports and props, describing calls, and writes
 # benchmarks/results/use-cases-kibana/{environment.txt,report.json.gz,<use case>.md,<use case>.json.gz}.
 # [codeowners-command] lists owners of files without EUI usages; defaults to `codeowners` from
 # github.com/hmarr/codeowners.
@@ -73,7 +73,7 @@ bin="$(cargo metadata --format-version 1 --no-deps --manifest-path "$repo/Cargo.
 } > "$out/environment.txt"
 
 cd "$work"
-"$bin" scan . --from @elastic/eui --owners --follow props > "$out/report.json"
+"$bin" scan . --from @elastic/eui --owners --follow props,calls > "$out/report.json"
 python3 "$here/analyse.py" icons . "$out/report.json" "$out/icons.json" -- "$codeowners" > "$out/icons.md"
 python3 "$here/analyse.py" selects . "$out/report.json" "$out/selects.json" > "$out/selects.md"
 python3 "$here/analyse.py" styles . "$out/report.json" "$out/styles.json" -- "$codeowners" > "$out/styles.md"
