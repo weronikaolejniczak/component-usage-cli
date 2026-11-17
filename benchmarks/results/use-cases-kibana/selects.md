@@ -1,26 +1,45 @@
-| component | usages | files | teams | with {...spread} |
-|---|---|---|---|---|
-| EuiSelect | 426 | 329 | 31 | 29 (6.8%) |
-| EuiSuperSelect | 148 | 135 | 23 | 6 (4.1%) |
-| EuiComboBox | 505 | 426 | 27 | 62 (12.3%) |
-| EuiSelectable | 186 | 174 | 25 | 11 (5.9%) |
+| component | usages | files | teams | with {...spread} | through wrappers |
+|---|---|---|---|---|---|
+| EuiSelect | 426 | 329 | 31 | 29 (6.8%) | 5 |
+| EuiSuperSelect | 148 | 135 | 23 | 6 (4.1%) | 12 |
+| EuiComboBox | 505 | 426 | 27 | 62 (12.3%) | 49 |
+| EuiSelectable | 186 | 174 | 25 | 11 (5.9%) | 4 |
+
+Wrappers whose usages reach a select, by the last wrapper before it
+| component | wrapper | file | usages |
+|---|---|---|---|
+| EuiComboBox | SingleFieldSelect | x-pack/platform/plugins/shared/maps/public/components/single_field_select.tsx | 15 |
+| EuiSuperSelect | ConnectorsDropdownComponent | x-pack/platform/plugins/shared/cases/public/components/configure_cases/connectors_dropdown.tsx | 9 |
+| EuiComboBox | FormattedComboBox | x-pack/solutions/observability/plugins/synthetics/public/apps/synthetics/components/monitor_add_edit/fields/combo_box.tsx | 9 |
+| EuiComboBox | FieldSelect | src/platform/packages/shared/kbn-field-utils/src/components/field_select/field_select.tsx | 6 |
+| EuiComboBox | FieldSelect | x-pack/platform/plugins/shared/maps/public/classes/styles/vector/components/field_select.tsx | 5 |
+| EuiComboBox | WorkflowComboBox | x-pack/platform/packages/shared/agent-builder/agent-builder-browser/workflow_combo_box/workflow_combo_box.tsx | 4 |
+| EuiComboBox | RemoteClusterComboBox | x-pack/platform/plugins/shared/security/public/management/roles/edit_role/privileges/es/remote_clusters_combo_box.tsx | 4 |
+| EuiSelectable | FieldPicker | src/platform/plugins/shared/presentation_util/public/components/field_picker/field_picker.tsx | 3 |
+| EuiSelect | SelectWithPlaceholder | x-pack/solutions/observability/plugins/apm/public/components/shared/select_with_placeholder/index.tsx | 3 |
+| EuiSuperSelect | FilterInputStandardSelect | src/platform/packages/shared/kbn-cps-utils/components/project_picker_update/blocks/frame/partials/body/filter_form/filter_input/filter_input.tsx | 2 |
+| EuiComboBox | DashboardLinkDestinationPicker | src/platform/plugins/private/links/public/components/dashboard_link/dashboard_link_destination_picker.tsx | 1 |
+| EuiSelectable | ChartSwitchSelectable | x-pack/platform/plugins/shared/lens/public/editor_frame_service/editor_frame/config_panel/chart_switch/chart_switch_selectable.tsx | 1 |
+| EuiComboBox | MetricSelect | x-pack/platform/plugins/shared/maps/public/components/metrics_editor/metric_select.tsx | 1 |
+| EuiSelect | EuiSelectWithWidth | x-pack/solutions/observability/plugins/apm/public/components/shared/transaction_type_select.tsx | 1 |
+| EuiSelect | Select | x-pack/solutions/observability/plugins/observability/public/components/annotations/components/forward_refs.tsx | 1 |
 
 | owner | EuiSelect | EuiSuperSelect | EuiComboBox | EuiSelectable | total |
 |---|---|---|---|---|---|
-| @elastic/kibana-dashboards | 60 | 14 | 85 | 15 | 174 |
+| @elastic/kibana-dashboards | 60 | 14 | 107 | 19 | 200 |
 | @elastic/kibana-management | 74 | 7 | 34 | 28 | 143 |
-| @elastic/search-ml-ux | 59 | 14 | 50 | 14 | 137 |
+| @elastic/search-ml-ux | 59 | 14 | 52 | 14 | 139 |
 | @elastic/streams-ui | 33 | 20 | 42 | 18 | 113 |
 | @elastic/response-ops | 40 | 7 | 25 | 8 | 80 |
-| @elastic/security-investigations | 17 | 9 | 29 | 14 | 69 |
-| @elastic/nightshift-sre-agent-team | 18 | 0 | 35 | 5 | 58 |
+| @elastic/security-investigations | 17 | 18 | 29 | 14 | 78 |
+| @elastic/nightshift-sre-agent-team | 19 | 0 | 37 | 5 | 61 |
 | @elastic/security-defend-workflows | 4 | 16 | 19 | 16 | 55 |
-| @elastic/workchat-eng | 12 | 6 | 23 | 5 | 46 |
+| @elastic/obs-signals-logs-team | 6 | 10 | 31 | 6 | 53 |
+| @elastic/workchat-eng | 12 | 6 | 26 | 5 | 49 |
+| @elastic/obs-signals-traces-team | 16 | 8 | 19 | 2 | 45 |
 | @elastic/security-threat-hunting | 11 | 7 | 18 | 7 | 43 |
-| @elastic/obs-signals-logs-team | 6 | 9 | 21 | 6 | 42 |
-| @elastic/obs-signals-traces-team | 12 | 8 | 19 | 2 | 41 |
+| @elastic/kibana-discover | 15 | 2 | 18 | 7 | 42 |
 | @elastic/security-detection-engineering | 5 | 7 | 19 | 7 | 38 |
-| @elastic/kibana-discover | 15 | 2 | 13 | 7 | 37 |
 | @elastic/rna-project-team | 16 | 2 | 13 | 3 | 34 |
 
 EuiSelect: most used props
@@ -215,8 +234,9 @@ EuiComboBox `singleSelection` values
 | no aria-label, aria-labelledby or id, not inside an EuiFormRow | 13 |
 | EuiSelectable inside a popover | 117 |
 | props passed with {...spread} (wrappers or forwarding) | 108 |
+| through wrappers | 70 |
 
-Files that spread props into a select (wrapper candidates)
+Files that spread props into a select
 | file | usages |
 |---|---|
 | x-pack/platform/plugins/shared/fleet/public/applications/fleet/sections/settings/components/edit_output_flyout/index.tsx | 3 |

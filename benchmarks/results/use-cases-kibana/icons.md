@@ -1,31 +1,31 @@
-aliases: 72; findings: 22717; icon values to review: 828
+aliases: 72; findings: 22717; icon values to review: 838
 
 | kind | findings |
 |---|---|
-| eui-jsx | 302 |
+| eui-jsx | 308 |
 | eui-data | 0 |
 | eui-variable | 26 |
 | eui-caller | 38 |
 | eui-call | 25 |
-| other-jsx | 20 |
+| other-jsx | 16 |
 | icon-key | 122 |
-| eui-other-prop | 197 |
-| other-string | 21987 |
+| eui-other-prop | 215 |
+| other-string | 21967 |
 
 | review reason | values |
 |---|---|
-| call, followed | 213 |
+| call, followed | 215 |
 | parameter | 154 |
-| parameter, followed | 118 |
+| parameter, followed | 123 |
 | unparsed | 76 |
-| call | 74 |
+| call | 75 |
 | unparsed, followed | 53 |
 | unsupported, followed | 48 |
 | mutated | 32 |
-| other-callers, followed | 15 |
+| other-callers, followed | 16 |
 | in-call, followed | 12 |
 | mutated, followed | 10 |
-| template | 9 |
+| template | 10 |
 | in-call | 3 |
 | unsupported | 3 |
 | no-callers | 3 |
@@ -35,20 +35,20 @@ aliases: 72; findings: 22717; icon values to review: 828
 
 | alias | eui-jsx | eui-data | eui-variable | eui-caller | eui-call | other-jsx | icon-key | eui-other-prop | other-string |
 |---|---|---|---|---|---|---|---|---|---|
-| boxesVertical | 129 | 0 | 0 | 18 | 0 | 4 | 4 | 0 | 2 |
-| documents | 26 | 0 | 0 | 3 | 0 | 1 | 12 | 1 | 128 |
+| boxesVertical | 131 | 0 | 0 | 18 | 0 | 3 | 4 | 0 | 1 |
+| documents | 27 | 0 | 0 | 3 | 0 | 0 | 12 | 1 | 128 |
 | indexOpen | 18 | 0 | 2 | 1 | 0 | 0 | 12 | 0 | 7 |
 | tableOfContents | 6 | 0 | 1 | 0 | 0 | 0 | 15 | 0 | 0 |
-| apps | 7 | 0 | 5 | 1 | 1 | 0 | 7 | 0 | 58 |
-| alert | 4 | 0 | 0 | 0 | 3 | 0 | 12 | 14 | 2094 |
+| apps | 8 | 0 | 5 | 0 | 1 | 0 | 7 | 0 | 58 |
+| alert | 4 | 0 | 0 | 0 | 3 | 0 | 12 | 31 | 2077 |
 | fold | 13 | 0 | 0 | 1 | 0 | 3 | 1 | 2 | 4 |
 | pagesSelect | 13 | 0 | 0 | 1 | 0 | 0 | 2 | 0 | 0 |
-| indexSettings | 5 | 0 | 1 | 1 | 0 | 1 | 6 | 0 | 2 |
+| indexSettings | 6 | 0 | 1 | 1 | 0 | 0 | 6 | 0 | 2 |
 | unfold | 11 | 0 | 0 | 1 | 0 | 2 | 0 | 2 | 1 |
 | stopFill | 10 | 0 | 1 | 0 | 0 | 0 | 1 | 0 | 0 |
 | analyzeEvent | 5 | 0 | 0 | 3 | 0 | 0 | 3 | 0 | 6 |
 | folderClosed | 4 | 0 | 0 | 0 | 0 | 4 | 3 | 0 | 2 |
-| help | 8 | 0 | 0 | 0 | 0 | 0 | 1 | 3 | 122 |
+| help | 9 | 0 | 0 | 0 | 0 | 0 | 1 | 3 | 121 |
 | indexEdit | 2 | 0 | 1 | 0 | 0 | 0 | 6 | 0 | 1 |
 | spaces | 3 | 0 | 0 | 0 | 0 | 0 | 5 | 1 | 410 |
 | singleMetricViewer | 4 | 0 | 0 | 0 | 1 | 0 | 3 | 0 | 4 |
@@ -59,7 +59,7 @@ aliases: 72; findings: 22717; icon values to review: 828
 | indexClose | 1 | 0 | 1 | 0 | 0 | 4 | 0 | 0 | 0 |
 | pinFilled | 2 | 0 | 1 | 0 | 2 | 0 | 0 | 0 | 4 |
 | stopSlash | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| index | 2 | 0 | 0 | 1 | 0 | 0 | 1 | 22 | 2352 |
+| index | 2 | 0 | 0 | 1 | 0 | 0 | 1 | 23 | 2351 |
 | editorComment | 0 | 0 | 1 | 0 | 3 | 0 | 0 | 0 | 7 |
 | mapMarker | 0 | 0 | 1 | 0 | 3 | 0 | 0 | 1 | 7 |
 | visGoal | 0 | 0 | 1 | 0 | 0 | 0 | 3 | 0 | 0 |
@@ -70,7 +70,7 @@ aliases: 72; findings: 22717; icon values to review: 828
 | logstashOutput | 0 | 0 | 2 | 1 | 0 | 0 | 0 | 0 | 2 |
 | visLine | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 2 |
 | securitySignalDetected | 0 | 0 | 0 | 0 | 0 | 0 | 3 | 0 | 1 |
-| indexRuntime | 2 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 |
+| indexRuntime | 2 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
 | ip | 0 | 0 | 1 | 0 | 0 | 0 | 1 | 10 | 1485 |
 | container | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 2 | 187 |
 | temperature | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 1 | 93 |
@@ -103,7 +103,7 @@ aliases: 72; findings: 22717; icon values to review: 828
 | owner | eui-jsx, eui-data, eui-variable, eui-caller, eui-call, other-jsx, icon-key findings |
 |---|---|
 | @elastic/search-ml-ux | 58 |
-| @elastic/security-investigations | 52 |
+| @elastic/security-investigations | 54 |
 | @elastic/kibana-dashboards | 51 |
 | @elastic/nightshift-sre-agent-team | 34 |
 | @elastic/appex-sharedux | 33 |

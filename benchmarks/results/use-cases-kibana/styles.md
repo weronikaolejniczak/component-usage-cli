@@ -187,6 +187,20 @@ styled(Eui*) wrappers: 492
 | EuiEmptyPrompt | 11 |
 | EuiTitle | 10 |
 
+usages through wrappers: 3351, of which through a styled(…) or euiStyled(…) call: 736; with css, className or style written by their callers: 150
+| component | through wrappers | through styled(…) |
+|---|---|---|
+| EuiCallOut | 942 | 7 |
+| EuiFlexItem | 293 | 180 |
+| EuiButton | 162 | 9 |
+| EuiText | 161 | 58 |
+| EuiPageTemplate | 152 | 6 |
+| EuiLink | 150 | 19 |
+| EuiFlexGroup | 143 | 96 |
+| EuiIcon | 142 | 29 |
+| EuiFormRow | 100 | 12 |
+| EuiPanel | 89 | 55 |
+
 selectors targeting EUI classes in test files ((\.test\.|\.spec\.|\.stories\.|/__jest__/|/__mocks__/|/test/|/tests?_helpers?/|/cypress/|/e2e/|/ftr/|/scout/)): 1225; left out below
 selectors targeting EUI classes: 1507 in 676 files; !important in those files: 350 in 118 files
 | class | selectors |

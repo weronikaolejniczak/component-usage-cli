@@ -18,7 +18,7 @@ For patterns, the CSS properties and values matter as much as the components.
 benchmarks/use-cases/run.sh <kibana> 6dce6e1bbcf1fcc46be7011088c3aa1e81feba19 /tmp/kibana
 ```
 
-Props come from this tool's report, with `--follow props,calls`, which also follows variables and imports and describes calls, owners from it and `codeowners`. CSS properties are object keys at any depth, and declarations in template text, such as `color:` in `` css`color: red` ``. Wrappers and selectors come from a text search: `styled(Eui…)` and `euiStyled(Eui…)` calls, and `.eui…` after a character that can start a selector, in source files and stylesheets. Selectors in tests, stories and mocks are counted apart. The output, [`styles.json.gz`](../results/use-cases-kibana/styles.json.gz), has `overrides` and `selectors`, keyed by owner.
+Props come from this tool's report, with `--follow props,calls`, which also follows variables and imports and describes calls, and `--wrappers`, owners from it and `codeowners`. CSS properties are object keys at any depth, and declarations in template text, such as `color:` in `` css`color: red` ``. Wrappers and selectors come from a text search: `styled(Eui…)` and `euiStyled(Eui…)` calls, and `.eui…` after a character that can start a selector, in source files and stylesheets. Selectors in tests, stories and mocks are counted apart. The output, [`styles.json.gz`](../results/use-cases-kibana/styles.json.gz), has `overrides` and `selectors`, keyed by owner.
 
 ## Results
 
@@ -68,6 +68,8 @@ The `className` tokens from EUI, in literals and template text, are its utility 
 | `!important` in those files | 350 in 118 files |
 | EUI class selectors in tests | 1,225 |
 
+With `--wrappers` ([ADR-0026](../../docs/decisions/0026-wrappers.md)), 3,351 more usages go through local components that spread their props into an EUI component or pass it to a call. They have only the attributes their callers write, not what the wrapper sets, so the numbers above leave them out. 736 go through a `styled(…)` or `euiStyled(…)` call: `EuiFlexItem` 180, `EuiFlexGroup` 96, `EuiText` 58, `EuiPanel` 55. Those usages get the wrapper's styles, which are in the call, not in their props. 150 of the 3,351 have `css`, `className` or `style` written by their callers. The most, `EuiCallOut` 942, go through the four callouts of `@kbn/ui-callout`, such as `KbnWarningCallout`, which renders `<EuiCallOut color="warning" {...props} />`, read in the source.
+
 Most selected: `euiAccordion` 119, `euiDataGridRowCell` 93, `euiFlyoutBody` 83, `euiDataGrid` 70, `euiFormControlLayout` 60. 9 of 10 sampled selectors were overrides; one was in a comment.
 
 ## What each tool gives
@@ -76,10 +78,10 @@ Most selected: `euiAccordion` 119, `euiDataGridRowCell` 93, `euiFlyoutBody` 83, 
 |---|---|---|---|
 | Which usages have `css`, `className`, `style` | Yes | Yes | No |
 | What they set | When written inline, in a variable, imported or passed by a caller, with positions; the arguments of the calls that build them | `className` literals only | Text only |
-| `styled()` wrappers | No | No | Text only |
+| `styled()` wrappers | With `--wrappers`, their usages, through the call | No | Text only |
 | Selectors on EUI classes | No | No | Text only |
 | Owners | Yes, for usages | No | No |
 
 ## What would answer it
 
-What hooks such as `useMemoCss` and `useStyles` return, which is in the function they're given or in another file: names in a call's arguments aren't followed. Components passed as values, so that `styled(EuiPanel)` is a usage of `EuiPanel` with its styles. Selectors in stylesheets are outside a JSX scan; a text search, as here, covers them.
+What hooks such as `useMemoCss` and `useStyles` return, which is in the function they're given or in another file: names in a call's arguments aren't followed. The styles a `styled(EuiPanel)` call adds, which are in its template rather than in the usages' props. Selectors in stylesheets are outside a JSX scan; a text search, as here, covers them.

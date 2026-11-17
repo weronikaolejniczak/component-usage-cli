@@ -22,7 +22,7 @@ benchmarks/owners.py <checkout> benchmarks/results/<name>/report.json.gz codeown
 
 ```sh
 # The use cases in use-cases/, from one report of every EUI export with owners, following
-# variables. Exports Kibana
+# props, describing calls and going through wrappers. Exports Kibana
 # at <sha> into <work-dir>, with @elastic/eui and its @kbn packages; needs npm and codeowners.
 benchmarks/use-cases/run.sh <kibana> <sha> <work-dir>
 ```
