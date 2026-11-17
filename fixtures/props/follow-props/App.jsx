@@ -1,4 +1,4 @@
-import { Header, Panel, Forward, Outer, Memo, Wrapped, Escaped, List, Tree, Labeled, Rest, Ref } from './components';
+import { Header, Panel, Forward, Outer, Memo, Wrapped, Escaped, List, Tree, Labeled, Rest, Ref, Card } from './components';
 import * as C from './components';
 import Anon from './components';
 
@@ -23,6 +23,7 @@ export function App() {
       <Anon data="d" />
       <Rest icon="x" label="y" />
       <Ref size="s" />
+      <Card title="t" />
     </>
   );
 }

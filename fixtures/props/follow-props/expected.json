@@ -273,6 +273,21 @@
           }
         }
       ]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 60, "column": 10,
+      "props": [
+        {
+          "name": "title",
+          "value": {
+            "kind": "literal", "value": "t", "file": "App.jsx", "line": 26, "column": 19,
+            "via": [
+              { "text": "title", "line": 60, "column": 25 },
+              { "text": "Card", "file": "App.jsx", "line": 26, "column": 7 }
+            ]
+          }
+        }
+      ]
     }
   ],
   "unidentified": []

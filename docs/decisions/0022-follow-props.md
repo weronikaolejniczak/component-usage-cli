@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; other-callers definition superseded by ADR-0023
 date: 2026-11-17
 decision-makers: Weronika Olejniczak
 ---

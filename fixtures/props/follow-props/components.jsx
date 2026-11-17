@@ -55,3 +55,8 @@ export function Rest({ icon, ...rest }) {
 }
 
 export const Ref = forwardRef(({ size }, ref) => <Button size={size} />);
+
+export function Card({ title }) {
+  return <Button title={title} />;
+}
+Card.displayName = 'Card';

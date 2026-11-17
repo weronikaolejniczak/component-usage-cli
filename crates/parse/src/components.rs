@@ -4,7 +4,8 @@ use oxc_ast::ast::{
     AssignmentPattern, BindingPattern, CallExpression, ExportDefaultDeclaration,
     ExportDefaultDeclarationKind, ExportNamedDeclaration, Expression, FormalParameters, Function,
     IdentifierReference, JSXElementName, JSXMemberExpressionObject, ModuleExportName, Program,
-    TSTypeQuery, VariableDeclaration, VariableDeclarationKind, VariableDeclarator,
+    StaticMemberExpression, TSTypeQuery, VariableDeclaration, VariableDeclarationKind,
+    VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::{ReferenceId, SymbolId};
@@ -34,12 +35,14 @@ pub(crate) fn components(program: &Program, exprs: &Exprs) -> Components {
         found: Vec::new(),
         wrappers: Vec::new(),
         allowed: HashSet::new(),
+        members: HashSet::new(),
     };
     collector.visit_program(program);
     let Collector {
         found,
         wrappers,
         mut allowed,
+        members,
         ..
     } = collector;
 
@@ -103,21 +106,25 @@ pub(crate) fn components(program: &Program, exprs: &Exprs) -> Components {
     };
     defaults.visit_program(program);
 
-    let escapes = |symbol: SymbolId| {
+    let escapes = |symbol: SymbolId, members: &HashSet<ReferenceId>| {
         scoping
             .get_resolved_reference_ids(symbol)
             .iter()
-            .any(|&id| !allowed.contains(&id) && scoping.get_reference(id).is_value())
+            .any(|&id| {
+                !allowed.contains(&id)
+                    && !members.contains(&id)
+                    && scoping.get_reference(id).is_value()
+            })
     };
     for (&symbol, &index) in &by_symbol {
-        if escapes(symbol) {
+        if escapes(symbol, &members) {
             components[index].escapes = true;
         }
     }
     let mut escaping_imports: Vec<usize> = scoping
         .symbol_ids()
         .filter_map(|symbol| match exprs.scope.declared(symbol) {
-            Declared::Import(import) if escapes(symbol) => Some(import),
+            Declared::Import(import) if escapes(symbol, &HashSet::new()) => Some(import),
             _ => None,
         })
         .collect();
@@ -148,6 +155,9 @@ struct Collector<'e, 's> {
     wrappers: Vec<(Option<SymbolId>, ReferenceId)>,
     /// References that don't make a name escape: JSX tags, exports and types.
     allowed: HashSet<ReferenceId>,
+    /// Objects of member expressions, such as `Name` in `Name.displayName = …`: they don't make
+    /// a component escape, but do an import, whose member can be a component.
+    members: HashSet<ReferenceId>,
 }
 
 /// What a `const` or `export default` holds, through `memo(…)` and `forwardRef(…)`.
@@ -299,6 +309,15 @@ impl<'a> Visit<'a> for Collector<'_, '_> {
         let outer = std::mem::replace(&mut self.in_type, true);
         walk::walk_ts_type_query(self, query);
         self.in_type = outer;
+    }
+
+    fn visit_static_member_expression(&mut self, member: &StaticMemberExpression<'a>) {
+        if let Expression::Identifier(object) = &member.object
+            && !matches!(member.property.name.as_str(), "call" | "apply" | "bind")
+        {
+            self.members.insert(object.reference_id());
+        }
+        walk::walk_static_member_expression(self, member);
     }
 
     fn visit_identifier_reference(&mut self, identifier: &IdentifierReference<'a>) {

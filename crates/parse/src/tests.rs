@@ -744,6 +744,26 @@ fn components_and_imports_escape_when_used_as_values() {
 }
 
 #[test]
+fn members_of_components_dont_escape_but_calls_and_members_of_imports_do() {
+    let summary = with_props(
+        "import * as C from 'lib';\n\
+         function Named() { return null; }\n\
+         function Called() { return null; }\n\
+         Named.displayName = 'Named';\n\
+         const name = Named.displayName;\n\
+         Called.call(null, {});\n\
+         const panel = styled(C.Panel);\n",
+    );
+    let escapes: Vec<(&str, bool)> = summary
+        .components
+        .iter()
+        .map(|component| (component.name.as_str(), component.escapes))
+        .collect();
+    assert_eq!(escapes, [("Named", false), ("Called", true)]);
+    assert_eq!(summary.escaping_imports, [0]);
+}
+
+#[test]
 fn components_are_recorded_only_when_following_props() {
     let summary = with_imports("function A({ icon }) { return <X icon={icon} />; }\n");
     assert!(summary.components.is_empty());

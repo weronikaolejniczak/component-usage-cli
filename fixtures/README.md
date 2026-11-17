@@ -62,7 +62,7 @@ Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-value
 | `props-filter` | `--props` keeps the named props and spreads |
 | `all-components` | Every export of `--from` without `--components` ([ADR-0018](../docs/decisions/0018-all-components.md)) |
 | `follow-imports` | `--follow imports`: named, default and namespace imports, re-exports, values in other files, imports changed in place, and each code for an import that can't be followed ([ADR-0021](../docs/decisions/0021-follow-imports.md)) |
-| `follow-props` | `--follow props`: props as names, patterns with defaults and rest elements, and in the body; callers through imports, namespaces, default exports, `memo` and `forwardRef`; chains of components, `{...props}` and `{...rest}`, `children`, a component that renders itself, callback parameters, and the `no-callers` and `other-callers` codes ([ADR-0022](../docs/decisions/0022-follow-props.md)) |
+| `follow-props` | `--follow props`: props as names, patterns with defaults and rest elements, and in the body; callers through imports, namespaces, default exports, `memo` and `forwardRef`; chains of components, `{...props}` and `{...rest}`, `children`, a component that renders itself, callback parameters, `displayName`, and the `no-callers` and `other-callers` codes ([ADR-0022](../docs/decisions/0022-follow-props.md), [ADR-0023](../docs/decisions/0023-component-properties.md)) |
 | `follow-variables` | `--follow variables`: chains, property access, destructuring and defaults, `mutated`, function declarations, names that refer back to themselves ([ADR-0019](../docs/decisions/0019-follow-variables.md)) |
 
 ## owners
