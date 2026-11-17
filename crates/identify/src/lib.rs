@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use graph::{ModuleGraph, Origin, OriginError};
-use model::{FileId, Location, Parent, Through, Usage};
+use model::{FileId, Location, Parent, Reference, Through, Usage};
 use parse::{AliasRoot, Binding, FileSummary, Forwarded, Imported, JsxElement};
 
 /// Resolved components to look for.
@@ -76,6 +76,18 @@ impl Targets {
         }
     }
 
+    /// The target a value refers to. With [`Targets::all`], property accesses after an export
+    /// aren't one, since they're more often properties than components.
+    fn value(&self, key: &Key) -> Option<String> {
+        if let Some(component) = self.by_key.get(key) {
+            return Some(component.clone());
+        }
+        if !key.members.is_empty() {
+            return None;
+        }
+        self.by_origin.get(&key.origin).cloned()
+    }
+
     fn component(&self, key: &Key) -> Option<String> {
         if let Some(component) = self.by_key.get(key) {
             return Some(component.clone());
@@ -116,6 +128,8 @@ pub enum Cause {
 pub struct Identified {
     /// Sorted by file, then location.
     pub usages: Vec<Usage>,
+    /// Sorted by file, then location.
+    pub references: Vec<Reference>,
     /// Sorted by file, then location.
     pub unidentified: Vec<Unidentified>,
 }
@@ -213,6 +227,34 @@ pub fn identify(
                 }
             }
         }
+        let wrapping: HashSet<Location> = module
+            .summary
+            .components
+            .iter()
+            .flat_map(|component| &component.forwards)
+            .filter(|forward| wrappers && matches!(forward.to, Forwarded::Import { .. }))
+            .map(|forward| forward.location)
+            .collect();
+        for reference in &module.summary.references {
+            if wrapping.contains(&reference.location) {
+                continue;
+            }
+            let origin = state.origins.import(file, reference.import);
+            let Some(key) = origin
+                .and_then(|origin| state.origins.key(origin, reference.members.clone()))
+                .ok()
+            else {
+                continue;
+            };
+            if let Some(component) = targets.value(&key) {
+                identified.references.push(Reference {
+                    file,
+                    location: reference.location,
+                    component,
+                    passed: reference.passed.clone(),
+                });
+            }
+        }
         let at: HashMap<Location, usize> = elements
             .iter()
             .enumerate()
@@ -235,6 +277,9 @@ pub fn identify(
     identified
         .usages
         .sort_by_key(|usage| (usage.file, usage.location));
+    identified
+        .references
+        .sort_by_key(|reference| (reference.file, reference.location));
     identified
         .unidentified
         .sort_by_key(|unidentified| (unidentified.file, unidentified.location));

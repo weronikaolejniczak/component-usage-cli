@@ -3,6 +3,12 @@
   "usages": [
     { "component": "Icon", "file": "App.tsx", "line": 16, "column": 24 }
   ],
+  "references": [
+    { "component": "Icon", "file": "App.tsx", "line": 5, "column": 17, "in": { "kind": "variable", "name": "Aliased" } },
+    { "component": "Icon", "file": "App.tsx", "line": 17, "column": 18, "in": { "kind": "variable", "name": "Reassigned" } },
+    { "component": "Icon", "file": "App.tsx", "line": 19, "column": 18, "in": { "kind": "variable", "name": "Computed" } },
+    { "component": "Icon", "file": "App.tsx", "line": 20, "column": 18, "in": { "kind": "variable", "name": "Optional" } }
+  ],
   "unidentified": [
     { "file": "App.tsx", "line": 11, "column": 24, "code": "alias", "component": "Icon" },
     { "file": "App.tsx", "line": 12, "column": 24, "code": "alias", "component": "Icon" },

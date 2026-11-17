@@ -18,6 +18,7 @@ use crate::definitions::{Mode, changed, definitions};
 use crate::elements::elements;
 use crate::exported::exported;
 use crate::lines::LineIndex;
+use crate::references::references;
 use crate::scope::{Declared, Scope};
 use crate::{
     Alias, Binding, Definition, Export, FileSummary, Import, Imported, JsxElement, Options,
@@ -73,7 +74,9 @@ pub(crate) fn extract(
     export_entries.sort_by_key(|entry| entry.span.start);
     let exports = export_entries.into_iter().filter_map(export).collect();
 
-    let built = SemanticBuilder::new().build(&parsed.program);
+    let built = SemanticBuilder::new()
+        .with_build_nodes(true)
+        .build(&parsed.program);
     errors.extend(built.diagnostics.errors().map(to_error));
     errors.sort_by_key(|error| error.location);
     let semantic = built.semantic;
@@ -126,6 +129,7 @@ pub(crate) fn extract(
     if options.wrappers {
         spreads(&mut components, &parameters, &elements);
     }
+    let references = references(semantic.nodes(), &scope, source);
 
     Ok(FileSummary {
         imports,
@@ -138,6 +142,7 @@ pub(crate) fn extract(
         components,
         parameters,
         escaping_imports,
+        references,
         errors,
     })
 }

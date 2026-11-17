@@ -32,7 +32,7 @@ Each group's `node_modules/` holds stub packages, such as `lib` and `other-lib`,
 | `member-expression` | `<Icon.Item />` reported as `Icon.Item`, separate from `Icon` |
 | `same-name-other-module` | `Icon` from `other-lib` is not counted |
 | `shadowed-local` | A local `Icon` shadowing the import is not counted |
-| `local-alias` | `const I = Icon`, destructuring, chains, computed keys, optional chaining and reassigned names are unidentified with code `alias` ([ADR-0015](../docs/decisions/0015-es-modules-only.md)) |
+| `local-alias` | `const I = Icon`, destructuring, chains, computed keys, optional chaining and reassigned names are unidentified with code `alias` ([ADR-0015](../docs/decisions/0015-es-modules-only.md)), and the target they're declared from is a `variable` reference |
 | `commonjs` | `require('lib')` is unidentified with code `commonjs`; other modules aren't reported |
 | `tsconfig-paths` | `tsconfig.json` `paths` aliases |
 | `package-exports` | `package.json` `exports`, including subpaths |
@@ -50,7 +50,7 @@ Files that can't be scanned ([ADR-0010](../docs/decisions/0010-output.md)).
 
 ## props
 
-Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-values.md)), compared only when the expected usage lists them. Extra `query` fields: `props` passes `--props`, `follow` passes `--follow`, `wrappers: true` passes `--wrappers`. A usage's `through` is always compared.
+Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-values.md)), compared only when the expected usage lists them. Extra `query` fields: `props` passes `--props`, `follow` passes `--follow`, `wrappers: true` passes `--wrappers`. A usage's `through`, and `references` ([ADR-0027](../docs/decisions/0027-references.md)), are always compared.
 
 | Case | Covers |
 |---|---|
@@ -59,6 +59,7 @@ Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-value
 | `templates` | Template literals, with and without tags |
 | `expressions` | The `unresolved` codes without `--follow`, ternaries, logical expressions, functions and elements |
 | `parents` | Enclosing usages, and the parent's attribute a usage is in |
+| `references` | Targets passed as values: in attributes, call arguments, static and computed object keys, array items and variables, through parentheses, `?:`, `||` and `&&`, namespace members, and what isn't a reference: tags, exports and property reads |
 | `props-filter` | `--props` keeps the named props and spreads |
 | `all-components` | Every export of `--from` without `--components` ([ADR-0018](../docs/decisions/0018-all-components.md)) |
 | `follow-calls` | `--follow calls`: calls of names and members, with optional chaining and spread arguments, properties read from a result, the returns of functions written as arguments: arrow and function expressions, async functions and nested functions, and names in arguments and returns, which aren't followed, with `--follow props` too ([ADR-0024](../docs/decisions/0024-follow-calls.md), [ADR-0025](../docs/decisions/0025-names-in-calls.md)) |

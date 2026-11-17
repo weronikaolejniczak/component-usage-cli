@@ -10,6 +10,8 @@ struct Case {
     query: Query,
     usages: Vec<Usage>,
     #[serde(default)]
+    references: Vec<Reference>,
+    #[serde(default)]
     unidentified: Vec<Located>,
     #[serde(default)]
     errors: Vec<Located>,
@@ -40,6 +42,7 @@ struct Query {
 #[derive(Deserialize)]
 struct Report {
     usages: Vec<Usage>,
+    references: Vec<Reference>,
     unidentified: Vec<Located>,
     errors: Vec<Located>,
     warnings: Vec<Warning>,
@@ -72,6 +75,18 @@ struct Usage {
     parents: Option<serde_json::Value>,
     #[serde(default)]
     props: Option<serde_json::Value>,
+}
+
+#[derive(Debug, PartialEq, Eq, Deserialize)]
+struct Reference {
+    component: String,
+    file: String,
+    line: u32,
+    column: u32,
+    #[serde(rename = "in")]
+    passed: serde_json::Value,
+    #[serde(default)]
+    owners: Option<Vec<String>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize)]
@@ -174,6 +189,10 @@ fn run_case(group: &str, name: &str) {
     }
     assert_eq!(report.usages, case.usages, "{group}/{name} usages");
     assert_eq!(
+        report.references, case.references,
+        "{group}/{name} references"
+    );
+    assert_eq!(
         report.unidentified, case.unidentified,
         "{group}/{name} unidentified"
     );
@@ -241,6 +260,7 @@ cases!(props:
     objects,
     parents,
     props_filter,
+    references,
     templates,
     wrappers,
 );

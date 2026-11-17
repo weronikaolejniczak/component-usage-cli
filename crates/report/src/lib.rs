@@ -5,13 +5,16 @@
 use std::io::{self, Write};
 
 use model::Location;
-pub use model::{Parent, Prop};
+pub use model::{Parent, Passed, Prop};
 use serde::Serialize;
 
 /// Paths are relative to the scan root, with `/` separators.
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
 pub struct Report {
     pub usages: Vec<Usage>,
+    /// Places the components are read as values rather than rendered, such as
+    /// `<Panel icon={Icon} />`.
+    pub references: Vec<Reference>,
     /// JSX elements that may or may not be usages, because their origin couldn't be determined.
     pub unidentified: Vec<Unidentified>,
     /// Scanned files that couldn't be read or parsed, fully or partly.
@@ -34,6 +37,20 @@ pub struct Usage {
     pub parents: Vec<Parent>,
     /// Attributes in source order, without those a wrapper doesn't pass on.
     pub props: Vec<Prop>,
+    /// Code owners of `file`; empty if unowned. Absent unless owners were requested.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owners: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Reference {
+    pub file: String,
+    #[serde(flatten)]
+    pub location: Location,
+    pub component: String,
+    /// Where the value goes.
+    #[serde(rename = "in")]
+    pub passed: Passed,
     /// Code owners of `file`; empty if unowned. Absent unless owners were requested.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub owners: Option<Vec<String>>,
@@ -142,6 +159,8 @@ impl Report {
     pub fn sort(&mut self) {
         self.usages
             .sort_by(|a, b| (&a.file, a.location).cmp(&(&b.file, b.location)));
+        self.references
+            .sort_by(|a, b| (&a.file, a.location).cmp(&(&b.file, b.location)));
         self.unidentified.sort();
         self.errors.sort();
         self.warnings.sort();
@@ -214,6 +233,7 @@ mod tests {
                 ],
                 owners: Some(vec!["@org/team".to_owned()]),
             }],
+            references: vec![],
             unidentified: vec![],
             errors: vec![FileError {
                 file: "src/Broken.tsx".to_owned(),
@@ -240,6 +260,7 @@ mod tests {
                     ],
                     "owners": ["@org/team"],
                 }],
+                "references": [],
                 "unidentified": [],
                 "errors": [{ "file": "src/Broken.tsx", "code": "unsupported-extension", "message": "unsupported file extension", "skipped": true }],
                 "warnings": [],

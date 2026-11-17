@@ -1,0 +1,21 @@
+{
+  "query": { "components": ["Button", "Icon"], "from": "lib" },
+  "usages": [
+    { "component": "Icon", "file": "App.jsx", "line": 10, "column": 5, "props": [] }
+  ],
+  "references": [
+    { "component": "Icon", "file": "App.jsx", "line": 4, "column": 21, "in": { "kind": "property", "key": "gear" } },
+    { "component": "Button", "file": "App.jsx", "line": 4, "column": 34, "in": { "kind": "property", "computed": "key" } },
+    { "component": "Icon", "file": "App.jsx", "line": 5, "column": 15, "in": { "kind": "item", "index": 0 } },
+    { "component": "Button", "file": "App.jsx", "line": 5, "column": 22, "in": { "kind": "item", "index": 1 } },
+    { "component": "Icon", "file": "App.jsx", "line": 6, "column": 15, "in": { "kind": "variable", "name": "Alias" } },
+    { "component": "Button", "file": "App.jsx", "line": 9, "column": 20, "in": { "kind": "attribute", "element": "Popover", "name": "button" } },
+    { "component": "Icon", "file": "App.jsx", "line": 9, "column": 41, "in": { "kind": "attribute", "element": "Popover", "name": "icon" } },
+    { "component": "Button", "file": "App.jsx", "line": 11, "column": 13, "in": { "kind": "argument", "callee": "render", "index": 0 } },
+    { "component": "Icon", "file": "App.jsx", "line": 11, "column": 27, "in": { "kind": "property", "key": "as" } },
+    { "component": "Button", "file": "App.jsx", "line": 17, "column": 10, "in": { "kind": "other" } },
+    { "component": "Icon", "file": "App.jsx", "line": 20, "column": 27, "in": { "kind": "variable", "name": "fallback" } },
+    { "component": "Icon", "file": "App.jsx", "line": 21, "column": 15, "in": { "kind": "other" } },
+    { "component": "Button", "file": "App.jsx", "line": 22, "column": 22, "in": { "kind": "argument", "callee": "wrap", "index": 0 } }
+  ]
+}

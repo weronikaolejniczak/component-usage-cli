@@ -31,3 +31,4 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0024](./0024-follow-calls.md) | Describe calls: what's called, with what, and what the functions passed return | accepted; following in arguments superseded by ADR-0025 |
 | [0025](./0025-names-in-calls.md) | Names in a call's arguments aren't followed | accepted |
 | [0026](./0026-wrappers.md) | Report a wrapper's usages as usages of the components it passes its props to | accepted |
+| [0027](./0027-references.md) | Report the places a target is passed as a value | accepted |

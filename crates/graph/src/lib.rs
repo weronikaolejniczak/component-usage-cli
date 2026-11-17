@@ -357,8 +357,8 @@ pub fn value_specifiers(summary: &FileSummary, attributes: bool) -> impl Iterato
         .filter_map(|index| Some(summary.imports.get(index)?.source.as_str()))
 }
 
-/// Specifiers of the imports and `require` calls that JSX elements in this file refer to, and
-/// of the imports components pass their props on to.
+/// Specifiers of the imports and `require` calls that JSX elements in this file refer to, of the
+/// imports components pass their props on to, and of the imports read as values.
 pub fn element_specifiers(summary: &FileSummary) -> impl Iterator<Item = &str> {
     let import = |index: usize| {
         summary
@@ -385,7 +385,11 @@ pub fn element_specifiers(summary: &FileSummary) -> impl Iterator<Item = &str> {
             Forwarded::Import { import: index, .. } => import(index),
             Forwarded::Element(_) | Forwarded::Component(_) => None,
         });
-    elements.chain(forwards)
+    let references = summary
+        .references
+        .iter()
+        .filter_map(move |reference| import(reference.import));
+    elements.chain(forwards).chain(references)
 }
 
 #[cfg(test)]

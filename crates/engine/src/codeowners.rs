@@ -76,6 +76,12 @@ impl Loaded {
             .map(|usage| usage.file.as_str())
             .chain(
                 report
+                    .references
+                    .iter()
+                    .map(|reference| reference.file.as_str()),
+            )
+            .chain(
+                report
                     .unidentified
                     .iter()
                     .map(|unidentified| unidentified.file.as_str()),
@@ -89,6 +95,9 @@ impl Loaded {
         let owners = |file: &str| by_file.get(file).cloned().unwrap_or_default();
         for usage in &mut report.usages {
             usage.owners = Some(owners(&usage.file));
+        }
+        for reference in &mut report.references {
+            reference.owners = Some(owners(&reference.file));
         }
         for unidentified in &mut report.unidentified {
             unidentified.owners = Some(owners(&unidentified.file));

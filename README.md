@@ -37,6 +37,7 @@ The JSON report lists:
   - `props`: attributes in source order, as `{ "name", "value" }` or `{ "spread" }`. Each value has a `kind`, such as `literal`, `object`, `template` or `one-of`, and a position. Objects, arrays and templates contain values. Values that aren't resolved are `unresolved`, with a `code`, such as `not-followed` for a variable or import, `mutated` for a followed variable that is changed in place, or `missing-export` for an import the module doesn't export.
   - `through`: with `--wrappers`, for a usage through wrappers.
   - `parents`: the enclosing usages, nearest first. `prop` names the parent's attribute the usage is in, such as `button` in `<Popover button={<Button />}>`.
+- `references`: places the components are read as values rather than rendered, such as `<Panel icon={Icon} />` or `{ icon: Icon }`, with `in`: where the value goes, an `attribute`, `argument`, `property`, `item`, `variable` or `other`.
 - `unidentified`: elements that may be usages but aren't counted, with a `code` and a reason.
 - `errors`: files that couldn't be read or parsed.
 - `warnings`: skipped `CODEOWNERS` lines.
@@ -45,7 +46,7 @@ The exit code is 0 whenever a report is written.
 
 ### Planned
 
-Components passed as values, such as `component={Target}`, `--summary` and other output formats. See [decisions](./docs/decisions/README.md).
+`--summary` and other output formats. See [decisions](./docs/decisions/README.md).
 
 ## License
 

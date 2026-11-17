@@ -245,6 +245,17 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
             }
         })
         .collect();
+    report.references = identified
+        .references
+        .into_iter()
+        .map(|reference| report::Reference {
+            file: files.display(reference.file, &root),
+            location: reference.location,
+            component: reference.component,
+            passed: reference.passed,
+            owners: None,
+        })
+        .collect();
     report.unidentified = identified
         .unidentified
         .into_iter()

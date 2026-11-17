@@ -16,12 +16,13 @@ mod extract;
 mod lines;
 mod patterns;
 mod reads;
+mod references;
 mod scope;
 
 use std::collections::HashMap;
 use std::path::Path;
 
-use model::Location;
+use model::{Location, Passed};
 
 /// What later stages need from one file. Every list is in source order.
 #[derive(Debug, Clone, PartialEq)]
@@ -50,6 +51,9 @@ pub struct FileSummary {
     /// Imports used other than as a JSX tag or an export, as indices into
     /// [`FileSummary::imports`], when [`Options::props`] is set.
     pub escaping_imports: Vec<usize>,
+    /// Imports read as values, other than as JSX tags, exports, types and the objects of
+    /// property accesses that aren't followed.
+    pub references: Vec<ValueReference>,
     /// Errors the parser recovered from. The lists above may be incomplete when this isn't empty.
     pub errors: Vec<SyntaxError>,
 }
@@ -109,6 +113,18 @@ pub struct JsxElement {
     /// The component of [`FileSummary::components`] the tag refers to by its local name, when
     /// [`Options::props`] or [`Options::wrappers`] is set.
     pub component: Option<usize>,
+}
+
+/// An import read as a value: `L.Icon` in `<Panel icon={L.Icon} />`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValueReference {
+    /// Index into [`FileSummary::imports`].
+    pub import: usize,
+    /// Property accesses after the import: `["Icon"]` in `L.Icon`.
+    pub members: Vec<String>,
+    /// The import's name.
+    pub location: Location,
+    pub passed: Passed,
 }
 
 /// A function that can be rendered as a JSX tag: declared with a name, or assigned to a `const`,

@@ -50,6 +50,51 @@ pub struct Usage {
     pub excluded: Vec<String>,
 }
 
+/// A place a target is read as a value rather than rendered as a JSX tag.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Reference {
+    pub file: FileId,
+    pub location: Location,
+    pub component: String,
+    pub passed: Passed,
+}
+
+/// Where a value goes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize),
+    serde(tag = "kind", rename_all = "kebab-case")
+)]
+pub enum Passed {
+    /// A JSX attribute of the element with the tag `element`, as written.
+    Attribute {
+        element: String,
+        name: String,
+    },
+    /// An argument of a call or `new`, from 0.
+    Argument {
+        callee: String,
+        index: usize,
+    },
+    /// An object's property, with its static `key`, or the source text of a `computed` one.
+    Property {
+        #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+        key: Option<String>,
+        #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+        computed: Option<String>,
+    },
+    /// An array's element, from 0.
+    Item {
+        index: usize,
+    },
+    /// The value of a variable declared with a name.
+    Variable {
+        name: String,
+    },
+    Other,
+}
+
 /// A wrapper a usage goes through, and where it passes its props on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
