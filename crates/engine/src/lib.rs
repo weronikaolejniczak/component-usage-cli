@@ -38,6 +38,8 @@ pub struct Config {
     pub follow_variables: bool,
     /// Follow imported names to the exported value in another file. Implies `follow_variables`.
     pub follow_imports: bool,
+    /// Follow the props of components to what their JSX callers pass. Implies `follow_imports`.
+    pub follow_props: bool,
 }
 
 /// Which `CODEOWNERS` file to use. Patterns always match paths relative to the repository root:
@@ -115,8 +117,9 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
     let (from, _) = files.intern(from);
 
     let options = parse::Options {
-        variables: config.follow_variables || config.follow_imports,
-        imports: config.follow_imports,
+        variables: config.follow_variables || config.follow_imports || config.follow_props,
+        imports: config.follow_imports || config.follow_props,
+        props: config.follow_props,
     };
     let mut modules: Vec<Option<Module>> = Vec::new();
     let mut pending: Vec<FileId> = scanned.clone();
@@ -200,7 +203,7 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
     };
     let identified = identify::identify(&graph, &scanned, &targets);
     let paths = files.displays(&root);
-    let context = values::Context::new(&graph, &paths, config.follow_imports);
+    let context = values::Context::new(&graph, &paths, options.imports, options.props);
 
     report.usages = identified
         .usages

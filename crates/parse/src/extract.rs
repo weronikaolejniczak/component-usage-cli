@@ -13,6 +13,7 @@ use oxc_syntax::module_record::{
 
 use crate::aliases::alias;
 use crate::attributes::Exprs;
+use crate::components::components;
 use crate::definitions::{Mode, changed, definitions};
 use crate::elements::elements;
 use crate::exported::exported;
@@ -78,24 +79,33 @@ pub(crate) fn extract(
     let semantic = built.semantic;
     let scope = Scope::new(&parsed.program, semantic.scoping(), &lines, import_at);
     let exprs = Exprs::new(source, &scope);
-    let elements = elements(&parsed.program, &exprs);
+    let found = options.props.then(|| components(&parsed.program, &exprs));
+    let mut elements = elements(&parsed.program, &exprs);
+    if let Some(found) = &found {
+        for (element, local) in &mut elements {
+            if element.members.is_empty() {
+                element.component = local.and_then(|symbol| found.by_symbol.get(&symbol).copied());
+            }
+        }
+    }
     let (elements, aliases) = bind_aliases(&parsed.program, &scope, source, elements);
-    let exported = if options.imports {
+    let exported = if options.imports || options.props {
         exported(&parsed.program, &exprs)
     } else {
         HashMap::new()
     };
-    let changed = if options.variables || options.imports {
+    let follow = options.variables || options.imports || options.props;
+    let changed = if follow {
         changed(&parsed.program, &scope)
     } else {
         HashSet::new()
     };
-    let definitions = if options.variables || options.imports {
+    let definitions = if follow {
         definitions(&parsed.program, &exprs, Mode::Values, &changed)
     } else {
         vec![Definition::NotFollowed; exprs.variables.borrow().symbols.len()]
     };
-    let mut changed_imports: Vec<usize> = if options.imports {
+    let mut changed_imports: Vec<usize> = if options.imports || options.props {
         changed
             .iter()
             .filter_map(|&symbol| match scope.declared(symbol) {
@@ -107,6 +117,9 @@ pub(crate) fn extract(
         Vec::new()
     };
     changed_imports.sort_unstable();
+    let (components, parameters, escaping_imports) = found.map_or_else(Default::default, |found| {
+        (found.components, found.parameters, found.escaping_imports)
+    });
 
     Ok(FileSummary {
         imports,
@@ -116,6 +129,9 @@ pub(crate) fn extract(
         definitions,
         exported,
         changed_imports,
+        components,
+        parameters,
+        escaping_imports,
         errors,
     })
 }

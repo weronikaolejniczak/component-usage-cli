@@ -1,9 +1,10 @@
 use oxc_ast::ast::{
-    IdentifierReference, JSXAttribute, JSXElement, JSXElementName, JSXMemberExpression,
+    IdentifierReference, JSXAttribute, JSXChild, JSXElement, JSXElementName, JSXMemberExpression,
     JSXMemberExpressionObject, Program,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::SymbolId;
+use oxc_span::GetSpan;
 
 use model::Location;
 
@@ -54,6 +55,13 @@ impl<'a> Visit<'a> for Elements<'_, '_> {
                 .iter()
                 .map(|attribute| self.exprs.attribute(attribute))
                 .collect();
+            let children = element
+                .children
+                .iter()
+                .find(
+                    |child| !matches!(child, JSXChild::Text(text) if text.value.trim().is_empty()),
+                )
+                .map(|child| self.exprs.scope.lines.location(child.span().start));
             self.elements.push((
                 JsxElement {
                     location,
@@ -62,6 +70,8 @@ impl<'a> Visit<'a> for Elements<'_, '_> {
                     binding,
                     parent,
                     attributes,
+                    children,
+                    component: None,
                 },
                 local,
             ));

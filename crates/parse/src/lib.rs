@@ -8,6 +8,7 @@
 
 mod aliases;
 mod attributes;
+mod components;
 mod definitions;
 mod elements;
 mod exported;
@@ -40,6 +41,14 @@ pub struct FileSummary {
     /// Imports whose contents this file changes in place, such as `ICONS.push(…)`, as indices
     /// into [`FileSummary::imports`], when [`Options::imports`] is set.
     pub changed_imports: Vec<usize>,
+    /// The components declared in the file, when [`Options::props`] is set.
+    pub components: Vec<Component>,
+    /// The names declared by the props of [`FileSummary::components`], indexed by
+    /// [`Reference::Parameter`].
+    pub parameters: Vec<Parameter>,
+    /// Imports used other than as a JSX tag or an export, as indices into
+    /// [`FileSummary::imports`], when [`Options::props`] is set.
+    pub escaping_imports: Vec<usize>,
     /// Errors the parser recovered from. The lists above may be incomplete when this isn't empty.
     pub errors: Vec<SyntaxError>,
 }
@@ -94,6 +103,45 @@ pub struct JsxElement {
     /// The closest enclosing element of [`FileSummary::elements`].
     pub parent: Option<Parent>,
     pub attributes: Vec<Attribute>,
+    /// The position of the first child other than whitespace, if any.
+    pub children: Option<Location>,
+    /// The component of [`FileSummary::components`] the tag refers to by its local name, when
+    /// [`Options::props`] is set.
+    pub component: Option<usize>,
+}
+
+/// A function that can be rendered as a JSX tag: declared with a name, or assigned to a `const`,
+/// optionally inside `memo(…)` or `forwardRef(…)`, or the default export.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Component {
+    /// The name it's declared as, or `default` for an anonymous default export.
+    pub name: String,
+    /// The position of its name, or of the function when it has none.
+    pub location: Location,
+    /// The names it's declared as, including `const Wrapper = memo(Inner)`, as indices into
+    /// [`FileSummary::definitions`].
+    pub variables: Vec<usize>,
+    /// Whether it's the default export without being one of [`Component::variables`].
+    pub default: bool,
+    /// Whether one of its names is used other than as a JSX tag, an export or the argument of
+    /// `memo` or `forwardRef`.
+    pub escapes: bool,
+}
+
+/// A name declared by a component's props, its first parameter: `props`, or `iconType` and
+/// `rest` in `{ iconType = 'gear', ...rest }`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Parameter {
+    /// Index into [`FileSummary::components`].
+    pub component: usize,
+    /// Where the name is declared.
+    pub location: Location,
+    /// The steps from the props to the name.
+    pub path: Vec<Segment>,
+    /// The name's own default: `'gear'` in `{ iconType = 'gear' }`.
+    pub default: Option<Expr>,
+    /// For a rest element, the keys the pattern takes before it.
+    pub rest: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -247,8 +295,9 @@ pub enum Exported {
 pub enum Reference {
     /// Index into [`FileSummary::imports`].
     Import(usize),
-    /// A function or `catch` parameter, including a name destructured from one.
-    Parameter,
+    /// A function or `catch` parameter, including a name destructured from one. With
+    /// [`Options::props`], the index into [`FileSummary::parameters`] when it's a component's prop.
+    Parameter(Option<usize>),
     /// Any other declaration in this file. Index into [`FileSummary::definitions`].
     Variable(usize),
     /// Not declared in this file.
@@ -310,11 +359,15 @@ pub struct Options {
     /// Also record what each export holds and which imports are changed in place. Implies
     /// `variables`.
     pub imports: bool,
+    /// Also record components, their props, the elements that render them and the imports used
+    /// other than as a JSX tag. Implies `imports`.
+    pub props: bool,
 }
 
 impl FileSummary {
-    /// Imports that the recorded values read: in exports, in definitions those lead to, and with
-    /// `attributes`, in JSX attributes. Changed imports too. Sorted indices into
+    /// Imports that the recorded values read: in exports, in definitions those lead to, in the
+    /// defaults of props, and with `attributes`, in JSX attributes. Changed imports, and imports
+    /// used other than as a JSX tag, too. Sorted indices into
     /// [`FileSummary::imports`].
     #[must_use]
     pub fn value_imports(&self, attributes: bool) -> Vec<usize> {

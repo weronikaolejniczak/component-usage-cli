@@ -6,8 +6,20 @@ pub(crate) fn value_imports(summary: &FileSummary, attributes: bool) -> Vec<usiz
     let mut reads = Reads {
         definitions: &summary.definitions,
         visited: vec![false; summary.definitions.len()],
-        imports: summary.changed_imports.clone(),
+        imports: summary
+            .changed_imports
+            .iter()
+            .chain(&summary.escaping_imports)
+            .copied()
+            .collect(),
     };
+    for default in summary
+        .parameters
+        .iter()
+        .filter_map(|parameter| parameter.default.as_ref())
+    {
+        reads.expr(default);
+    }
     for exported in summary.exported.values() {
         match exported {
             Exported::Variable(index) => reads.definition(*index),
@@ -57,7 +69,7 @@ impl Reads<'_> {
             ExprKind::Reference { name, .. } => match name {
                 Reference::Import(import) => self.imports.push(*import),
                 Reference::Variable(index) => self.definition(*index),
-                Reference::Parameter | Reference::Global => {}
+                Reference::Parameter(_) | Reference::Global => {}
             },
             ExprKind::Object(entries) => {
                 for entry in entries {

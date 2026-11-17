@@ -4,7 +4,7 @@ use model::Location;
 
 use crate::{
     Alias, AliasRoot, Attribute, Binding, Export, Expr, ExprKind, FileSummary, Import, Imported,
-    Item, JsxElement, Key, Literal, Parent, ParseError, Reference, parse,
+    Item, JsxElement, Key, Literal, Parent, ParseError, Reference, Segment, parse,
 };
 
 fn tsx(source: &str) -> FileSummary {
@@ -31,10 +31,12 @@ fn element(line: u32, column: u32, root: &str, members: &[&str], binding: Bindin
         binding,
         parent: None,
         attributes: Vec::new(),
+        children: None,
+        component: None,
     }
 }
 
-/// Elements without their parents and attributes, which have their own tests.
+/// Elements without their parents, attributes and children, which have their own tests.
 fn identities(summary: &FileSummary) -> Vec<JsxElement> {
     summary
         .elements
@@ -42,6 +44,7 @@ fn identities(summary: &FileSummary) -> Vec<JsxElement> {
         .map(|element| JsxElement {
             parent: None,
             attributes: Vec::new(),
+            children: None,
             ..element.clone()
         })
         .collect()
@@ -172,9 +175,9 @@ fn references_are_classified_by_declaration() {
         [
             &reference(Reference::Import(0), "a", &[]),
             &reference(Reference::Variable(0), "b", &[]),
-            &reference(Reference::Parameter, "c", &[]),
-            &reference(Reference::Parameter, "d", &[]),
-            &reference(Reference::Parameter, "e", &[]),
+            &reference(Reference::Parameter(None), "c", &[]),
+            &reference(Reference::Parameter(None), "d", &[]),
+            &reference(Reference::Parameter(None), "e", &[]),
             &reference(Reference::Global, "g", &[]),
             &ExprKind::Undefined,
             &reference(Reference::Import(0), "a.x?.y", &["x", "y"]),
@@ -508,6 +511,7 @@ fn with_imports(source: &str) -> FileSummary {
         crate::Options {
             variables: true,
             imports: true,
+            props: false,
         },
     )
     .unwrap()
@@ -604,4 +608,144 @@ fn value_imports_follow_definitions_from_exports() {
     );
     assert_eq!(summary.value_imports(false), [0]);
     assert_eq!(summary.value_imports(true), [0, 1]);
+}
+
+fn with_props(source: &str) -> FileSummary {
+    crate::parse_with(
+        Path::new("App.tsx"),
+        source,
+        crate::Options {
+            variables: true,
+            imports: true,
+            props: true,
+        },
+    )
+    .unwrap()
+}
+
+#[test]
+fn children_skip_whitespace() {
+    let summary = tsx("const a = <A>\n  </A>;\nconst b = <B>\n  text</B>;\n");
+    assert_eq!(summary.elements[0].children, None);
+    assert_eq!(
+        summary.elements[1].children,
+        Some(Location {
+            line: 3,
+            column: 14
+        })
+    );
+}
+
+#[test]
+fn components_are_named_functions_and_constants() {
+    let summary = with_props(
+        "function A(props) { return <A />; }\n\
+         const B = (props) => null;\n\
+         const C = memo(forwardRef(function (props, ref) { return null; }));\n\
+         const D = React.memo(B);\n\
+         let E = () => null;\n\
+         const f = compute();\n\
+         export default function (props) { return null; }\n",
+    );
+    let names: Vec<(&str, bool)> = summary
+        .components
+        .iter()
+        .map(|component| (component.name.as_str(), component.default))
+        .collect();
+    assert_eq!(
+        names,
+        [("A", false), ("B", false), ("C", false), ("default", true)]
+    );
+    assert_eq!(summary.components[1].variables.len(), 2, "B and D");
+    assert_eq!(summary.elements[0].component, Some(0));
+}
+
+#[test]
+fn props_record_paths_defaults_and_rest() {
+    let summary = with_props(
+        "function A({ icon = 'gear', a: { b }, c: { d } = {}, [key]: e, ...rest }, ref) {\n\
+         \x20 return <X icon={icon} b={b} d={d} e={e} rest={rest} ref={ref} />;\n}\n",
+    );
+    let parameters: Vec<(Vec<Segment>, bool, Option<Vec<String>>)> = summary
+        .parameters
+        .iter()
+        .map(|parameter| {
+            (
+                parameter.path.clone(),
+                parameter.default.is_some(),
+                parameter.rest.clone(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        parameters,
+        [
+            (vec![Segment::Key("icon".to_owned())], true, None),
+            (
+                vec![Segment::Key("a".to_owned()), Segment::Key("b".to_owned())],
+                false,
+                None
+            ),
+            (
+                Vec::new(),
+                false,
+                Some(vec!["icon".to_owned(), "a".to_owned(), "c".to_owned()])
+            ),
+        ]
+    );
+    let references: Vec<Reference> = summary.elements[0]
+        .attributes
+        .iter()
+        .map(|attribute| match attribute {
+            Attribute::Named {
+                value:
+                    Expr {
+                        kind: ExprKind::Reference { name, .. },
+                        ..
+                    },
+                ..
+            } => *name,
+            other => panic!("unexpected {other:?}"),
+        })
+        .collect();
+    assert_eq!(
+        references,
+        [
+            Reference::Parameter(Some(0)),
+            Reference::Parameter(Some(1)),
+            Reference::Parameter(None),
+            Reference::Parameter(None),
+            Reference::Parameter(Some(2)),
+            Reference::Parameter(None),
+        ]
+    );
+}
+
+#[test]
+fn components_and_imports_escape_when_used_as_values() {
+    let summary = with_props(
+        "import { Used, Passed, Typed } from 'lib';\n\
+         function Tag() { return <Used />; }\n\
+         function Value() { return null; }\n\
+         const Wrapped = memo(Tag);\n\
+         const styledValue = styled(Value);\n\
+         export { Tag };\n\
+         export default Wrapped;\n\
+         const a = <X component={Passed} />;\n\
+         let t: typeof Typed;\n",
+    );
+    let escapes: Vec<(&str, bool)> = summary
+        .components
+        .iter()
+        .map(|component| (component.name.as_str(), component.escapes))
+        .collect();
+    assert_eq!(escapes, [("Tag", false), ("Value", true)]);
+    assert_eq!(summary.escaping_imports, [1]);
+}
+
+#[test]
+fn components_are_recorded_only_when_following_props() {
+    let summary = with_imports("function A({ icon }) { return <X icon={icon} />; }\n");
+    assert!(summary.components.is_empty());
+    assert!(summary.parameters.is_empty());
 }

@@ -17,6 +17,9 @@ pub(crate) struct Exprs<'s> {
     pub(crate) source: &'s str,
     pub(crate) scope: &'s Scope<'s>,
     pub(crate) variables: RefCell<Variables>,
+    /// Indices into [`crate::FileSummary::parameters`] by the symbols of the names props
+    /// declare, set by [`crate::components`].
+    pub(crate) parameters: RefCell<HashMap<SymbolId, usize>>,
 }
 
 /// The local names referred to so far, in the order of [`Reference::Variable`] indices.
@@ -32,6 +35,7 @@ impl<'s> Exprs<'s> {
             source,
             scope,
             variables: RefCell::new(Variables::default()),
+            parameters: RefCell::new(HashMap::new()),
         }
     }
 }
@@ -295,7 +299,9 @@ impl<'a> Exprs<'_> {
         };
         match self.scope.declared(symbol) {
             Declared::Import(import) => Reference::Import(import),
-            Declared::Parameter => Reference::Parameter,
+            Declared::Parameter => {
+                Reference::Parameter(self.parameters.borrow().get(&symbol).copied())
+            }
             Declared::Local => Reference::Variable(self.variable(symbol)),
         }
     }

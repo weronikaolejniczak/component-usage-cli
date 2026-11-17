@@ -227,6 +227,7 @@ cases!(props:
     all_components,
     expressions,
     follow_imports,
+    follow_props,
     follow_variables,
     literals,
     objects,

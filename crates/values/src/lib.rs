@@ -1,19 +1,23 @@
 //! Resolves the values a prop can receive, following the names [`parse`] recorded definitions
-//! for, and with [`Context::new`]'s `imports`, imported names through the module graph. What is
-//! recorded, and so followed, is set by [`parse::Options`].
+//! for, with [`Context::new`]'s `imports`, imported names through the module graph, and with its
+//! `props`, the props of components to what their JSX callers pass. What is recorded, and so
+//! followed, is set by [`parse::Options`].
 //!
 //! Pure. Every value has a kind and a location; unresolved values carry a code. Values and names
 //! in another file than the usage's say which.
 
 use std::cell::RefCell;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use graph::{ModuleGraph, Origin, OriginError};
 use model::{
     Entry, ExportRef, FileId, Item, Literal, Location, Part, Prop, Step, UnresolvedCode, Value,
     ValueKind, Via,
 };
-use parse::{Attribute, Definition, Exported, Expr, ExprKind, Key, Reference, Segment};
+use parse::{Attribute, Definition, Exported, Expr, ExprKind, JsxElement, Key, Reference, Segment};
+
+/// A component: its file and its index in that file's [`parse::FileSummary::components`].
+type ComponentRef = (FileId, usize);
 
 /// What every usage of a scan is evaluated against.
 pub struct Context<'g> {
@@ -25,13 +29,21 @@ pub struct Context<'g> {
     changed: HashSet<ExportRef>,
     /// Modules changed in place through a namespace import.
     changed_modules: HashSet<FileId>,
+    props: bool,
+    /// The elements that render each component, as files and indices into their
+    /// [`parse::FileSummary::elements`], in order of path and position.
+    callers: HashMap<ComponentRef, Vec<(FileId, usize)>>,
+    /// Components used other than as a JSX tag, an export or the argument of `memo` or
+    /// `forwardRef`, in their file or through an import.
+    escaped: HashSet<ComponentRef>,
 }
 
 impl<'g> Context<'g> {
     /// With `imports`, imported names are followed; the graph must then have resolved
-    /// [`graph::value_specifiers`].
+    /// [`graph::value_specifiers`]. With `props`, the props of components are followed to their
+    /// callers; the graph must also have resolved [`graph::element_specifiers`].
     #[must_use]
-    pub fn new(graph: &'g ModuleGraph, paths: &'g [String], imports: bool) -> Self {
+    pub fn new(graph: &'g ModuleGraph, paths: &'g [String], imports: bool, props: bool) -> Self {
         let mut changed = HashSet::new();
         let mut changed_modules = HashSet::new();
         if imports {
@@ -49,13 +61,115 @@ impl<'g> Context<'g> {
                 }
             }
         }
-        Self {
+        let mut context = Self {
             graph,
             paths,
-            imports,
+            imports: imports || props,
             changed,
             changed_modules,
+            props,
+            callers: HashMap::new(),
+            escaped: HashSet::new(),
+        };
+        if props {
+            context.index_callers();
         }
+        context
+    }
+
+    fn index_callers(&mut self) {
+        let graph = self.graph;
+        let mut origins = Origins {
+            graph,
+            exports: HashMap::new(),
+        };
+        for (file, module) in graph.modules() {
+            let summary = &module.summary;
+            for (index, element) in summary.elements.iter().enumerate() {
+                if let Some(component) = self.rendered(file, element, &mut origins) {
+                    self.callers
+                        .entry(component)
+                        .or_default()
+                        .push((file, index));
+                }
+            }
+            for (index, component) in summary.components.iter().enumerate() {
+                if component.escapes {
+                    self.escaped.insert((file, index));
+                }
+            }
+            for &import in &summary.escaping_imports {
+                match origins.import(file, import) {
+                    Some(Origin::Export(export)) => {
+                        if let Some(component) = self.component(export.module, &export.name) {
+                            self.escaped.insert(component);
+                        }
+                    }
+                    Some(Origin::Namespace(module)) => {
+                        let count = graph
+                            .module(module)
+                            .map_or(0, |module| module.summary.components.len());
+                        self.escaped.extend((0..count).map(|index| (module, index)));
+                    }
+                    None => {}
+                }
+            }
+        }
+        let paths = self.paths;
+        for callers in self.callers.values_mut() {
+            callers.sort_by_cached_key(|&(file, index)| {
+                let location = graph
+                    .module(file)
+                    .map(|module| module.summary.elements[index].location);
+                (&paths[file.0 as usize], location)
+            });
+        }
+    }
+
+    /// The component `element`, an element of `file`, renders.
+    fn rendered(
+        &self,
+        file: FileId,
+        element: &JsxElement,
+        origins: &mut Origins,
+    ) -> Option<ComponentRef> {
+        match element.binding {
+            parse::Binding::Local => element.component.map(|index| (file, index)),
+            parse::Binding::Import(import) => {
+                let export = match (origins.import(file, import)?, &element.members[..]) {
+                    (Origin::Export(export), []) => export,
+                    (Origin::Namespace(module), [member]) => {
+                        match origins.export(module, member)? {
+                            Origin::Export(export) => export,
+                            Origin::Namespace(_) => return None,
+                        }
+                    }
+                    _ => return None,
+                };
+                self.component(export.module, &export.name)
+            }
+            parse::Binding::Alias(_) | parse::Binding::Global => None,
+        }
+    }
+
+    /// The component `module` exports as `name`.
+    fn component(&self, module: FileId, name: &str) -> Option<ComponentRef> {
+        let summary = &self.graph.module(module)?.summary;
+        let index = match summary.exported.get(name)? {
+            Exported::Variable(variable) => summary
+                .components
+                .iter()
+                .position(|component| component.variables.contains(variable)),
+            Exported::Value(_) => (name == "default")
+                .then(|| {
+                    summary
+                        .components
+                        .iter()
+                        .position(|component| component.default)
+                })
+                .flatten(),
+        }?;
+        Some((module, index))
     }
 }
 
@@ -90,6 +204,35 @@ pub fn props(
         .collect()
 }
 
+/// A name a component's props declare, in the component's file.
+struct Declared<'p> {
+    file: FileId,
+    parameter: &'p parse::Parameter,
+}
+
+/// Origins of exports looked up so far, by module and name, shared by every file.
+struct Origins<'g> {
+    graph: &'g ModuleGraph,
+    exports: HashMap<(FileId, String), Option<Origin>>,
+}
+
+impl Origins<'_> {
+    fn export(&mut self, module: FileId, name: &str) -> Option<Origin> {
+        let graph = self.graph;
+        self.exports
+            .entry((module, name.to_owned()))
+            .or_insert_with(|| graph.export_origin(module, name).ok())
+            .clone()
+    }
+
+    fn import(&mut self, file: FileId, import: usize) -> Option<Origin> {
+        match self.graph.import_target(file, import).ok()? {
+            (target, parse::Imported::Namespace) => Some(Origin::Namespace(target)),
+            (target, parse::Imported::Name(name)) => self.export(target, name),
+        }
+    }
+}
+
 struct Resolver<'c, 'g> {
     context: &'c Context<'g>,
     usage: FileId,
@@ -101,6 +244,7 @@ struct Resolver<'c, 'g> {
 enum Active {
     Definition(FileId, usize),
     Export(FileId, String),
+    Component(FileId, usize),
 }
 
 /// A name being followed: what's written, and where.
@@ -172,8 +316,9 @@ impl Resolver<'_, '_> {
                     location: expr.location,
                 };
                 match name {
-                    Reference::Variable(index) => {
-                        return self.follow_variable(&reference, *index, path);
+                    Reference::Variable(_) => return self.value_at(file, expr, &[]),
+                    Reference::Parameter(Some(_)) if self.context.props => {
+                        return self.value_at(file, expr, &[]);
                     }
                     Reference::Import(index) if self.context.imports => {
                         return self.follow_import(&reference, *index, path);
@@ -181,7 +326,7 @@ impl Resolver<'_, '_> {
                     Reference::Import(_) => {
                         unresolved(UnresolvedCode::NotFollowed, Some(Step::Imports), text)
                     }
-                    Reference::Parameter => unresolved(UnresolvedCode::Parameter, None, text),
+                    Reference::Parameter(_) => unresolved(UnresolvedCode::Parameter, None, text),
                     Reference::Global => unresolved(UnresolvedCode::Global, None, text),
                 }
             }
@@ -193,10 +338,236 @@ impl Resolver<'_, '_> {
         self.at(file, expr.location, kind)
     }
 
-    fn follow_variable(&self, name: &Name, index: usize, path: &[Key]) -> Value {
-        match self.definition(name, name.file, index) {
-            Ok(value) => self.followed(name, value, path),
-            Err(stop) => stop,
+    /// The value of `expr`, an expression of `file`, then `keys` in it. Props and variables
+    /// holding props are followed with the keys, so only the attributes that set the first key
+    /// are evaluated.
+    fn value_at(&self, file: FileId, expr: &Expr, keys: &[Key]) -> Value {
+        if let ExprKind::Reference { name, text, path } = &expr.kind {
+            let reference = Name {
+                file,
+                text,
+                location: expr.location,
+            };
+            let keys: Vec<Key> = path.iter().chain(keys).cloned().collect();
+            let followed = match name {
+                Reference::Variable(index) => {
+                    Some(self.definition(&reference, file, *index, &keys))
+                }
+                Reference::Parameter(Some(index)) if self.context.props => {
+                    Some(self.parameter(&reference, file, *index, keys))
+                }
+                _ => None,
+            };
+            if let Some(followed) = followed {
+                return match followed {
+                    Ok(value) => self.followed(&reference, value, &[]),
+                    Err(stop) => stop,
+                };
+            }
+        }
+        let value = self.value(file, expr);
+        keys.iter().fold(value, |value, key| {
+            let text = match key {
+                Key::Static(key) => key.as_str(),
+                Key::Dynamic => "",
+            };
+            let name = Name {
+                file,
+                text,
+                location: expr.location,
+            };
+            self.lookup(value, key, &name)
+        })
+    }
+
+    /// What callers pass for the prop the name at `index` in `file`'s
+    /// [`parse::FileSummary::parameters`] declares, then `keys` in it. `Err` is the value to
+    /// report for `name`.
+    fn parameter(
+        &self,
+        name: &Name,
+        file: FileId,
+        index: usize,
+        keys: Vec<Key>,
+    ) -> Result<Value, Value> {
+        let context = self.context;
+        let Some(summary) = context.graph.module(file).map(|module| &module.summary) else {
+            return Err(self.stop(name, UnresolvedCode::Unparsed, None));
+        };
+        let parameter = &summary.parameters[index];
+        if let (Some(taken), Some(Key::Static(key))) = (&parameter.rest, keys.first())
+            && taken.contains(key)
+        {
+            return Ok(self.at(file, parameter.location, ValueKind::Undefined));
+        }
+        let component = (file, parameter.component);
+        let active = Active::Component(file, parameter.component);
+        if self.active.borrow().contains(&active) {
+            return Err(self.stop(name, UnresolvedCode::Unsupported, None));
+        }
+        let escaped = context.escaped.contains(&component);
+        let callers = context
+            .callers
+            .get(&component)
+            .map_or(&[][..], Vec::as_slice);
+        if callers.is_empty() {
+            let code = if escaped {
+                UnresolvedCode::Parameter
+            } else {
+                UnresolvedCode::NoCallers
+            };
+            return Err(self.stop(name, code, None));
+        }
+        let keys: Vec<Key> = parameter
+            .path
+            .iter()
+            .map(|segment| Key::Static(segment_key(segment)))
+            .chain(keys)
+            .collect();
+        let declared = Declared { file, parameter };
+        self.active.borrow_mut().push(active);
+        let mut values: Vec<Value> = callers
+            .iter()
+            .filter_map(|&(caller, element)| {
+                let element = context
+                    .graph
+                    .module(caller)?
+                    .summary
+                    .elements
+                    .get(element)?;
+                let mut value = self.caller(caller, element, &keys, &declared, name);
+                value.via.insert(
+                    0,
+                    Via {
+                        text: tag(element),
+                        file: self.file(caller),
+                        location: element.location,
+                    },
+                );
+                Some(value)
+            })
+            .collect();
+        self.active.borrow_mut().pop();
+        if escaped {
+            let component = &summary.components[parameter.component];
+            values.push(self.at(
+                file,
+                component.location,
+                unresolved(UnresolvedCode::OtherCallers, None, &component.name),
+            ));
+        }
+        Ok(if values.len() == 1 {
+            values.remove(0)
+        } else {
+            self.at(file, parameter.location, ValueKind::OneOf { values })
+        })
+    }
+
+    /// What `element`, an element of `file`, passes for `keys`: the attribute that sets the
+    /// first key, or every attribute as an object when there's none, without the keys a rest
+    /// element leaves out. The keys up to the end of the parameter's path lead to its name, whose
+    /// default replaces `undefined`.
+    fn caller(
+        &self,
+        file: FileId,
+        element: &JsxElement,
+        keys: &[Key],
+        declared: &Declared,
+        name: &Name,
+    ) -> Value {
+        let parameter = declared.parameter;
+        let taken = parameter.rest.as_deref().unwrap_or_default();
+        let (mut value, consumed) = match keys.first() {
+            Some(Key::Static(key)) => (self.caller_prop(file, element, key), 1),
+            _ => (self.caller_props(file, element, taken), 0),
+        };
+        let boundary = parameter.path.len().max(consumed);
+        for key in &keys[consumed..boundary] {
+            value = self.lookup(value, key, name);
+        }
+        if let Some(default) = &parameter.default {
+            value = self.with_default(value, declared.file, default);
+        }
+        for key in &keys[boundary..] {
+            value = self.lookup(value, key, name);
+        }
+        value
+    }
+
+    /// The last attribute of `element` that sets `key`, or its children for `children`.
+    fn caller_prop(&self, file: FileId, element: &JsxElement, key: &str) -> Value {
+        let mut found = None;
+        for attribute in &element.attributes {
+            match attribute {
+                Attribute::Named { name, value } if name == key => {
+                    found = Some(self.value(file, value));
+                }
+                Attribute::Named { .. } => {}
+                Attribute::Spread(spread) => {
+                    let value = self.value_at(file, spread, &[Key::Static(key.to_owned())]);
+                    if value.kind != ValueKind::Undefined {
+                        found = Some(value);
+                    }
+                }
+            }
+        }
+        if key == "children"
+            && let Some(location) = element.children
+        {
+            found = Some(self.children(file, location));
+        }
+        found.unwrap_or_else(|| self.at(file, element.location, ValueKind::Undefined))
+    }
+
+    /// Every attribute of `element` as an object, with its children, but the `taken` ones.
+    fn caller_props(&self, file: FileId, element: &JsxElement, taken: &[String]) -> Value {
+        let mut entries: Vec<Entry> = element
+            .attributes
+            .iter()
+            .filter_map(|attribute| match attribute {
+                Attribute::Named { name, .. } if taken.contains(name) => None,
+                Attribute::Named { name, value } => Some(Entry::Property {
+                    key: name.clone(),
+                    value: self.value(file, value),
+                }),
+                Attribute::Spread(spread) => Some(Entry::Spread {
+                    spread: self.value(file, spread),
+                }),
+            })
+            .collect();
+        if let Some(location) = element.children
+            && !taken.iter().any(|key| key == "children")
+        {
+            entries.push(Entry::Property {
+                key: "children".to_owned(),
+                value: self.children(file, location),
+            });
+        }
+        self.at(file, element.location, ValueKind::Object { entries })
+    }
+
+    fn children(&self, file: FileId, location: Location) -> Value {
+        self.at(
+            file,
+            location,
+            unresolved(UnresolvedCode::Unsupported, None, "children"),
+        )
+    }
+
+    /// `value`, with `default`, an expression of `file`, in place of `undefined`, in each branch.
+    fn with_default(&self, value: Value, file: FileId, default: &Expr) -> Value {
+        match value.kind {
+            ValueKind::Undefined => self.value(file, default),
+            ValueKind::OneOf { values } => Value {
+                kind: ValueKind::OneOf {
+                    values: values
+                        .into_iter()
+                        .map(|value| self.with_default(value, file, default))
+                        .collect(),
+                },
+                ..value
+            },
+            kind => Value { kind, ..value },
         }
     }
 
@@ -221,8 +592,8 @@ impl Resolver<'_, '_> {
                 Err(error) => return self.stop(name, code(&error), None),
             }
         };
-        match self.export(name, module, export) {
-            Ok(value) => self.followed(name, value, path),
+        match self.export(name, module, export, path) {
+            Ok(value) => self.followed(name, value, &[]),
             Err(stop) => stop,
         }
     }
@@ -260,8 +631,15 @@ impl Resolver<'_, '_> {
         value
     }
 
-    /// What the export `export` of `module` holds. `Err` is the value to report for `name`.
-    fn export(&self, name: &Name, module: FileId, export: String) -> Result<Value, Value> {
+    /// What the export `export` of `module` holds, then `keys` in it. `Err` is the value to
+    /// report for `name`.
+    fn export(
+        &self,
+        name: &Name,
+        module: FileId,
+        export: String,
+        keys: &[Key],
+    ) -> Result<Value, Value> {
         let context = self.context;
         let changed = context.changed_modules.contains(&module)
             || context.changed.contains(&ExportRef {
@@ -281,15 +659,26 @@ impl Resolver<'_, '_> {
         };
         self.active.borrow_mut().push(active);
         let value = match exported {
-            Exported::Variable(index) => self.definition(name, module, *index),
-            Exported::Value(expr) => Ok(self.value(module, expr)),
+            Exported::Variable(index) => self.definition(name, module, *index, keys),
+            Exported::Value(expr) => {
+                Ok(keys.iter().fold(self.value(module, expr), |value, key| {
+                    self.lookup(value, key, name)
+                }))
+            }
         };
         self.active.borrow_mut().pop();
         value
     }
 
-    /// What the name defined at `index` in `file` holds. `Err` is the value to report for `name`.
-    fn definition(&self, name: &Name, file: FileId, index: usize) -> Result<Value, Value> {
+    /// What the name defined at `index` in `file` holds, then `keys` in it. `Err` is the value to
+    /// report for `name`.
+    fn definition(
+        &self,
+        name: &Name,
+        file: FileId,
+        index: usize,
+        keys: &[Key],
+    ) -> Result<Value, Value> {
         let active = Active::Definition(file, index);
         if self.active.borrow().contains(&active) {
             return Err(self.stop(name, UnresolvedCode::Unsupported, None));
@@ -308,25 +697,46 @@ impl Resolver<'_, '_> {
             }
             Definition::Mutated => Err(self.stop(name, UnresolvedCode::Mutated, None)),
             Definition::Declared => Err(self.stop(name, UnresolvedCode::Unsupported, None)),
-            Definition::Function(location) => Ok(self.at(file, *location, ValueKind::Function)),
+            Definition::Function(location) => {
+                let value = self.at(file, *location, ValueKind::Function);
+                Ok(keys
+                    .iter()
+                    .fold(value, |value, key| self.lookup(value, key, name)))
+            }
             Definition::Value {
                 init,
                 path,
                 default,
             } => {
                 self.active.borrow_mut().push(active);
-                let mut value = self.value(file, init);
-                for segment in path {
-                    let key = match segment {
-                        Segment::Key(key) => key.clone(),
-                        Segment::Index(index) => index.to_string(),
+                let segments = path.iter().map(|segment| Key::Static(segment_key(segment)));
+                let props = matches!(
+                    init.kind,
+                    ExprKind::Reference {
+                        name: Reference::Parameter(Some(_)),
+                        ..
+                    }
+                ) && self.context.props;
+                let (mut value, rest) = if props {
+                    let mut lazy: Vec<Key> = segments.collect();
+                    let rest = if default.is_some() {
+                        keys
+                    } else {
+                        lazy.extend_from_slice(keys);
+                        &[]
                     };
-                    value = self.lookup(value, &Key::Static(key), name);
+                    (self.value_at(file, init, &lazy), rest)
+                } else {
+                    let value = segments.fold(self.value(file, init), |value, key| {
+                        self.lookup(value, &key, name)
+                    });
+                    (value, keys)
+                };
+                if let Some(default) = default {
+                    value = self.with_default(value, file, default);
                 }
-                if let Some(default) = default
-                    && value.kind == ValueKind::Undefined
-                {
-                    value = self.value(file, default);
+                for key in rest {
+                    value = self.lookup(value, key, name);
                 }
                 self.active.borrow_mut().pop();
                 Ok(value)
@@ -404,6 +814,21 @@ impl Resolver<'_, '_> {
     fn file(&self, file: FileId) -> Option<String> {
         (file != self.usage).then(|| self.context.paths[file.0 as usize].clone())
     }
+}
+
+fn segment_key(segment: &Segment) -> String {
+    match segment {
+        Segment::Key(key) => key.clone(),
+        Segment::Index(index) => index.to_string(),
+    }
+}
+
+/// The tag of `element` as written: `Panel` or `C.Panel`.
+fn tag(element: &JsxElement) -> String {
+    std::iter::once(element.root.as_str())
+        .chain(element.members.iter().map(String::as_str))
+        .collect::<Vec<_>>()
+        .join(".")
 }
 
 fn code(error: &OriginError) -> UnresolvedCode {

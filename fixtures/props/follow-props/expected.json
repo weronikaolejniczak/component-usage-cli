@@ -1,0 +1,279 @@
+{
+  "query": { "components": ["Button"], "from": "lib", "follow": ["props"] },
+  "usages": [
+    {
+      "component": "Button", "file": "components.jsx", "line": 5, "column": 10,
+      "props": [
+        {
+          "name": "iconType",
+          "value": {
+            "kind": "one-of", "line": 4, "column": 26,
+            "values": [
+              {
+                "kind": "literal", "value": "pencil", "file": "App.jsx", "line": 10, "column": 24,
+                "via": [{ "text": "Header", "file": "App.jsx", "line": 10, "column": 7 }]
+              },
+              {
+                "kind": "literal", "value": "gear", "line": 4, "column": 37,
+                "via": [{ "text": "Header", "file": "App.jsx", "line": 11, "column": 7 }]
+              },
+              {
+                "kind": "literal", "value": "trash", "file": "App.jsx", "line": 15, "column": 19,
+                "via": [
+                  { "text": "Header", "line": 18, "column": 10 },
+                  { "text": "icon", "line": 18, "column": 28 },
+                  { "text": "Outer", "file": "App.jsx", "line": 15, "column": 7 }
+                ]
+              }
+            ],
+            "via": [{ "text": "iconType", "line": 5, "column": 28 }]
+          }
+        },
+        {
+          "name": "title",
+          "value": {
+            "kind": "one-of", "line": 4, "column": 48,
+            "values": [
+              {
+                "kind": "literal", "value": "Edit", "file": "App.jsx", "line": 10, "column": 39,
+                "via": [{ "text": "Header", "file": "App.jsx", "line": 10, "column": 7 }]
+              },
+              {
+                "kind": "undefined", "file": "App.jsx", "line": 11, "column": 7,
+                "via": [{ "text": "Header", "file": "App.jsx", "line": 11, "column": 7 }]
+              },
+              {
+                "kind": "undefined", "line": 18, "column": 10,
+                "via": [{ "text": "Header", "line": 18, "column": 10 }]
+              }
+            ],
+            "via": [{ "text": "rest.title", "line": 5, "column": 45 }]
+          }
+        },
+        {
+          "name": "color",
+          "value": {
+            "kind": "undefined", "line": 4, "column": 48,
+            "via": [{ "text": "rest.iconType", "line": 5, "column": 64 }]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 10, "column": 10,
+      "props": [
+        {
+          "name": "label",
+          "value": {
+            "kind": "one-of", "line": 8, "column": 23,
+            "values": [
+              {
+                "kind": "literal", "value": "one", "file": "App.jsx", "line": 12, "column": 20,
+                "via": [{ "text": "Panel", "file": "App.jsx", "line": 12, "column": 7 }]
+              },
+              {
+                "kind": "literal", "value": "two", "file": "App.jsx", "line": 13, "column": 29,
+                "via": [{ "text": "C.Panel", "file": "App.jsx", "line": 13, "column": 7 }]
+              }
+            ],
+            "via": [{ "text": "props.label", "line": 10, "column": 25 }]
+          }
+        },
+        {
+          "name": "fill",
+          "value": {
+            "kind": "one-of", "line": 8, "column": 23,
+            "values": [
+              {
+                "kind": "literal", "value": "s", "file": "App.jsx", "line": 5, "column": 14,
+                "via": [
+                  { "text": "Panel", "file": "App.jsx", "line": 12, "column": 7 },
+                  { "text": "SIZE", "file": "App.jsx", "line": 12, "column": 32 }
+                ]
+              },
+              {
+                "kind": "undefined", "file": "App.jsx", "line": 13, "column": 7,
+                "via": [{ "text": "C.Panel", "file": "App.jsx", "line": 13, "column": 7 }]
+              }
+            ],
+            "via": [
+              { "text": "fill", "line": 10, "column": 44 },
+              { "text": "props", "line": 9, "column": 20 }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 14, "column": 10,
+      "props": [
+        {
+          "spread": {
+            "kind": "object", "file": "App.jsx", "line": 14, "column": 7,
+            "entries": [
+              { "key": "iconType", "value": { "kind": "literal", "value": "bell", "file": "App.jsx", "line": 14, "column": 25 } },
+              { "key": "disabled", "value": { "kind": "literal", "value": true, "file": "App.jsx", "line": 14, "column": 32 } }
+            ],
+            "via": [
+              { "text": "props", "line": 14, "column": 22 },
+              { "text": "Forward", "file": "App.jsx", "line": 14, "column": 7 }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 21, "column": 40,
+      "props": [
+        {
+          "name": "name",
+          "value": {
+            "kind": "literal", "value": "m", "file": "App.jsx", "line": 16, "column": 18,
+            "via": [
+              { "text": "name", "line": 21, "column": 54 },
+              { "text": "Memo", "file": "App.jsx", "line": 16, "column": 7 }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 23, "column": 31,
+      "props": [
+        {
+          "name": "append",
+          "value": {
+            "kind": "literal", "value": "z", "file": "App.jsx", "line": 17, "column": 23,
+            "via": [
+              { "text": "append", "line": 23, "column": 47 },
+              { "text": "Wrapped", "file": "App.jsx", "line": 17, "column": 7 }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 27, "column": 10,
+      "props": [
+        {
+          "name": "size",
+          "value": {
+            "kind": "one-of", "line": 26, "column": 27,
+            "values": [
+              {
+                "kind": "literal", "value": "l", "file": "App.jsx", "line": 18, "column": 21,
+                "via": [{ "text": "Escaped", "file": "App.jsx", "line": 18, "column": 7 }]
+              },
+              { "kind": "unresolved", "code": "other-callers", "text": "Escaped", "line": 26, "column": 17 }
+            ],
+            "via": [{ "text": "size", "line": 27, "column": 24 }]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 32, "column": 10,
+      "props": [
+        { "name": "width", "value": { "kind": "unresolved", "code": "no-callers", "text": "width", "line": 32, "column": 25 } }
+      ]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 36, "column": 30,
+      "props": [
+        { "name": "prepend", "value": { "kind": "unresolved", "code": "parameter", "text": "item.icon", "line": 36, "column": 47 } }
+      ]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 41, "column": 5,
+      "props": [
+        {
+          "name": "depth",
+          "value": {
+            "kind": "one-of", "line": 39, "column": 24,
+            "values": [
+              {
+                "kind": "literal", "value": 1, "file": "App.jsx", "line": 20, "column": 20,
+                "via": [{ "text": "Tree", "file": "App.jsx", "line": 20, "column": 7 }]
+              },
+              {
+                "kind": "unresolved", "code": "unsupported", "text": "depth", "line": 42, "column": 20,
+                "via": [{ "text": "Tree", "line": 42, "column": 7 }]
+              }
+            ],
+            "via": [{ "text": "depth", "line": 41, "column": 20 }]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 48, "column": 10,
+      "props": [
+        {
+          "name": "aria-label",
+          "value": {
+            "kind": "one-of", "line": 47, "column": 27,
+            "values": [
+              {
+                "kind": "unresolved", "code": "unsupported", "text": "children", "file": "App.jsx", "line": 21, "column": 16,
+                "via": [{ "text": "Labeled", "file": "App.jsx", "line": 21, "column": 7 }]
+              },
+              {
+                "kind": "literal", "value": "c", "file": "App.jsx", "line": 22, "column": 25,
+                "via": [{ "text": "Labeled", "file": "App.jsx", "line": 22, "column": 7 }]
+              }
+            ],
+            "via": [{ "text": "children", "line": 48, "column": 30 }]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 51, "column": 30,
+      "props": [
+        {
+          "name": "data",
+          "value": {
+            "kind": "literal", "value": "d", "file": "App.jsx", "line": 23, "column": 18,
+            "via": [
+              { "text": "data", "line": 51, "column": 44 },
+              { "text": "Anon", "file": "App.jsx", "line": 23, "column": 7 }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 54, "column": 10,
+      "props": [
+        {
+          "spread": {
+            "kind": "object", "file": "App.jsx", "line": 24, "column": 7,
+            "entries": [
+              { "key": "label", "value": { "kind": "literal", "value": "y", "file": "App.jsx", "line": 24, "column": 28 } }
+            ],
+            "via": [
+              { "text": "rest", "line": 54, "column": 22 },
+              { "text": "Rest", "file": "App.jsx", "line": 24, "column": 7 }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Button", "file": "components.jsx", "line": 57, "column": 50,
+      "props": [
+        {
+          "name": "size",
+          "value": {
+            "kind": "literal", "value": "s", "file": "App.jsx", "line": 25, "column": 17,
+            "via": [
+              { "text": "size", "line": 57, "column": 64 },
+              { "text": "Ref", "file": "App.jsx", "line": 25, "column": 7 }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "unidentified": []
+}

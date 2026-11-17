@@ -204,8 +204,14 @@ pub enum UnresolvedCode {
     /// A binding that is assigned to after its declaration, declared more than once, or whose
     /// contents are changed in the file.
     Mutated,
-    /// A function parameter, or a property of one.
+    /// A function parameter, or a property of one, that isn't followed: following props is off,
+    /// the function isn't a component, or it isn't rendered as a JSX tag and is used another way.
     Parameter,
+    /// A component's prop, where the component isn't rendered as a JSX tag or used any other way.
+    NoCallers,
+    /// One of a prop's values: the component is also used other than as a JSX tag, so it may
+    /// receive values that aren't listed.
+    OtherCallers,
     /// A name not declared in the file.
     Global,
     /// The result of a call.

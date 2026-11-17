@@ -1,6 +1,6 @@
 # component-usage-cli
 
-CLI that statically analyzes a React codebase and reports every usage of selected components, with its props as written, or followed through variables and imports. Following props is planned.
+CLI that statically analyzes a React codebase and reports every usage of selected components, with its props as written, or followed through variables, imports and the props of the components they're in.
 
 ## Why
 
@@ -26,6 +26,7 @@ npx component-usage-cli scan ./src --components Icon,Icon.Item --from some-libra
 - `--props`: names of the props to report. Without it, all are reported. Spreads are always reported, since they can set any prop.
 - `--follow variables`: follows names declared in the file to their values, through destructuring and property access. Each followed value is at its definition, with `via`: the names followed to reach it, with their positions.
 - `--follow imports`: also follows imported names to the exported value, through re-exports and namespace imports. A value or name in another file than the usage has a `file`.
+- `--follow props`: also follows the props of the component a usage is in to what each JSX caller of that component passes, in any file, through chains of components and `{...props}` spreads. The value is a `one-of` with a value per caller, whose `via` starts with the caller's tag. A component also used other than as a JSX tag, such as `styled(Wrapper)`, adds an `other-callers` value.
 - `--owners`: adds the owners of each file from the repository's `CODEOWNERS`. `--owners=<file>` uses a given file.
 
 The JSON report lists:
@@ -41,7 +42,7 @@ The exit code is 0 whenever a report is written.
 
 ### Planned
 
-`--follow props`, `--wrappers`, `--summary` and other output formats. See [decisions](./docs/decisions/README.md).
+`--wrappers`, `--summary` and other output formats. See [decisions](./docs/decisions/README.md).
 
 ## License
 
