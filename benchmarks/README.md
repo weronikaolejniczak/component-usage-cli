@@ -86,6 +86,21 @@ Of the 23,195 prop values, `parameter` goes from 1,440 and 82 followed to 214 an
 
 The largest value, 5.2 MB of the 19.3 MB of prop values as compact JSON, is a `{...otherProps}` spread on `EuiDataGrid` in `x-pack/solutions/security/packages/data-table/components/data_table/index.tsx`. It is a `one-of` of 15 callers; 12 are in `index.test.tsx` and each spreads the test's `props` object, directly or through another object, which holds imported mock data such as `mockTimelineData`: about 430 KB per caller.
 
+### Following calls
+
+The same scan with `--follow props,calls`, at tool commit `a2588c2`, on the same export, with `--follow props` rerun at that commit right before it for comparison. Same machine, warm cache, 5 runs each. `stats.py` now also counts values in spreads, calls and returns, so values at any depth aren't comparable with the rows above.
+
+| `--follow` | Median | Min | Max | Peak memory | Report | Values at any depth |
+|---|---|---|---|---|---|---|
+| [`props`](./results/kibana-a2588c2-follow-props/) | 5.67 s | 5.59 s | 5.80 s | 3.63–3.64 GB | 60.3 MB | 56,487 |
+| [`props,calls`](./results/kibana-a2588c2-follow-props-calls/) | 5.88 s | 5.87 s | 5.99 s | 3.96–3.97 GB | 92.0 MB | 128,797 |
+
+Of the 23,195 prop values, the 6,348 that were `unresolved` `call`, 4,727 of them followed, are now `call`. The most common callees among them are `i18n.translate` (1,837), `useMemo` (1,019), `useState` (884) and `useCallback` (679). At any depth, 13,775 values are names in a call's arguments, `in-call` ([ADR-0025](../docs/decisions/0025-names-in-calls.md)).
+
+5,421 receivers are `mutated`, such as `i18n` in `i18n.translate(…)`: `src/core/packages/i18n/browser-internal/src/i18n_eui_mapping.test.ts` assigns `i18n.translate = i18nTranslateMock`, so the imported `i18n` is changed in place ([ADR-0021](../docs/decisions/0021-follow-imports.md)).
+
+Before ADR-0025, names in a call's arguments were followed, and a value was written out wherever it was reached. One run of the same scan wrote a 102 GB report in 210.5 seconds, with a peak memory footprint of 30.2 GB.
+
 ### Checked by hand
 
 `EuiIcon` positions were compared with a text search for `<EuiIcon` followed by whitespace, `>`, `/` or the end of the line. The scan found every match the search found, except 20, and none the search missed. Each of the 20 was read: all are in comments or template strings, such as inline snapshots, so they aren't usages. The search can't see usages through generics (`<EuiBasicTable<T>`), which is why `EuiBasicTable` has more usages than a text search finds.

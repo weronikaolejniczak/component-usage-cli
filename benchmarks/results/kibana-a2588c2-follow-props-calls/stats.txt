@@ -1,0 +1,83 @@
+usages: 4640 in 3084 files
+  EuiIcon: 1827 usages in 1280 files, 30 owners
+  EuiPopover: 819 usages in 791 files, 29 owners
+  EuiComboBox: 505 usages in 426 files, 27 owners
+  EuiFlyout: 358 usages in 350 files, 27 owners
+  EuiBasicTable: 312 usages in 294 files, 27 owners
+  EuiContextMenuPanel: 223 usages in 212 files, 24 owners
+  EuiInMemoryTable: 204 usages in 187 files, 23 owners
+  EuiSelectable: 186 usages in 174 files, 25 owners
+  EuiContextMenu: 178 usages in 156 files, 22 owners
+  EuiDataGrid: 28 usages in 28 files, 13 owners
+unidentified: 16498
+  unresolved : 16482
+  commonjs-module : 14
+  missing-export : 1
+  alias EuiPopover: 1
+prop values: 23195
+  literal: 9629
+  call, followed: 4727
+  call: 1621
+  one-of, followed: 1223
+  function: 962
+  object: 890
+  one-of: 759
+  element: 560
+  function, followed: 502
+  array, followed: 336
+  unresolved, unsupported: 304
+  template: 278
+  object, followed: 260
+  unresolved, parameter: 211
+  element, followed: 204
+  array: 193
+  literal, followed: 122
+  unresolved, unsupported, followed: 96
+  unresolved, mutated: 74
+  unresolved, unparsed: 72
+  template, followed: 65
+  unresolved, parameter, followed: 50
+  unresolved, no-callers: 26
+  undefined, followed: 15
+  unresolved, not-followed (variables): 8
+  unresolved, no-callers, followed: 3
+  unresolved, mutated, followed: 2
+  undefined: 2
+  unresolved, not-followed (variables), followed: 1
+values at any depth: 128797
+  literal: 37205
+  object: 15384
+  unresolved, in-call: 13775
+  call, followed: 10022
+  call: 7800
+  function: 7057
+  unresolved, mutated: 5452
+  literal, followed: 5191
+  array: 5108
+  one-of, followed: 2800
+  undefined, followed: 2437
+  unresolved, parameter: 2263
+  one-of: 2224
+  unresolved, unsupported: 1652
+  element: 1558
+  array, followed: 1253
+  unresolved, unsupported, followed: 1164
+  function, followed: 982
+  unresolved, global: 943
+  undefined: 759
+  unresolved, parameter, followed: 656
+  unresolved, mutated, followed: 649
+  object, followed: 618
+  template: 541
+  element, followed: 284
+  unresolved, other-callers: 262
+  template, followed: 188
+  unresolved, unparsed: 175
+  unresolved, not-followed (variables): 162
+  unresolved, unresolved-import: 107
+  unresolved, no-callers, followed: 66
+  unresolved, no-callers: 34
+  unresolved, not-followed (variables), followed: 21
+  unresolved, unparsed, followed: 5
+errors: 0
+warnings: 0
