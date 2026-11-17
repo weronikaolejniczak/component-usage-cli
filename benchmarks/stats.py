@@ -40,12 +40,16 @@ def label(value):
 
 
 def nested(value):
-    """Values inside a value: entries, items, branches and template parts."""
-    for child in value.get("values", []):
-        yield child
-    for holder in value.get("entries", []) + value.get("items", []) + value.get("parts", []):
-        if isinstance(holder, dict) and isinstance(holder.get("value"), dict):
-            yield holder["value"]
+    """Values inside a value: entries, items, branches, template parts, spreads, and a call's
+    receiver, arguments and the returns of functions passed to it."""
+    yield from value.get("values", []) + value.get("returns", [])
+    if isinstance(value.get("receiver"), dict):
+        yield value["receiver"]
+    holders = value.get("entries", []) + value.get("items", []) + value.get("parts", [])
+    for holder in holders + value.get("arguments", []):
+        for key in ("value", "spread"):
+            if isinstance(holder, dict) and isinstance(holder.get(key), dict):
+                yield holder[key]
 
 
 props = [prop["value"] for u in usages for prop in u.get("props", []) if isinstance(prop.get("value"), dict)]
