@@ -1,0 +1,46 @@
+usages: 4640 in 3084 files
+  EuiIcon: 1827 usages in 1280 files, 30 owners
+  EuiPopover: 819 usages in 791 files, 29 owners
+  EuiComboBox: 505 usages in 426 files, 27 owners
+  EuiFlyout: 358 usages in 350 files, 27 owners
+  EuiBasicTable: 312 usages in 294 files, 27 owners
+  EuiContextMenuPanel: 223 usages in 212 files, 24 owners
+  EuiInMemoryTable: 204 usages in 187 files, 23 owners
+  EuiSelectable: 186 usages in 174 files, 25 owners
+  EuiContextMenu: 178 usages in 156 files, 22 owners
+  EuiDataGrid: 28 usages in 28 files, 13 owners
+unidentified: 16498
+  unresolved : 16482
+  commonjs-module : 14
+  missing-export : 1
+  alias EuiPopover: 1
+prop values: 23195
+  literal: 9629
+  unresolved, not-followed (variables): 5960
+  unresolved, call: 1621
+  unresolved, parameter: 1440
+  function: 962
+  object: 890
+  one-of: 759
+  unresolved, not-followed (imports): 597
+  element: 560
+  unresolved, unsupported: 304
+  template: 278
+  array: 193
+  undefined: 2
+values at any depth: 28395
+  literal: 11466
+  unresolved, not-followed (variables): 6835
+  unresolved, call: 1944
+  unresolved, parameter: 1886
+  object: 1337
+  function: 1125
+  one-of: 839
+  element: 761
+  unresolved, not-followed (imports): 728
+  array: 537
+  unresolved, unsupported: 459
+  template: 325
+  undefined: 153
+errors: 0
+warnings: 0

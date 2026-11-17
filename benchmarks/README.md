@@ -54,6 +54,23 @@ Report: 4,640 usages in 3,084 files, 0 errors, 0 warnings.
 | `EuiContextMenu` | 178 | 156 | 22 |
 | `EuiDataGrid` | 28 | 28 | 13 |
 
+### Following variables and imports
+
+The same scan with `--follow none`, `variables` and `imports`, at tool commit `973261e`, on an export of the same Kibana commit with only `@elastic/eui` 122.0.0 and the `@kbn` packages in `node_modules`, as [`use-cases/run.sh`](./use-cases/run.sh) sets up. Without the other dependencies, elements imported from them are `unidentified` (16,498); usages are the same 4,640. Same machine, warm cache, 5 runs.
+
+```sh
+CODEBASE="<origin> <sha> (git archive, ...)" benchmarks/run.sh <export> 5 <name> -- . --components <the 10 above> --from @elastic/eui --owners --follow <none|variables|imports>
+python3 benchmarks/stats.py benchmarks/results/<name>/report.json.gz 0
+```
+
+| `--follow` | Median | Min | Max | Peak memory | Values at any depth |
+|---|---|---|---|---|---|
+| [`none`](./results/kibana-973261e-follow-none/) | 5.87 s | 5.72 s | 9.56 s | 2.35–2.77 GB | 28,395 |
+| [`variables`](./results/kibana-973261e-follow-variables/) | 5.45 s | 5.07 s | 5.66 s | 2.80 GB | 36,781 |
+| [`imports`](./results/kibana-973261e-follow-imports/) | 5.57 s | 5.20 s | 10.15 s | 3.05 GB | 37,394 |
+
+The differences in time are smaller than the spread between runs of the same command; one run of `none` and one of `imports` took about twice the others. Peak memory varied between runs only without following. Of the 23,195 prop values, without following, 5,960 are `not-followed` variables and 597 `not-followed` imports. With `--follow imports`, 8 are left, all `not-followed` with step `variables`: 5 enum members, such as `TRANSFORM_LIST_COLUMN.ID`, and 3 names from destructuring with a rest element or a default, such as `const { isResizable, ...restOptions } = options`. The values that don't resolve are, by code: `call` 1,621 and 4,532 followed, `parameter` 1,440 and 82 followed, `unsupported` 304 and 79 followed, `mutated` 74, `unparsed` 72. Counts for each kind are in each result's `stats.txt`.
+
 ### Checked by hand
 
 `EuiIcon` positions were compared with a text search for `<EuiIcon` followed by whitespace, `>`, `/` or the end of the line. The scan found every match the search found, except 20, and none the search missed. Each of the 20 was read: all are in comments or template strings, such as inline snapshots, so they aren't usages. The search can't see usages through generics (`<EuiBasicTable<T>`), which is why `EuiBasicTable` has more usages than a text search finds.

@@ -1,0 +1,71 @@
+usages: 4640 in 3084 files
+  EuiIcon: 1827 usages in 1280 files, 30 owners
+  EuiPopover: 819 usages in 791 files, 29 owners
+  EuiComboBox: 505 usages in 426 files, 27 owners
+  EuiFlyout: 358 usages in 350 files, 27 owners
+  EuiBasicTable: 312 usages in 294 files, 27 owners
+  EuiContextMenuPanel: 223 usages in 212 files, 24 owners
+  EuiInMemoryTable: 204 usages in 187 files, 23 owners
+  EuiSelectable: 186 usages in 174 files, 25 owners
+  EuiContextMenu: 178 usages in 156 files, 22 owners
+  EuiDataGrid: 28 usages in 28 files, 13 owners
+unidentified: 16498
+  unresolved : 16482
+  commonjs-module : 14
+  missing-export : 1
+  alias EuiPopover: 1
+prop values: 23195
+  literal: 9629
+  unresolved, call, followed: 4144
+  unresolved, call: 1621
+  unresolved, parameter: 1440
+  function: 962
+  object: 890
+  one-of: 759
+  unresolved, not-followed (imports): 597
+  element: 560
+  function, followed: 408
+  array, followed: 322
+  unresolved, unsupported: 304
+  one-of, followed: 303
+  template: 278
+  object, followed: 241
+  element, followed: 200
+  array: 193
+  unresolved, parameter, followed: 82
+  unresolved, unsupported, followed: 79
+  unresolved, mutated: 74
+  literal, followed: 49
+  template, followed: 46
+  unresolved, not-followed (variables): 6
+  unresolved, not-followed (imports), followed: 6
+  undefined: 2
+values at any depth: 36781
+  literal: 14566
+  unresolved, call, followed: 5251
+  unresolved, call: 2925
+  object: 2726
+  unresolved, parameter: 2046
+  function: 1946
+  unresolved, not-followed (imports): 1001
+  element: 985
+  one-of: 961
+  array: 807
+  unresolved, unsupported: 638
+  function, followed: 458
+  one-of, followed: 436
+  array, followed: 360
+  template: 341
+  object, followed: 270
+  undefined: 243
+  element, followed: 222
+  unresolved, parameter, followed: 155
+  unresolved, unsupported, followed: 139
+  literal, followed: 122
+  unresolved, mutated: 93
+  template, followed: 60
+  unresolved, not-followed (variables): 21
+  unresolved, not-followed (imports), followed: 8
+  unresolved, not-followed (variables), followed: 1
+errors: 0
+warnings: 0

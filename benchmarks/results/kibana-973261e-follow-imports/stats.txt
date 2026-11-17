@@ -1,0 +1,71 @@
+usages: 4640 in 3084 files
+  EuiIcon: 1827 usages in 1280 files, 30 owners
+  EuiPopover: 819 usages in 791 files, 29 owners
+  EuiComboBox: 505 usages in 426 files, 27 owners
+  EuiFlyout: 358 usages in 350 files, 27 owners
+  EuiBasicTable: 312 usages in 294 files, 27 owners
+  EuiContextMenuPanel: 223 usages in 212 files, 24 owners
+  EuiInMemoryTable: 204 usages in 187 files, 23 owners
+  EuiSelectable: 186 usages in 174 files, 25 owners
+  EuiContextMenu: 178 usages in 156 files, 22 owners
+  EuiDataGrid: 28 usages in 28 files, 13 owners
+unidentified: 16498
+  unresolved : 16482
+  commonjs-module : 14
+  missing-export : 1
+  alias EuiPopover: 1
+prop values: 23195
+  literal: 9629
+  unresolved, call, followed: 4532
+  unresolved, call: 1621
+  unresolved, parameter: 1440
+  function: 962
+  object: 890
+  one-of: 759
+  element: 560
+  function, followed: 433
+  array, followed: 335
+  one-of, followed: 316
+  unresolved, unsupported: 304
+  template: 278
+  object, followed: 256
+  element, followed: 200
+  array: 193
+  literal, followed: 105
+  unresolved, parameter, followed: 82
+  unresolved, unsupported, followed: 79
+  unresolved, mutated: 74
+  unresolved, unparsed: 72
+  template, followed: 65
+  unresolved, not-followed (variables): 8
+  undefined: 2
+values at any depth: 37394
+  literal: 14861
+  unresolved, call, followed: 5867
+  unresolved, call: 2977
+  object: 2808
+  unresolved, parameter: 2046
+  function: 1955
+  element: 997
+  one-of: 961
+  array: 810
+  unresolved, unsupported: 638
+  function, followed: 523
+  one-of, followed: 461
+  array, followed: 387
+  template: 341
+  literal, followed: 293
+  object, followed: 292
+  undefined: 246
+  element, followed: 222
+  unresolved, unparsed: 155
+  unresolved, parameter, followed: 155
+  unresolved, unsupported, followed: 143
+  template, followed: 98
+  unresolved, mutated: 93
+  unresolved, not-followed (variables): 59
+  unresolved, unparsed, followed: 4
+  unresolved, not-followed (variables), followed: 1
+  unresolved, unresolved-import: 1
+errors: 0
+warnings: 0
