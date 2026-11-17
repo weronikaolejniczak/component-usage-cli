@@ -6,7 +6,7 @@ Usage:
   analyse.py selects <checkout> <report.json> <out.json>
   analyse.py styles  <checkout> <report.json> <out.json> -- <codeowners command...>
 
-<report.json> is a `scan --from <library> --owners --follow props,calls` report,
+<report.json> is a `scan --from <library> --owners --follow props,calls --wrappers` report,
 without `--components`, so every export of the library is a target. Prints a summary
 and writes the full findings, grouped by owner, to <out.json>.
 """
@@ -338,7 +338,10 @@ def returns_array(call):
 
 def selects(checkout, report, out):
     owners = owners_from_report(report)
-    usages = [u for u in report["usages"] if u["component"] in SELECTS]
+    # A usage through wrappers has only the attributes its caller writes, not the props the
+    # wrappers set, so props and features are counted on the other usages.
+    through = [u for u in report["usages"] if u["component"] in SELECTS and "through" in u]
+    usages = [u for u in report["usages"] if u["component"] in SELECTS and "through" not in u]
     per = {c: [u for u in usages if u["component"] == c] for c in SELECTS}
 
     rows = []
@@ -346,11 +349,17 @@ def selects(checkout, report, out):
         files = {u["file"] for u in items}
         teams = {o for f in files for o in owners.get(f, [])}
         spreads = sum(spread(u) for u in items)
-        rows.append((component, len(items), len(files), len(teams), f"{spreads} ({percent(spreads, len(items))})"))
-    table(["component", "usages", "files", "teams", "with {...spread}"], rows)
+        wrapped = sum(u["component"] == component for u in through)
+        rows.append((component, len(items), len(files), len(teams), f"{spreads} ({percent(spreads, len(items))})", wrapped))
+    table(["component", "usages", "files", "teams", "with {...spread}", "through wrappers"], rows)
+
+    wrappers = collections.Counter(
+        (u["component"], u["through"][-1]["component"], u["through"][-1]["file"]) for u in through)
+    print("Wrappers whose usages reach a select, by the last wrapper before it")
+    table(["component", "wrapper", "file", "usages"], [(*key, n) for key, n in wrappers.most_common(15)])
 
     teams = collections.Counter()
-    for u in usages:
+    for u in usages + through:
         for owner in owners.get(u["file"]) or ["(unowned)"]:
             teams[(owner, u["component"])] += 1
     totals = collections.Counter()
@@ -422,11 +431,12 @@ def selects(checkout, report, out):
         "no aria-label, aria-labelledby or id, not inside an EuiFormRow": [u for u in labelless if not in_row(u)],
         "EuiSelectable inside a popover": in_popover,
         "props passed with {...spread} (wrappers or forwarding)": [u for u in usages if spread(u)],
+        "through wrappers": through,
     }
     table(["pattern", "usages"], [(name, len(items)) for name, items in findings.items()])
 
     wrappers = collections.Counter(u["file"] for u in usages if spread(u))
-    print("Files that spread props into a select (wrapper candidates)")
+    print("Files that spread props into a select")
     table(["file", "usages"], wrappers.most_common(15))
     write(out, {name: by_owner(items, owners) for name, items in findings.items()})
 
@@ -456,7 +466,9 @@ def css_properties(value):
 
 def styles(checkout, report, out, command):
     owners = owners_from_report(report)
-    usages = report["usages"]
+    # A usage through wrappers has only the attributes its caller writes, so it's counted apart.
+    usages = [u for u in report["usages"] if "through" not in u]
+    through = [u for u in report["usages"] if "through" in u]
     per = collections.defaultdict(list)
     for u in usages:
         per[u["component"]].append(u)
@@ -507,6 +519,25 @@ def styles(checkout, report, out, command):
         for _, _, _, m in rg(checkout, r"\b(styled|euiStyled)\((Eui[A-Z]\w*(\.\w+)?)\)", SOURCES))
     print(f"styled(Eui*) wrappers: {sum(styled.values())}")
     table(["component", "wrappers"], styled.most_common(10))
+
+    cache = {}
+
+    def styled_step(u):
+        """Whether a wrapper on the way is a `styled(…)` or `euiStyled(…)` call."""
+        for step in u["through"]:
+            text = cache.setdefault(step["file"], lines(checkout, step["file"]))[step["line"] - 1]
+            before = text.encode("utf-16-le")[: 2 * (step["column"] - 1)].decode("utf-16-le")
+            if re.search(r"\b(styled|euiStyled)\(\s*$", before):
+                return True
+        return False
+
+    by_styled = [u for u in through if styled_step(u)]
+    wrapped = [u for u in through if any(k in named(u) for k in kinds)]
+    print(f"usages through wrappers: {len(through)}, of which through a styled(…) or euiStyled(…) call: {len(by_styled)}; "
+          f"with css, className or style written by their callers: {len(wrapped)}")
+    table(["component", "through wrappers", "through styled(…)"], [
+        (c, n, sum(u["component"] == c for u in by_styled))
+        for c, n in collections.Counter(u["component"] for u in through).most_common(10)])
 
     selectors = [
         (f, l, c, m[m.index("."):])
