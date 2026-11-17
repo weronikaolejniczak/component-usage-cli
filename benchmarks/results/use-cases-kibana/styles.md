@@ -5,38 +5,37 @@ EUI usages: 87239; with css, className or style: 7291 (8.4%)
 |---|---|
 | template, tag css | 1585 |
 | object | 1117 |
-| call, followed | 866 |
-| template, tag css, followed | 516 |
+| call, followed | 899 |
+| template, tag css, followed | 548 |
 | call | 171 |
-| not-followed (imports) | 145 |
+| function, followed | 137 |
 | one-of | 107 |
 | array | 101 |
-| function, followed | 87 |
-| object, followed | 61 |
+| object, followed | 93 |
+| function | 35 |
 
 `className`: 1541 usages; what the value is
 | value | usages |
 |---|---|
 | literal | 1124 |
 | template, tag css | 87 |
-| template, tag css, followed | 66 |
+| template, tag css, followed | 76 |
+| call, followed | 53 |
 | call | 51 |
 | parameter | 48 |
-| call, followed | 47 |
 | one-of | 29 |
-| not-followed (imports) | 28 |
+| literal, followed | 27 |
 | template | 23 |
-| literal, followed | 14 |
+| unsupported | 12 |
 
 `style`: 1189 usages; what the value is
 | value | usages |
 |---|---|
 | object | 1072 |
-| object, followed | 53 |
+| object, followed | 58 |
 | one-of | 23 |
 | call, followed | 16 |
 | parameter | 13 |
-| not-followed (imports) | 5 |
 | mutated | 4 |
 | one-of, followed | 3 |
 
@@ -67,26 +66,26 @@ Components with at least 100 usages, by share of overridden usages
 Properties set in `css`, in object keys and template text, by usages
 | property | usages |
 |---|---|
-| height | 348 |
-| width | 344 |
-| padding | 253 |
-| display | 253 |
-| overflow | 223 |
-| min-width | 197 |
+| width | 364 |
+| height | 350 |
+| display | 264 |
+| padding | 257 |
+| overflow | 244 |
+| min-width | 214 |
+| minWidth | 169 |
 | font-weight | 166 |
-| minWidth | 158 |
 | color | 156 |
-| max-width | 126 |
+| max-width | 144 |
 | min-height | 118 |
-| position | 113 |
+| position | 115 |
 | background-color | 106 |
-| maxWidth | 96 |
-| margin-left | 94 |
-| border-radius | 84 |
+| maxWidth | 97 |
+| margin-left | 95 |
+| border-radius | 90 |
 | flex | 82 |
-| margin | 74 |
+| margin | 75 |
 | border | 71 |
-| align-items | 68 |
+| white-space | 70 |
 
 Properties set in `style`, in object keys and template text, by usages
 | property | usages |
@@ -105,12 +104,12 @@ Properties set in `style`, in object keys and template text, by usages
 | backgroundColor | 30 |
 | position | 28 |
 | marginTop | 28 |
+| lineHeight | 23 |
+| fontSize | 21 |
 | marginBottom | 21 |
 | paddingTop | 20 |
 | alignItems | 20 |
 | flexBasis | 20 |
-| paddingRight | 18 |
-| lineHeight | 18 |
 
 className tokens that are EUI's own classes, in literals and template text
 | class | usages |

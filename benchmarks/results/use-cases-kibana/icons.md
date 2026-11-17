@@ -1,25 +1,25 @@
-aliases: 72; findings: 22717; icon values to review: 771
+aliases: 72; findings: 22717; icon values to review: 713
 
 | kind | findings |
 |---|---|
 | eui-jsx | 302 |
 | eui-data | 0 |
-| eui-variable | 22 |
+| eui-variable | 26 |
 | other-jsx | 49 |
 | icon-key | 127 |
-| eui-other-prop | 109 |
-| other-string | 22108 |
+| eui-other-prop | 117 |
+| other-string | 22096 |
 
 | review reason | values |
 |---|---|
 | parameter | 318 |
-| not-followed (imports) | 119 |
 | call, followed | 114 |
+| unparsed | 76 |
 | call | 74 |
-| not-followed (imports), followed | 60 |
+| unparsed, followed | 40 |
 | parameter, followed | 34 |
-| mutated | 28 |
-| unsupported, followed | 11 |
+| mutated | 32 |
+| unsupported, followed | 12 |
 | template | 9 |
 | unsupported | 3 |
 | template, followed | 1 |
@@ -48,27 +48,30 @@ aliases: 72; findings: 22717; icon values to review: 771
 | logstashInput | 0 | 0 | 1 | 2 | 3 | 0 | 2 |
 | indexClose | 1 | 0 | 1 | 4 | 0 | 0 | 0 |
 | stopSlash | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
-| index | 2 | 0 | 0 | 1 | 1 | 15 | 2359 |
+| index | 2 | 0 | 0 | 1 | 1 | 16 | 2358 |
 | compute | 0 | 0 | 1 | 0 | 3 | 0 | 35 |
 | visGoal | 0 | 0 | 1 | 0 | 3 | 0 | 0 |
-| search | 3 | 0 | 0 | 0 | 0 | 2 | 1557 |
-| list | 1 | 0 | 2 | 0 | 0 | 12 | 734 |
+| search | 3 | 0 | 0 | 0 | 0 | 3 | 1556 |
+| list | 1 | 0 | 2 | 0 | 0 | 14 | 732 |
+| pinFilled | 2 | 0 | 1 | 0 | 0 | 0 | 6 |
 | logstashOutput | 0 | 0 | 2 | 1 | 0 | 0 | 2 |
 | visLine | 3 | 0 | 0 | 0 | 0 | 0 | 2 |
 | securitySignalDetected | 0 | 0 | 0 | 0 | 3 | 0 | 1 |
 | indexRuntime | 2 | 0 | 0 | 1 | 0 | 0 | 0 |
-| ip | 0 | 0 | 1 | 0 | 1 | 1 | 1494 |
-| pinFilled | 2 | 0 | 0 | 0 | 0 | 0 | 7 |
+| ip | 0 | 0 | 1 | 0 | 1 | 4 | 1491 |
 | logstashFilter | 0 | 0 | 0 | 1 | 1 | 0 | 2 |
 | esqlVis | 0 | 0 | 1 | 1 | 0 | 0 | 1 |
 | sessionViewer | 1 | 0 | 0 | 1 | 0 | 0 | 0 |
 | timelineWithArrow | 1 | 0 | 0 | 0 | 1 | 0 | 0 |
 | wordWrap | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
 | wordWrapDisabled | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
-| string | 0 | 0 | 0 | 0 | 1 | 68 | 12035 |
+| string | 0 | 0 | 0 | 0 | 1 | 69 | 12034 |
 | scale | 1 | 0 | 0 | 0 | 0 | 1 | 203 |
 | container | 0 | 0 | 0 | 0 | 1 | 0 | 190 |
+| mapMarker | 0 | 0 | 1 | 0 | 0 | 0 | 11 |
+| editorComment | 0 | 0 | 1 | 0 | 0 | 0 | 10 |
 | logRateAnalysis | 1 | 0 | 0 | 0 | 0 | 0 | 9 |
+| starFilled | 0 | 0 | 1 | 0 | 0 | 0 | 7 |
 | article | 0 | 0 | 0 | 0 | 1 | 0 | 2 |
 | folderCheck | 0 | 0 | 0 | 0 | 1 | 0 | 2 |
 | folderExclamation | 0 | 0 | 0 | 0 | 1 | 0 | 2 |
@@ -82,10 +85,7 @@ aliases: 72; findings: 22717; icon values to review: 771
 | temperature | 0 | 0 | 0 | 0 | 0 | 0 | 96 |
 | payment | 0 | 0 | 0 | 0 | 0 | 0 | 58 |
 | mobile | 0 | 0 | 0 | 0 | 0 | 0 | 39 |
-| mapMarker | 0 | 0 | 0 | 0 | 0 | 0 | 12 |
 | starEmpty | 0 | 0 | 0 | 0 | 0 | 0 | 12 |
-| editorComment | 0 | 0 | 0 | 0 | 0 | 0 | 11 |
-| starFilled | 0 | 0 | 0 | 0 | 0 | 0 | 8 |
 | kubernetesPod | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
 | visBarVertical | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 | visPie | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
@@ -95,7 +95,7 @@ aliases: 72; findings: 22717; icon values to review: 771
 |---|---|
 | @elastic/search-ml-ux | 58 |
 | @elastic/security-investigations | 50 |
-| @elastic/kibana-dashboards | 33 |
+| @elastic/kibana-dashboards | 37 |
 | @elastic/appex-sharedux | 32 |
 | @elastic/kibana-management | 31 |
 | @elastic/nightshift-sre-agent-team | 28 |
