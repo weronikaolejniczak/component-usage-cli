@@ -6,7 +6,7 @@ Usage:
   analyse.py selects <checkout> <report.json> <out.json>
   analyse.py styles  <checkout> <report.json> <out.json> -- <codeowners command...>
 
-<report.json> is a `scan --from <library> --owners --follow variables` report,
+<report.json> is a `scan --from <library> --owners --follow imports` report,
 without `--components`, so every export of the library is a target. Prints a summary
 and writes the full findings, grouped by owner, to <out.json>.
 """
@@ -77,7 +77,8 @@ def reason(value):
 
 
 def at(usage, value):
-    return {"file": usage["file"], "line": value["line"], "column": value["column"]}
+    """Where `value` is: in the usage's file, or in the file it was followed to."""
+    return {"file": value.get("file", usage["file"]), "line": value["line"], "column": value["column"]}
 
 
 def rg(checkout, pattern, globs):
@@ -166,7 +167,7 @@ def icon_attribute(name, before):
 
 
 # Kinds of findings, most precise first. `eui-variable` is a literal in a variable that an icon
-# prop of an EUI usage reads, found with `--follow variables`.
+# prop of an EUI usage reads, in the same file or another, found with `--follow imports`.
 ORDER = ["eui-jsx", "eui-data", "eui-variable", "other-jsx", "icon-key", "eui-other-prop", "other-string"]
 
 
@@ -183,7 +184,7 @@ def icons(checkout, report, out, command):
                     continue
                 icon = icon_value(usage["component"], name, path)
                 entry = base | {"prop": ".".join((name,) + path)}
-                position = (usage["file"], node["line"], node["column"])
+                position = tuple(at(usage, node).values())
                 if string(node):
                     found.setdefault(position, None)
                     if node["value"] in aliases:
