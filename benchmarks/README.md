@@ -101,6 +101,20 @@ Of the 23,195 prop values, the 6,348 that were `unresolved` `call`, 4,727 of the
 
 Before ADR-0025, names in a call's arguments were followed, and a value was written out wherever it was reached. One run of the same scan wrote a 102 GB report in 210.5 seconds, with a peak memory footprint of 30.2 GB.
 
+### Wrappers and references
+
+The same scan with `--follow props`, at tool commit `c7f27c4`, which adds `references` ([ADR-0027](../docs/decisions/0027-references.md), [ADR-0028](../docs/decisions/0028-references-of-unrendered-wrappers.md)), with and without `--wrappers` ([ADR-0026](../docs/decisions/0026-wrappers.md)), and at `a2588c2` for comparison. Same export. Times aren't given: other processes loaded the machine during the runs (load average 16 to 25 on 11 cores), so `times.txt` in each folder doesn't measure the tool.
+
+| Commit | Flags | Report | Usages | Through wrappers | References |
+|---|---|---|---|---|---|
+| [`a2588c2`](./results/kibana-a2588c2-follow-props-rerun/) | | 60.3 MB | 4,640 | | |
+| [`c7f27c4`](./results/kibana-c7f27c4-follow-props/) | | 60.3 MB | 4,640 | | 136 |
+| [`c7f27c4`](./results/kibana-c7f27c4-follow-props-wrappers/) | `--wrappers` | 80.8 MB | 4,937 | 297 | 113 |
+
+With `--wrappers`, the other 4,640 usages are the same, and 297 more go through 76 wrappers: 278 through one, 19 through two. By target: `EuiIcon` 142, `EuiComboBox` 49, `EuiPopover` 38, `EuiInMemoryTable` 22, `EuiBasicTable` 16, `EuiDataGrid` 16, `EuiFlyout` 9, `EuiSelectable` 4, `EuiContextMenu` 1. Eight of them, six picked at random with seed 7 and the first two through two wrappers, were read in the source: each wrapper spreads its props or rest into the next step, or holds `styled(EuiBasicTable as …)`, and the props left out are the ones its rest pattern takes.
+
+Of the 136 references without `--wrappers`, 127 are call arguments, 6 variables, 2 other and 1 an attribute. Most are in tests: `find` on a rendered tree, as in `wrapper.find(EuiComboBox)`, is the callee of 102. `styled` (19) and `euiStyled` (3) are others. With `--wrappers`, 23 references are left out, each a step in a usage's `through`, among them every `styled` and `euiStyled` call. A callee is its source text, line breaks included.
+
 ### Checked by hand
 
 `EuiIcon` positions were compared with a text search for `<EuiIcon` followed by whitespace, `>`, `/` or the end of the line. The scan found every match the search found, except 20, and none the search missed. Each of the 20 was read: all are in comments or template strings, such as inline snapshots, so they aren't usages. The search can't see usages through generics (`<EuiBasicTable<T>`), which is why `EuiBasicTable` has more usages than a text search finds.
