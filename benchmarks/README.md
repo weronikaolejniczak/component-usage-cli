@@ -111,7 +111,15 @@ The same scan with `--follow props`, at tool commit `e7ba3c1`, which adds `refer
 | [`e7ba3c1`](./results/kibana-e7ba3c1-follow-props/) | | 6.17 s | 5.94 s | 8.24 s | 3.74–3.75 GB | 60.3 MB | 4,640 | | 136 |
 | [`e7ba3c1`](./results/kibana-e7ba3c1-follow-props-wrappers/) | `--wrappers` | 6.20 s | 5.92 s | 7.12 s | 3.76–3.77 GB | 80.8 MB | 4,937 | 297 | 113 |
 
-Finding references needs each node's parent, which the parser now records for every file, with or without `--wrappers`.
+At `e7ba3c1`, finding references needs each node's parent, which the parser records for every file, with or without `--wrappers`.
+
+At `bb39e7c`, references are found with a stack of the nodes being visited instead, and the ones of target components are picked out once the module graph is built, after which every file's references are dropped. The reports are the same as at `e7ba3c1`. Run back to back with `a2588c2`, 5 runs each, load average 9.4 before the first scan and 12.0 after the last:
+
+| Commit | Flags | Median | Min | Max | Peak memory |
+|---|---|---|---|---|---|
+| [`a2588c2`](./results/kibana-a2588c2-follow-props-rerun-2/) | | 5.64 s | 5.61 s | 5.72 s | 3.63–3.64 GB |
+| [`bb39e7c`](./results/kibana-bb39e7c-follow-props/) | | 6.20 s | 6.03 s | 6.82 s | 3.70–3.72 GB |
+| [`bb39e7c`](./results/kibana-bb39e7c-follow-props-wrappers/) | `--wrappers` | 6.01 s | 5.99 s | 6.14 s | 3.72–3.73 GB |
 
 With `--wrappers`, the other 4,640 usages are the same, and 297 more go through 76 wrappers: 278 through one, 19 through two. By target: `EuiIcon` 142, `EuiComboBox` 49, `EuiPopover` 38, `EuiInMemoryTable` 22, `EuiBasicTable` 16, `EuiDataGrid` 16, `EuiFlyout` 9, `EuiSelectable` 4, `EuiContextMenu` 1. Eight of them, six picked at random with seed 7 and the first two through two wrappers, were read in the source: each wrapper spreads its props or rest into the next step, or holds `styled(EuiBasicTable as …)`, and the props left out are the ones its rest pattern takes.
 
@@ -137,9 +145,9 @@ Of 2,375 unidentified elements in the `09dad13` report:
 
 The [`kibana-alternatives`](./results/kibana-alternatives/) report, which covers every EUI component, has one more `alias`: `let ButtonComponent = EuiButton`, reassigned to `EuiButtonIcon` in an `if`. It is reported with `component: EuiButton`, because reassignments of `let` aren't checked, though the element can render either.
 
-Not reported at all, because they aren't JSX elements whose name is bound to an import:
+Not reported as usages, because they aren't JSX elements whose name is bound to an import:
 
-- Components passed as values: `styled(EuiIcon)`, `createElement(EuiIcon)`, `component={EuiIcon}`, maps of components.
+- Components passed as values: `styled(EuiIcon)`, `createElement(EuiIcon)`, `component={EuiIcon}`, maps of components. Since `e7ba3c1` they are `references`.
 - Constants exported from one file and rendered in another.
 
 ## Alternatives

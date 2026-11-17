@@ -1,0 +1,131 @@
+usages: 4640 in 3084 files
+  EuiIcon: 1827 usages in 1280 files, 30 owners
+    @elastic/search-ml-ux: 289
+    @elastic/kibana-dashboards: 208
+    @elastic/kibana-management: 170
+    @elastic/streams-ui: 120
+    @elastic/security-investigations: 114
+  EuiPopover: 819 usages in 791 files, 29 owners
+    @elastic/search-ml-ux: 93
+    @elastic/kibana-dashboards: 73
+    @elastic/kibana-management: 71
+    @elastic/security-investigations: 70
+    @elastic/obs-signals-logs-team: 57
+  EuiComboBox: 505 usages in 426 files, 27 owners
+    @elastic/kibana-dashboards: 85
+    @elastic/search-ml-ux: 50
+    @elastic/streams-ui: 42
+    @elastic/nightshift-sre-agent-team: 35
+    @elastic/kibana-management: 34
+  EuiFlyout: 358 usages in 350 files, 27 owners
+    @elastic/search-ml-ux: 53
+    @elastic/kibana-management: 49
+    @elastic/streams-ui: 39
+    @elastic/obs-signals-logs-team: 23
+    @elastic/nightshift-sre-agent-team: 22
+  EuiBasicTable: 312 usages in 294 files, 27 owners
+    @elastic/search-ml-ux: 47
+    @elastic/streams-ui: 25
+    @elastic/obs-signals-logs-team: 23
+    @elastic/nightshift-context-and-research-team: 20
+    @elastic/security-investigations: 20
+  EuiContextMenuPanel: 223 usages in 212 files, 24 owners
+    @elastic/search-ml-ux: 24
+    @elastic/workchat-eng: 18
+    @elastic/kibana-management: 16
+    @elastic/streams-ui: 16
+    @elastic/kibana-dashboards: 14
+  EuiInMemoryTable: 204 usages in 187 files, 23 owners
+    @elastic/search-ml-ux: 30
+    @elastic/security-investigations: 28
+    @elastic/kibana-management: 27
+    @elastic/kibana-discover: 12
+    @elastic/obs-signals-logs-team: 11
+  EuiSelectable: 186 usages in 174 files, 25 owners
+    @elastic/kibana-management: 28
+    @elastic/streams-ui: 18
+    @elastic/security-defend-workflows: 16
+    @elastic/kibana-dashboards: 15
+    @elastic/search-ml-ux: 14
+  EuiContextMenu: 178 usages in 156 files, 22 owners
+    @elastic/security-investigations: 48
+    @elastic/kibana-dashboards: 18
+    @elastic/appex-sharedux: 15
+    @elastic/kibana-management: 15
+    @elastic/search-ml-ux: 14
+  EuiDataGrid: 28 usages in 28 files, 13 owners
+    @elastic/streams-ui: 5
+    @elastic/kibana-discover: 4
+    @elastic/obs-signals-logs-team: 4
+    @elastic/kibana-dashboards: 3
+    @elastic/workflows-eng: 3
+unidentified: 16498
+  unresolved : 16482
+  commonjs-module : 14
+  missing-export : 1
+  alias EuiPopover: 1
+prop values: 23195
+  literal: 9629
+  unresolved, call, followed: 4727
+  unresolved, call: 1621
+  one-of, followed: 1223
+  function: 962
+  object: 890
+  one-of: 759
+  element: 560
+  function, followed: 502
+  array, followed: 336
+  unresolved, unsupported: 304
+  template: 278
+  object, followed: 260
+  unresolved, parameter: 211
+  element, followed: 204
+  array: 193
+  literal, followed: 122
+  unresolved, unsupported, followed: 96
+  unresolved, mutated: 74
+  unresolved, unparsed: 72
+  template, followed: 65
+  unresolved, parameter, followed: 50
+  unresolved, no-callers: 26
+  undefined, followed: 15
+  unresolved, not-followed (variables): 8
+  unresolved, no-callers, followed: 3
+  unresolved, mutated, followed: 2
+  undefined: 2
+  unresolved, not-followed (variables), followed: 1
+values at any depth: 56487
+  literal: 17858
+  unresolved, call, followed: 9285
+  literal, followed: 5051
+  object: 3661
+  unresolved, call: 3310
+  one-of, followed: 2474
+  undefined, followed: 2372
+  function: 2050
+  array: 1221
+  one-of: 1081
+  element: 1075
+  unresolved, unsupported, followed: 914
+  function, followed: 868
+  array, followed: 785
+  unresolved, unsupported: 727
+  unresolved, mutated, followed: 566
+  unresolved, parameter, followed: 520
+  object, followed: 468
+  unresolved, parameter: 384
+  template: 342
+  undefined: 318
+  element, followed: 283
+  unresolved, other-callers: 231
+  template, followed: 184
+  unresolved, unparsed: 155
+  unresolved, mutated: 101
+  unresolved, not-followed (variables): 88
+  unresolved, no-callers, followed: 45
+  unresolved, no-callers: 31
+  unresolved, unresolved-import: 19
+  unresolved, not-followed (variables), followed: 15
+  unresolved, unparsed, followed: 5
+errors: 0
+warnings: 0
