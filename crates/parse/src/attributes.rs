@@ -2,15 +2,18 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use oxc_ast::ast::{
-    Argument, ArrayExpressionElement, CallExpression, ChainElement, Expression,
-    IdentifierReference, JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXExpression,
-    MemberExpression, ObjectPropertyKind, TemplateLiteral,
+    Argument, ArrayExpressionElement, ArrowFunctionBody, ArrowFunctionExpression, CallExpression,
+    ChainElement, Class, Expression, Function, IdentifierReference, JSXAttributeItem,
+    JSXAttributeName, JSXAttributeValue, JSXExpression, MemberExpression, ObjectPropertyKind,
+    ReturnStatement, Statement, TemplateLiteral,
 };
+use oxc_ast_visit::Visit;
 use oxc_semantic::SymbolId;
 use oxc_span::{GetSpan, Span};
+use oxc_syntax::scope::ScopeFlags;
 
 use crate::scope::{Declared, Scope};
-use crate::{Attribute, Entry, Expr, ExprKind, Item, Key, Literal, Part, Reference};
+use crate::{Attribute, Call, Entry, Expr, ExprKind, Item, Key, Literal, Part, Reference};
 
 /// Converts attributes and the expressions in them to owned [`Expr`] trees.
 pub(crate) struct Exprs<'s> {
@@ -20,6 +23,8 @@ pub(crate) struct Exprs<'s> {
     /// Indices into [`crate::FileSummary::parameters`] by the symbols of the names props
     /// declare, set by [`crate::components`].
     pub(crate) parameters: RefCell<HashMap<SymbolId, usize>>,
+    /// Describe calls and what functions return: [`crate::Options::calls`].
+    pub(crate) calls: bool,
 }
 
 /// The local names referred to so far, in the order of [`Reference::Variable`] indices.
@@ -36,6 +41,7 @@ impl<'s> Exprs<'s> {
             scope,
             variables: RefCell::new(Variables::default()),
             parameters: RefCell::new(HashMap::new()),
+            calls: false,
         }
     }
 }
@@ -135,7 +141,13 @@ impl<'a> Exprs<'_> {
                     .map(|property| match property {
                         ObjectPropertyKind::ObjectProperty(property) => {
                             let value = if property.method || property.kind.is_accessor() {
-                                self.at(property.span, ExprKind::Function)
+                                let returns = match &property.value {
+                                    Expression::FunctionExpression(function) => {
+                                        self.function_returns(function)
+                                    }
+                                    _ => None,
+                                };
+                                self.at(property.span, ExprKind::Function { returns })
                             } else {
                                 self.expr(&property.value)
                             };
@@ -182,18 +194,19 @@ impl<'a> Exprs<'_> {
                 tag: Some(self.text(element.opening_element.name.span())),
             },
             Expression::JSXFragment(_) => ExprKind::Element { tag: None },
-            Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_) => {
-                ExprKind::Function
-            }
+            Expression::ArrowFunctionExpression(arrow) => ExprKind::Function {
+                returns: self.arrow_returns(arrow),
+            },
+            Expression::FunctionExpression(function) => ExprKind::Function {
+                returns: self.function_returns(function),
+            },
             Expression::CallExpression(call) => match self.require(call) {
                 Some(specifier) => ExprKind::Require {
                     specifier,
                     text: self.text(span),
                     path: Vec::new(),
                 },
-                None => ExprKind::Call {
-                    text: self.text(span),
-                },
+                None => self.call(call, self.text(span), Vec::new()),
             },
             Expression::ChainExpression(_)
             | Expression::StaticMemberExpression(_)
@@ -214,7 +227,10 @@ impl<'a> Exprs<'_> {
             let inner = current.get_inner_expression();
             let member = match inner {
                 Expression::ChainExpression(chain) => match &chain.expression {
-                    ChainElement::CallExpression(_) => return ExprKind::Call { text },
+                    ChainElement::CallExpression(call) => {
+                        path.reverse();
+                        return self.call(call, text, path);
+                    }
                     ChainElement::TSNonNullExpression(non_null) => {
                         current = &non_null.expression;
                         continue;
@@ -257,10 +273,71 @@ impl<'a> Exprs<'_> {
                     text,
                     path,
                 },
-                None => ExprKind::Call { text },
+                None => self.call(call, text, path),
             },
             _ => ExprKind::Unsupported { text },
         }
+    }
+
+    /// A call, then `path` in its result: described with [`Exprs::calls`].
+    fn call(&self, call: &CallExpression<'a>, text: String, path: Vec<Key>) -> ExprKind {
+        let call = self.calls.then(|| {
+            Box::new(Call {
+                callee: self.text(call.callee.span()),
+                receiver: call
+                    .callee
+                    .get_inner_expression()
+                    .as_member_expression()
+                    .map(|member| self.expr(member.object())),
+                arguments: call
+                    .arguments
+                    .iter()
+                    .map(|argument| match argument {
+                        Argument::SpreadElement(spread) => {
+                            Item::Spread(self.expr(&spread.argument))
+                        }
+                        argument => Item::Value(self.expr(argument.to_expression())),
+                    })
+                    .collect(),
+                path,
+            })
+        });
+        ExprKind::Call { text, call }
+    }
+
+    /// What `function` returns, with [`Exprs::calls`], unless it's async or a generator.
+    pub(crate) fn function_returns(&self, function: &Function<'a>) -> Option<Vec<Expr>> {
+        if !self.calls || function.r#async || function.generator {
+            return None;
+        }
+        Some(self.returns(&function.body.as_ref()?.statements))
+    }
+
+    fn arrow_returns(&self, arrow: &ArrowFunctionExpression<'a>) -> Option<Vec<Expr>> {
+        if !self.calls || arrow.r#async {
+            return None;
+        }
+        Some(match &arrow.body {
+            ArrowFunctionBody::FunctionBody(body) => self.returns(&body.statements),
+            body => body
+                .as_expression()
+                .map(|body| self.expr(body))
+                .into_iter()
+                .collect(),
+        })
+    }
+
+    /// The values of the `return` statements in `statements`, outside nested functions and
+    /// classes.
+    fn returns(&self, statements: &[Statement<'a>]) -> Vec<Expr> {
+        let mut returns = Returns {
+            exprs: self,
+            found: Vec::new(),
+        };
+        for statement in statements {
+            returns.visit_statement(statement);
+        }
+        returns.found
     }
 
     fn one_of(&self, operands: [Expr; 2]) -> ExprKind {
@@ -370,4 +447,25 @@ pub(crate) fn attribute_name(name: &JSXAttributeName) -> String {
             format!("{}:{}", name.namespace.name, name.name.name)
         }
     }
+}
+
+struct Returns<'e, 's> {
+    exprs: &'e Exprs<'s>,
+    found: Vec<Expr>,
+}
+
+impl<'a> Visit<'a> for Returns<'_, '_> {
+    fn visit_return_statement(&mut self, statement: &ReturnStatement<'a>) {
+        let value = match &statement.argument {
+            Some(argument) => self.exprs.expr(argument),
+            None => self.exprs.at(statement.span, ExprKind::Undefined),
+        };
+        self.found.push(value);
+    }
+
+    fn visit_function(&mut self, _: &Function<'a>, _: ScopeFlags) {}
+
+    fn visit_arrow_function_expression(&mut self, _: &ArrowFunctionExpression<'a>) {}
+
+    fn visit_class(&mut self, _: &Class<'a>) {}
 }

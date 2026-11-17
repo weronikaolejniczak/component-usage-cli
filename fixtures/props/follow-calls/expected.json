@@ -1,0 +1,151 @@
+{
+  "query": { "components": ["Button"], "from": "lib", "follow": ["variables", "calls"] },
+  "usages": [
+    {
+      "component": "Button", "file": "App.tsx", "line": 17, "column": 5,
+      "props": [
+        {
+          "name": "a",
+          "value": {
+            "kind": "call", "callee": "getIcon", "line": 18, "column": 10,
+            "arguments": [
+              { "value": { "kind": "literal", "value": "edit", "line": 18, "column": 18 } }
+            ]
+          }
+        },
+        {
+          "name": "b",
+          "value": {
+            "kind": "call", "callee": "useMemo", "line": 19, "column": 10,
+            "arguments": [
+              {
+                "value": {
+                  "kind": "function", "line": 19, "column": 18,
+                  "returns": [
+                    {
+                      "kind": "array", "line": 19, "column": 24,
+                      "items": [{ "value": { "kind": "literal", "value": "m", "line": 19, "column": 25 } }]
+                    }
+                  ]
+                }
+              },
+              { "value": { "kind": "array", "line": 19, "column": 31, "items": [] } }
+            ]
+          }
+        },
+        {
+          "name": "c",
+          "value": {
+            "kind": "call", "callee": "ICONS.map", "line": 20, "column": 10,
+            "receiver": {
+              "kind": "array", "line": 3, "column": 15,
+              "items": [{ "value": { "kind": "literal", "value": "gear", "line": 3, "column": 16 } }],
+              "via": [{ "text": "ICONS", "line": 20, "column": 10 }]
+            },
+            "arguments": [
+              {
+                "value": {
+                  "kind": "function", "line": 20, "column": 20,
+                  "returns": [
+                    { "kind": "unresolved", "code": "parameter", "text": "icon", "line": 20, "column": 30 }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "d",
+          "value": {
+            "kind": "call", "callee": "pick", "line": 21, "column": 10,
+            "arguments": [
+              {
+                "value": {
+                  "kind": "function", "line": 21, "column": 15,
+                  "returns": [
+                    { "kind": "literal", "value": "x", "line": 22, "column": 24 },
+                    { "kind": "undefined", "line": 23, "column": 9 }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "e",
+          "value": {
+            "kind": "call", "callee": "load", "line": 25, "column": 10,
+            "arguments": [{ "value": { "kind": "function", "line": 25, "column": 15 } }]
+          }
+        },
+        {
+          "name": "f",
+          "value": {
+            "kind": "call", "callee": "run", "line": 26, "column": 10,
+            "arguments": [
+              {
+                "value": {
+                  "kind": "function", "line": 4, "column": 1,
+                  "returns": [{ "kind": "literal", "value": "c", "line": 8, "column": 10 }],
+                  "via": [{ "text": "compute", "line": 26, "column": 14 }]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "g",
+          "value": {
+            "kind": "call", "callee": "wrap", "line": 27, "column": 10,
+            "arguments": [
+              {
+                "value": {
+                  "kind": "function", "line": 10, "column": 1,
+                  "returns": [
+                    {
+                      "kind": "call", "callee": "wrap", "line": 11, "column": 10,
+                      "arguments": [
+                        { "value": { "kind": "unresolved", "code": "unsupported", "text": "loop", "line": 11, "column": 15 } }
+                      ]
+                    }
+                  ],
+                  "via": [{ "text": "loop", "line": 27, "column": 15 }]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "h",
+          "value": {
+            "kind": "call", "callee": "api?.get", "line": 28, "column": 10,
+            "receiver": { "kind": "unresolved", "code": "global", "text": "api", "line": 28, "column": 10 },
+            "arguments": [
+              { "spread": { "kind": "unresolved", "code": "global", "text": "keys", "line": 28, "column": 22 } }
+            ]
+          }
+        },
+        {
+          "name": "i",
+          "value": {
+            "kind": "call", "callee": "makeStyles", "line": 13, "column": 16,
+            "arguments": [
+              { "value": { "kind": "literal", "value": "x", "line": 13, "column": 27 } }
+            ],
+            "path": ["panel"],
+            "via": [{ "text": "styles.panel", "line": 29, "column": 10 }]
+          }
+        },
+        {
+          "name": "j",
+          "value": {
+            "kind": "call", "callee": "make", "line": 30, "column": 10,
+            "arguments": [],
+            "path": [null]
+          }
+        },
+        { "name": "k", "value": { "kind": "function", "line": 31, "column": 10 } }
+      ]
+    }
+  ]
+}

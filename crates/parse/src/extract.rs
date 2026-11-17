@@ -78,7 +78,8 @@ pub(crate) fn extract(
     errors.sort_by_key(|error| error.location);
     let semantic = built.semantic;
     let scope = Scope::new(&parsed.program, semantic.scoping(), &lines, import_at);
-    let exprs = Exprs::new(source, &scope);
+    let mut exprs = Exprs::new(source, &scope);
+    exprs.calls = options.calls;
     let found = options.props.then(|| components(&parsed.program, &exprs));
     let mut elements = elements(&parsed.program, &exprs);
     if let Some(found) = &found {

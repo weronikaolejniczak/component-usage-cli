@@ -73,7 +73,9 @@ pub(crate) fn exported(program: &Program, exprs: &Exprs) -> HashMap<String, Expo
                             Some(id) => Exported::Variable(exprs.variable(id.symbol_id())),
                             None => Exported::Value(Expr {
                                 location: exprs.scope.lines.location(function.span.start),
-                                kind: ExprKind::Function,
+                                kind: ExprKind::Function {
+                                    returns: exprs.function_returns(function),
+                                },
                             }),
                         }
                     }

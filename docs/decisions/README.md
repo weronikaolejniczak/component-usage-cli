@@ -28,3 +28,4 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0021](./0021-follow-imports.md) | Follow imports to the exported value, and say which file each value is in | accepted; `values` interface superseded by [0022](./0022-follow-props.md) |
 | [0022](./0022-follow-props.md) | Follow a component's props to what its callers pass | accepted; `other-callers` definition superseded by [0023](./0023-component-properties.md) |
 | [0023](./0023-component-properties.md) | Reading or setting a property of a component doesn't add `other-callers` | accepted |
+| [0024](./0024-follow-calls.md) | Describe calls: what's called, with what, and what the functions passed return | accepted |

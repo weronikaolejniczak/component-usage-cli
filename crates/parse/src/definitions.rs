@@ -158,7 +158,10 @@ impl<'a> Visit<'a> for Round<'_, '_> {
             if function.body.is_some() {
                 self.found.insert(
                     id.symbol_id(),
-                    Definition::Function(self.exprs.scope.lines.location(function.span.start)),
+                    Definition::Function {
+                        location: self.exprs.scope.lines.location(function.span.start),
+                        returns: self.exprs.function_returns(function),
+                    },
                 );
             } else if function.declare {
                 self.found.insert(id.symbol_id(), Definition::Declared);

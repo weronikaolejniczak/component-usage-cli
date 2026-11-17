@@ -182,10 +182,12 @@ fn references_are_classified_by_declaration() {
             &ExprKind::Undefined,
             &reference(Reference::Import(0), "a.x?.y", &["x", "y"]),
             &ExprKind::Call {
-                text: "h().i".to_owned()
+                text: "h().i".to_owned(),
+                call: None,
             },
             &ExprKind::Call {
-                text: "h()?.i!".to_owned()
+                text: "h()?.i!".to_owned(),
+                call: None,
             },
             &reference(Reference::Variable(0), "b?.[0]!", &["0"]),
             &ExprKind::Unsupported {
@@ -512,6 +514,7 @@ fn with_imports(source: &str) -> FileSummary {
             variables: true,
             imports: true,
             props: false,
+            calls: false,
         },
     )
     .unwrap()
@@ -618,6 +621,7 @@ fn with_props(source: &str) -> FileSummary {
             variables: true,
             imports: true,
             props: true,
+            calls: false,
         },
     )
     .unwrap()

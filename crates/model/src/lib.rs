@@ -120,7 +120,15 @@ pub enum ValueKind {
         #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
         tag: Option<String>,
     },
-    Function,
+    Function {
+        /// With `--follow calls`, for a function that is an argument of a call: the value of each
+        /// `return` statement in its body, or its body without braces. `None` otherwise, and for
+        /// async functions and generators.
+        #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+        returns: Option<Vec<Value>>,
+    },
+    /// With `--follow calls`, a call, described without evaluating it.
+    Call(Box<Call>),
     OneOf {
         values: Vec<Value>,
     },
@@ -178,6 +186,20 @@ pub enum Entry {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct Call {
+    /// The source text of what's called.
+    pub callee: String,
+    /// The object of a member call, as `items` in `items.map(…)`.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub receiver: Option<Value>,
+    pub arguments: Vec<Item>,
+    /// Properties read from the call's result; `None` for a computed key that isn't a literal.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
+    pub path: Vec<Option<String>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize), serde(untagged))]
 pub enum Item {
     Value { value: Value },
@@ -214,7 +236,7 @@ pub enum UnresolvedCode {
     OtherCallers,
     /// A name not declared in the file.
     Global,
-    /// The result of a call.
+    /// The result of a call, without `--follow calls`.
     Call,
     /// An import whose specifier doesn't resolve to a file.
     UnresolvedImport,

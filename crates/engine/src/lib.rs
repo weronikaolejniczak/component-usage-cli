@@ -40,6 +40,8 @@ pub struct Config {
     pub follow_imports: bool,
     /// Follow the props of components to what their JSX callers pass. Implies `follow_imports`.
     pub follow_props: bool,
+    /// Describe calls and what the functions passed to them return.
+    pub follow_calls: bool,
 }
 
 /// Which `CODEOWNERS` file to use. Patterns always match paths relative to the repository root:
@@ -120,6 +122,7 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
         variables: config.follow_variables || config.follow_imports || config.follow_props,
         imports: config.follow_imports || config.follow_props,
         props: config.follow_props,
+        calls: config.follow_calls,
     };
     let mut modules: Vec<Option<Module>> = Vec::new();
     let mut pending: Vec<FileId> = scanned.clone();

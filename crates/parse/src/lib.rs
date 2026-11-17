@@ -183,7 +183,12 @@ pub enum ExprKind {
     Element {
         tag: Option<String>,
     },
-    Function,
+    /// A function. With [`Options::calls`], `returns` are the values of its `return` statements,
+    /// outside nested functions, or its body without braces; `None` for async functions and
+    /// generators.
+    Function {
+        returns: Option<Vec<Expr>>,
+    },
     /// Either branch of `?:`, either side of `||`, `&&` and `??`.
     OneOf(Vec<Expr>),
     /// An identifier, or a member access starting with one, such as `item.icon` or `ICONS[key]`.
@@ -200,9 +205,10 @@ pub enum ExprKind {
         text: String,
         path: Vec<Key>,
     },
-    /// A call, or a member access on one.
+    /// A call, or a member access on one. With [`Options::calls`], `call` describes it.
     Call {
         text: String,
+        call: Option<Box<Call>>,
     },
     Unsupported {
         text: String,
@@ -260,6 +266,18 @@ pub enum Segment {
     Index(usize),
 }
 
+/// A call: what's called, on what, with what, and which properties are read from its result.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Call {
+    /// The source text of what's called.
+    pub callee: String,
+    /// The object of a member call, as `items` in `items.map(…)`.
+    pub receiver: Option<Expr>,
+    pub arguments: Vec<Item>,
+    /// Properties read from the result, as in `useStyles().panel`.
+    pub path: Vec<Key>,
+}
+
 /// What a name declared in the file holds, when [`Options::variables`] is set.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Definition {
@@ -271,8 +289,11 @@ pub enum Definition {
         path: Vec<Segment>,
         default: Option<Expr>,
     },
-    /// A function declaration, at its start.
-    Function(Location),
+    /// A function declaration, at its start, with its `returns` as [`ExprKind::Function`]'s.
+    Function {
+        location: Location,
+        returns: Option<Vec<Expr>>,
+    },
     /// Assigned to after its declaration, declared more than once, or changed in place.
     Mutated,
     /// Declared without a value: `declare const name: T`.
@@ -362,6 +383,8 @@ pub struct Options {
     /// Also record components, their props, the elements that render them and the imports used
     /// other than as a JSX tag. Implies `imports`.
     pub props: bool,
+    /// Describe calls, with [`Call`], and what functions return.
+    pub calls: bool,
 }
 
 impl FileSummary {

@@ -194,11 +194,11 @@ pub fn props(
                 let wanted = filter.is_none_or(|names| names.contains(name));
                 wanted.then(|| Prop::Named {
                     name: name.clone(),
-                    value: resolver.value(file, value),
+                    value: returned_by_arguments(resolver.value(file, value), false),
                 })
             }
             Attribute::Spread(spread) => Some(Prop::Spread {
-                spread: resolver.value(file, spread),
+                spread: returned_by_arguments(resolver.value(file, spread), false),
             }),
         })
         .collect()
@@ -305,7 +305,9 @@ impl Resolver<'_, '_> {
                     .collect(),
             },
             ExprKind::Element { tag } => ValueKind::Element { tag: tag.clone() },
-            ExprKind::Function => ValueKind::Function,
+            ExprKind::Function { returns } => ValueKind::Function {
+                returns: self.values(file, returns.as_deref()),
+            },
             ExprKind::OneOf(values) => ValueKind::OneOf {
                 values: values.iter().map(|value| self.value(file, value)).collect(),
             },
@@ -330,7 +332,29 @@ impl Resolver<'_, '_> {
                     Reference::Global => unresolved(UnresolvedCode::Global, None, text),
                 }
             }
-            ExprKind::Call { text } | ExprKind::Require { text, .. } => {
+            ExprKind::Call {
+                call: Some(call), ..
+            } => ValueKind::Call(Box::new(model::Call {
+                callee: call.callee.clone(),
+                receiver: call
+                    .receiver
+                    .as_ref()
+                    .map(|receiver| self.value(file, receiver)),
+                arguments: call
+                    .arguments
+                    .iter()
+                    .map(|argument| match argument {
+                        parse::Item::Value(value) => Item::Value {
+                            value: self.value(file, value),
+                        },
+                        parse::Item::Spread(spread) => Item::Spread {
+                            spread: self.value(file, spread),
+                        },
+                    })
+                    .collect(),
+                path: call.path.iter().map(key_name).collect(),
+            })),
+            ExprKind::Call { text, call: None } | ExprKind::Require { text, .. } => {
                 unresolved(UnresolvedCode::Call, None, text)
             }
             ExprKind::Unsupported { text } => unresolved(UnresolvedCode::Unsupported, None, text),
@@ -697,8 +721,11 @@ impl Resolver<'_, '_> {
             }
             Definition::Mutated => Err(self.stop(name, UnresolvedCode::Mutated, None)),
             Definition::Declared => Err(self.stop(name, UnresolvedCode::Unsupported, None)),
-            Definition::Function(location) => {
-                let value = self.at(file, *location, ValueKind::Function);
+            Definition::Function { location, returns } => {
+                self.active.borrow_mut().push(active);
+                let returns = self.values(file, returns.as_deref());
+                self.active.borrow_mut().pop();
+                let value = self.at(file, *location, ValueKind::Function { returns });
                 Ok(keys
                     .iter()
                     .fold(value, |value, key| self.lookup(value, key, name)))
@@ -789,11 +816,19 @@ impl Resolver<'_, '_> {
                     .map(|value| self.lookup(value, key, name))
                     .collect(),
             }),
+            (ValueKind::Call(mut call), key) => {
+                call.path.push(key_name(key));
+                here(ValueKind::Call(call))
+            }
             (kind @ ValueKind::Unresolved { .. }, _) => here(kind),
             _ => unsupported(),
         };
         found.via.splice(0..0, via);
         found
+    }
+
+    fn values(&self, file: FileId, exprs: Option<&[Expr]>) -> Option<Vec<Value>> {
+        exprs.map(|exprs| exprs.iter().map(|expr| self.value(file, expr)).collect())
     }
 
     /// `name` as an unresolved value with `code`.
@@ -813,6 +848,98 @@ impl Resolver<'_, '_> {
     /// The display path of `file`, unless it's the usage's.
     fn file(&self, file: FileId) -> Option<String> {
         (file != self.usage).then(|| self.context.paths[file.0 as usize].clone())
+    }
+}
+
+/// `value` with `returns` only on functions that are `argument`s of a call, directly or as a
+/// branch of a `one-of`.
+fn returned_by_arguments(mut value: Value, argument: bool) -> Value {
+    value.kind = match value.kind {
+        ValueKind::Function { returns } => ValueKind::Function {
+            returns: returns.filter(|_| argument).map(|returns| {
+                returns
+                    .into_iter()
+                    .map(|value| returned_by_arguments(value, false))
+                    .collect()
+            }),
+        },
+        ValueKind::OneOf { values } => ValueKind::OneOf {
+            values: values
+                .into_iter()
+                .map(|value| returned_by_arguments(value, argument))
+                .collect(),
+        },
+        ValueKind::Call(call) => ValueKind::Call(Box::new(model::Call {
+            receiver: call
+                .receiver
+                .map(|receiver| returned_by_arguments(receiver, false)),
+            arguments: call
+                .arguments
+                .into_iter()
+                .map(|item| match item {
+                    Item::Value { value } => Item::Value {
+                        value: returned_by_arguments(value, true),
+                    },
+                    Item::Spread { spread } => Item::Spread {
+                        spread: returned_by_arguments(spread, false),
+                    },
+                })
+                .collect(),
+            callee: call.callee,
+            path: call.path,
+        })),
+        ValueKind::Object { entries } => ValueKind::Object {
+            entries: entries
+                .into_iter()
+                .map(|entry| match entry {
+                    Entry::Property { key, value } => Entry::Property {
+                        key,
+                        value: returned_by_arguments(value, false),
+                    },
+                    Entry::Computed { computed, value } => Entry::Computed {
+                        computed,
+                        value: returned_by_arguments(value, false),
+                    },
+                    Entry::Spread { spread } => Entry::Spread {
+                        spread: returned_by_arguments(spread, false),
+                    },
+                })
+                .collect(),
+        },
+        ValueKind::Array { items } => ValueKind::Array {
+            items: items
+                .into_iter()
+                .map(|item| match item {
+                    Item::Value { value } => Item::Value {
+                        value: returned_by_arguments(value, false),
+                    },
+                    Item::Spread { spread } => Item::Spread {
+                        spread: returned_by_arguments(spread, false),
+                    },
+                })
+                .collect(),
+        },
+        ValueKind::Template { tag, parts } => ValueKind::Template {
+            tag,
+            parts: parts
+                .into_iter()
+                .map(|part| match part {
+                    Part::Value { value } => Part::Value {
+                        value: returned_by_arguments(value, false),
+                    },
+                    text => text,
+                })
+                .collect(),
+        },
+        kind => kind,
+    };
+    value
+}
+
+fn key_name(key: &Key) -> Option<String> {
+    match key {
+        Key::Static(key) => Some(key.clone()),
+        Key::Dynamic => None,
     }
 }
 

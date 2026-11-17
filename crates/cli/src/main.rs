@@ -34,7 +34,8 @@ enum Command {
 
         /// What to follow to find prop values: `variables` for names declared in the file,
         /// `imports` for imported names, which also follows variables, `props` for the props of
-        /// components to what their callers pass, which also follows imports, or `none`
+        /// components to what their callers pass, which also follows imports, `calls` to describe
+        /// calls and what the functions passed to them return, or `none`
         #[arg(long, value_delimiter = ',', value_enum)]
         follow: Vec<Follow>,
 
@@ -51,6 +52,7 @@ enum Follow {
     Variables,
     Imports,
     Props,
+    Calls,
 }
 
 fn main() -> ExitCode {
@@ -75,6 +77,7 @@ fn main() -> ExitCode {
                 follow_variables: follow.contains(&Follow::Variables),
                 follow_imports: follow.contains(&Follow::Imports),
                 follow_props: follow.contains(&Follow::Props),
+                follow_calls: follow.contains(&Follow::Calls),
             };
             let report = match engine::scan(&config) {
                 Ok(report) => report,
