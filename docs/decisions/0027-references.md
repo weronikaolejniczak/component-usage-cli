@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; leaving out wrappers' arguments superseded by ADR-0028
 date: 2026-11-17
 decision-makers: Weronika Olejniczak
 ---

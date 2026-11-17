@@ -16,3 +16,4 @@ export const Both = (props) => (
   </>
 );
 export default wrap(Icon);
+export const Unused = wrap(Button);

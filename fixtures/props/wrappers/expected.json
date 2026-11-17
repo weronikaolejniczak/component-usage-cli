@@ -76,5 +76,8 @@
       "component": "Icon", "file": "components.jsx", "line": 15, "column": 5,
       "props": [{ "spread": { "kind": "unresolved", "code": "parameter", "text": "props", "line": 15, "column": 15 } }]
     }
+  ],
+  "references": [
+    { "component": "Button", "file": "components.jsx", "line": 19, "column": 28, "in": { "kind": "argument", "callee": "wrap", "index": 0 } }
   ]
 }

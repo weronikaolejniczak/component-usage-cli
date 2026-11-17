@@ -227,18 +227,7 @@ pub fn identify(
                 }
             }
         }
-        let wrapping: HashSet<Location> = module
-            .summary
-            .components
-            .iter()
-            .flat_map(|component| &component.forwards)
-            .filter(|forward| wrappers && matches!(forward.to, Forwarded::Import { .. }))
-            .map(|forward| forward.location)
-            .collect();
         for reference in &module.summary.references {
-            if wrapping.contains(&reference.location) {
-                continue;
-            }
             let origin = state.origins.import(file, reference.import);
             let Some(key) = origin
                 .and_then(|origin| state.origins.key(origin, reference.members.clone()))
@@ -277,6 +266,15 @@ pub fn identify(
     identified
         .usages
         .sort_by_key(|usage| (usage.file, usage.location));
+    let steps: HashSet<(FileId, Location)> = identified
+        .usages
+        .iter()
+        .flat_map(|usage| &usage.through)
+        .map(|step| (step.file, step.location))
+        .collect();
+    identified
+        .references
+        .retain(|reference| !steps.contains(&(reference.file, reference.location)));
     identified
         .references
         .sort_by_key(|reference| (reference.file, reference.location));
