@@ -6,7 +6,7 @@ Usage:
   analyse.py selects <checkout> <report.json> <out.json>
   analyse.py styles  <checkout> <report.json> <out.json> -- <codeowners command...>
 
-<report.json> is a `scan --from <library> --owners --follow imports` report,
+<report.json> is a `scan --from <library> --owners --follow props` report,
 without `--components`, so every export of the library is a target. Prints a summary
 and writes the full findings, grouped by owner, to <out.json>.
 """
@@ -39,30 +39,30 @@ def spread(usage):
     return any("spread" in prop for prop in usage["props"])
 
 
-def walk(value, path=(), followed=False):
+def walk(value, path=(), steps=()):
     """Every value inside `value`, with its path: object keys, `[]` for array items,
-    `...` for spreads and `${}` for template parts; and whether it was reached by following a
-    name (`--follow`), so it's written at a definition rather than at the usage. JSX elements
-    are usages of their own."""
-    followed = followed or bool(value.get("via"))
-    yield path, value, followed
+    `...` for spreads and `${}` for template parts; and the `via` steps followed to reach it
+    (`--follow`), when it's written at a definition or a caller rather than at the usage. JSX
+    elements are usages of their own."""
+    steps = steps + tuple(value.get("via", ()))
+    yield path, value, steps
     kind = value["kind"]
     if kind == "one-of":
         for inner in value["values"]:
-            yield from walk(inner, path, followed)
+            yield from walk(inner, path, steps)
     elif kind == "object":
         for entry in value["entries"]:
             if "spread" in entry:
-                yield from walk(entry["spread"], path + ("...",), followed)
+                yield from walk(entry["spread"], path + ("...",), steps)
             else:
-                yield from walk(entry["value"], path + (entry.get("key", f"[{entry.get('computed')}]"),), followed)
+                yield from walk(entry["value"], path + (entry.get("key", f"[{entry.get('computed')}]"),), steps)
     elif kind == "array":
         for item in value["items"]:
-            yield from walk(item.get("value") or item["spread"], path + ("[]" if "value" in item else "...",), followed)
+            yield from walk(item.get("value") or item["spread"], path + ("[]" if "value" in item else "...",), steps)
     elif kind == "template":
         for part in value["parts"]:
             if "value" in part:
-                yield from walk(part["value"], path + ("${}",), followed)
+                yield from walk(part["value"], path + ("${}",), steps)
 
 
 def string(value):
@@ -168,18 +168,30 @@ def icon_attribute(name, before):
 
 # Kinds of findings, most precise first. `eui-variable` is a literal in a variable that an icon
 # prop of an EUI usage reads, in the same file or another, found with `--follow imports`.
-ORDER = ["eui-jsx", "eui-data", "eui-variable", "other-jsx", "icon-key", "eui-other-prop", "other-string"]
+# `eui-caller` is a literal that a caller of the component the usage is in passes, found with
+# `--follow props`: a `via` step is the caller's tag.
+ORDER = ["eui-jsx", "eui-data", "eui-variable", "eui-caller", "other-jsx", "icon-key", "eui-other-prop", "other-string"]
+
+
+def through_caller(checkout, usage, steps, cache):
+    for step in steps:
+        file = step.get("file", usage["file"])
+        text = cache.setdefault(file, lines(checkout, file))[step["line"] - 1]
+        if text.encode("utf-16-le")[2 * (step["column"] - 1) : 2 * step["column"]].decode("utf-16-le") == "<":
+            return True
+    return False
 
 
 def icons(checkout, report, out, command):
     aliases = load(os.path.join(HERE, "icon-aliases.json"))["aliases"]
     # A value in a variable is one place to change, however many usages read it: findings and
     # values to review are kept once per position, with the most precise kind.
-    found, review = {}, {}
+    found, review, cache = {}, {}, {}
     for usage in report["usages"]:
         base = {"component": usage["component"]}
         for name, value in named(usage).items():
-            for path, node, followed in walk(value):
+            for path, node, steps in walk(value):
+                followed = bool(steps)
                 if node["kind"] == "one-of":
                     continue
                 icon = icon_value(usage["component"], name, path)
@@ -188,8 +200,9 @@ def icons(checkout, report, out, command):
                 if string(node):
                     found.setdefault(position, None)
                     if node["value"] in aliases:
-                        kind = ("eui-other-prop" if not icon else "eui-variable" if followed
-                                else "eui-data" if path else "eui-jsx")
+                        kind = ("eui-other-prop" if not icon
+                                else "eui-caller" if followed and through_caller(checkout, usage, steps, cache)
+                                else "eui-variable" if followed else "eui-data" if path else "eui-jsx")
                         current = found[position]
                         if current is None or ORDER.index(kind) < ORDER.index(current["kind"]):
                             found[position] = at(usage, node) | entry | {
@@ -204,7 +217,6 @@ def icons(checkout, report, out, command):
     names = "|".join(sorted(aliases, key=len, reverse=True))
     attribute = re.compile(r"\b([\w-]+)=\{?\s*$")
     icon_key = re.compile(r"\w*icon\w*['\"]?\s*:\s*$", re.IGNORECASE)
-    cache = {}
     for file, line, column, match in rg(checkout, rf"['\"`]({names})['\"`]", SOURCES):
         alias = match[1:-1]
         source = cache.setdefault(file, lines(checkout, file))
@@ -239,11 +251,11 @@ def icons(checkout, report, out, command):
         per_alias[entry["alias"]][entry["kind"]] += 1
     table(["alias"] + order, sorted(
         ([alias] + [counts[kind] for kind in order] for alias, counts in per_alias.items()),
-        key=lambda row: (-sum(row[1:6]), -row[7], row[0]),
+        key=lambda row: (-sum(row[1:7]), -row[8], row[0]),
     ))
-    precise = [entry for entry in found if entry["kind"] in order[:5]]
+    precise = [entry for entry in found if entry["kind"] in order[:6]]
     grouped = by_owner(precise, owners)
-    table(["owner", "eui-jsx, eui-data, eui-variable, other-jsx, icon-key findings"],
+    table(["owner", "eui-jsx, eui-data, eui-variable, eui-caller, other-jsx, icon-key findings"],
           [(o, len(e)) for o, e in list(grouped.items())[:15]])
     write(out, {"findings": by_owner(found, owners), "review": by_owner(review, owners)})
 
