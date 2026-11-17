@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; following in arguments superseded by ADR-0025
 date: 2026-11-17
 decision-makers: Weronika Olejniczak
 ---

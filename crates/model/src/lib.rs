@@ -238,6 +238,9 @@ pub enum UnresolvedCode {
     Global,
     /// The result of a call, without `--follow calls`.
     Call,
+    /// A name in a call's arguments or in what a function among them returns, which isn't
+    /// followed.
+    InCall,
     /// An import whose specifier doesn't resolve to a file.
     UnresolvedImport,
     /// An import of a file that couldn't be parsed, or isn't JavaScript or TypeScript.

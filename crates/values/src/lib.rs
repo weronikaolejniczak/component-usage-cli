@@ -6,7 +6,7 @@
 //! Pure. Every value has a kind and a location; unresolved values carry a code. Values and names
 //! in another file than the usage's say which.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 
 use graph::{ModuleGraph, Origin, OriginError};
@@ -185,6 +185,8 @@ pub fn props(
         context,
         usage: file,
         active: RefCell::new(Vec::new()),
+        argument: Cell::new(false),
+        in_call: Cell::new(false),
     };
     element
         .attributes
@@ -238,6 +240,11 @@ struct Resolver<'c, 'g> {
     usage: FileId,
     /// What is being followed, to stop at names that refer back to themselves.
     active: RefCell<Vec<Active>>,
+    /// Whether the value being found is, or is within, an argument of a call; only then are the
+    /// returns of its functions needed.
+    argument: Cell<bool>,
+    /// Whether the value being found is within a call's arguments, where names aren't followed.
+    in_call: Cell<bool>,
 }
 
 #[derive(PartialEq, Eq)]
@@ -306,7 +313,7 @@ impl Resolver<'_, '_> {
             },
             ExprKind::Element { tag } => ValueKind::Element { tag: tag.clone() },
             ExprKind::Function { returns } => ValueKind::Function {
-                returns: self.values(file, returns.as_deref()),
+                returns: self.returns(file, returns.as_deref()),
             },
             ExprKind::OneOf(values) => ValueKind::OneOf {
                 values: values.iter().map(|value| self.value(file, value)).collect(),
@@ -318,6 +325,12 @@ impl Resolver<'_, '_> {
                     location: expr.location,
                 };
                 match name {
+                    Reference::Variable(_) | Reference::Import(_) if self.in_call.get() => {
+                        unresolved(UnresolvedCode::InCall, None, text)
+                    }
+                    Reference::Parameter(Some(_)) if self.context.props && self.in_call.get() => {
+                        unresolved(UnresolvedCode::InCall, None, text)
+                    }
                     Reference::Variable(_) => return self.value_at(file, expr, &[]),
                     Reference::Parameter(Some(_)) if self.context.props => {
                         return self.value_at(file, expr, &[]);
@@ -339,16 +352,16 @@ impl Resolver<'_, '_> {
                 receiver: call
                     .receiver
                     .as_ref()
-                    .map(|receiver| self.value(file, receiver)),
+                    .map(|receiver| self.within(false, || self.value(file, receiver))),
                 arguments: call
                     .arguments
                     .iter()
                     .map(|argument| match argument {
                         parse::Item::Value(value) => Item::Value {
-                            value: self.value(file, value),
+                            value: self.in_call(true, || self.value(file, value)),
                         },
                         parse::Item::Spread(spread) => Item::Spread {
-                            spread: self.value(file, spread),
+                            spread: self.in_call(false, || self.value(file, spread)),
                         },
                     })
                     .collect(),
@@ -721,11 +734,8 @@ impl Resolver<'_, '_> {
             }
             Definition::Mutated => Err(self.stop(name, UnresolvedCode::Mutated, None)),
             Definition::Declared => Err(self.stop(name, UnresolvedCode::Unsupported, None)),
-            Definition::Function { location, returns } => {
-                self.active.borrow_mut().push(active);
-                let returns = self.values(file, returns.as_deref());
-                self.active.borrow_mut().pop();
-                let value = self.at(file, *location, ValueKind::Function { returns });
+            Definition::Function(location) => {
+                let value = self.at(file, *location, ValueKind::Function { returns: None });
                 Ok(keys
                     .iter()
                     .fold(value, |value, key| self.lookup(value, key, name)))
@@ -827,8 +837,27 @@ impl Resolver<'_, '_> {
         found
     }
 
-    fn values(&self, file: FileId, exprs: Option<&[Expr]>) -> Option<Vec<Value>> {
-        exprs.map(|exprs| exprs.iter().map(|expr| self.value(file, expr)).collect())
+    /// The values of a function's `returns`, when it's within a call's argument.
+    fn returns(&self, file: FileId, returns: Option<&[Expr]>) -> Option<Vec<Value>> {
+        let returns = returns.filter(|_| self.argument.get())?;
+        Some(self.within(false, || {
+            returns.iter().map(|expr| self.value(file, expr)).collect()
+        }))
+    }
+
+    fn within<T>(&self, argument: bool, find: impl FnOnce() -> T) -> T {
+        let outer = self.argument.replace(argument);
+        let found = find();
+        self.argument.set(outer);
+        found
+    }
+
+    /// `find` within a call's arguments, with `argument` as [`Self::within`].
+    fn in_call<T>(&self, argument: bool, find: impl FnOnce() -> T) -> T {
+        let outer = self.in_call.replace(true);
+        let found = self.within(argument, find);
+        self.in_call.set(outer);
+        found
     }
 
     /// `name` as an unresolved value with `code`.

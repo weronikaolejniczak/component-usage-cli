@@ -56,22 +56,11 @@ impl Reads<'_> {
             return;
         }
         self.visited[index] = true;
-        match &self.definitions[index] {
-            Definition::Value { init, default, .. } => {
-                self.expr(init);
-                if let Some(default) = default {
-                    self.expr(default);
-                }
+        if let Definition::Value { init, default, .. } = &self.definitions[index] {
+            self.expr(init);
+            if let Some(default) = default {
+                self.expr(default);
             }
-            Definition::Function {
-                returns: Some(returns),
-                ..
-            } => {
-                for value in returns {
-                    self.expr(value);
-                }
-            }
-            _ => {}
         }
     }
 
@@ -111,23 +100,11 @@ impl Reads<'_> {
                     self.expr(value);
                 }
             }
-            ExprKind::Function {
-                returns: Some(returns),
-            } => {
-                for value in returns {
-                    self.expr(value);
-                }
-            }
             ExprKind::Call {
                 call: Some(call), ..
             } => {
                 if let Some(receiver) = &call.receiver {
                     self.expr(receiver);
-                }
-                for argument in &call.arguments {
-                    match argument {
-                        Item::Value(value) | Item::Spread(value) => self.expr(value),
-                    }
                 }
             }
             ExprKind::Literal(_)

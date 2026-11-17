@@ -183,9 +183,9 @@ pub enum ExprKind {
     Element {
         tag: Option<String>,
     },
-    /// A function. With [`Options::calls`], `returns` are the values of its `return` statements,
-    /// outside nested functions, or its body without braces; `None` for async functions and
-    /// generators.
+    /// A function. With [`Options::calls`], for a function written as a call's argument, `returns`
+    /// are the values of its `return` statements, outside nested functions, or its body without
+    /// braces; `None` for async functions and generators.
     Function {
         returns: Option<Vec<Expr>>,
     },
@@ -289,11 +289,8 @@ pub enum Definition {
         path: Vec<Segment>,
         default: Option<Expr>,
     },
-    /// A function declaration, at its start, with its `returns` as [`ExprKind::Function`]'s.
-    Function {
-        location: Location,
-        returns: Option<Vec<Expr>>,
-    },
+    /// A function declaration, at its start.
+    Function(Location),
     /// Assigned to after its declaration, declared more than once, or changed in place.
     Mutated,
     /// Declared without a value: `declare const name: T`.

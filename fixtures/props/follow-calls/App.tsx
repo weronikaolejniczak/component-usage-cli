@@ -7,9 +7,6 @@ function compute() {
   };
   return 'c';
 }
-function loop() {
-  return wrap(loop);
-}
 const styles = makeStyles('x');
 
 export function App() {
@@ -24,7 +21,7 @@ export function App() {
       })}
       e={load(async () => 'y')}
       f={run(compute)}
-      g={wrap(loop)}
+      g={useMemo(() => ICONS, [ICONS])}
       h={api?.get(...keys)}
       i={styles.panel}
       j={make()[key]}
@@ -32,3 +29,7 @@ export function App() {
     />
   );
 }
+function Inner({ size }) {
+  return <Button l={sized(size)} />;
+}
+export const Page = () => <Inner size="s" />;
