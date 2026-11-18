@@ -337,6 +337,44 @@ impl ModuleGraph {
     }
 }
 
+/// Origin lookups, memoised by export: many elements across files import the same names.
+pub struct Origins<'g> {
+    graph: &'g ModuleGraph,
+    exports: HashMap<(FileId, String), Result<Origin, OriginError>>,
+}
+
+impl<'g> Origins<'g> {
+    #[must_use]
+    pub fn new(graph: &'g ModuleGraph) -> Self {
+        Self {
+            graph,
+            exports: HashMap::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn graph(&self) -> &'g ModuleGraph {
+        self.graph
+    }
+
+    /// Origin of `name` exported by `module`.
+    pub fn export(&mut self, module: FileId, name: &str) -> Result<Origin, OriginError> {
+        let graph = self.graph;
+        self.exports
+            .entry((module, name.to_owned()))
+            .or_insert_with(|| graph.export_origin(module, name))
+            .clone()
+    }
+
+    /// Origin of the import at `import` in `file`'s [`FileSummary::imports`].
+    pub fn import(&mut self, file: FileId, import: usize) -> Result<Origin, OriginError> {
+        match self.graph.import_target(file, import)? {
+            (target, Imported::Namespace) => Ok(Origin::Namespace(target)),
+            (target, Imported::Name(name)) => self.export(target, name),
+        }
+    }
+}
+
 /// Specifiers needed to follow this file's exports to their origins.
 pub fn export_specifiers(summary: &FileSummary) -> impl Iterator<Item = &str> {
     let reexports = summary.exports.iter().filter_map(|export| match export {

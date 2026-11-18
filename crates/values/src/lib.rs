@@ -9,7 +9,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 
-use graph::{ModuleGraph, Origin, OriginError};
+use graph::{ModuleGraph, Origin, OriginError, Origins};
 use model::{
     Entry, ExportRef, FileId, Item, Literal, Location, Part, Prop, Step, UnresolvedCode, Value,
     ValueKind, Via,
@@ -82,10 +82,7 @@ impl<'g> Context<'g> {
 
     fn index_callers(&mut self) {
         let graph = self.graph;
-        let mut origins = Origins {
-            graph,
-            exports: HashMap::new(),
-        };
+        let mut origins = Origins::new(graph);
         for (file, module) in graph.modules() {
             let summary = &module.summary;
             for (index, element) in summary.elements.iter().enumerate() {
@@ -102,7 +99,7 @@ impl<'g> Context<'g> {
                 }
             }
             for &import in &summary.escaping_imports {
-                match origins.import(file, import) {
+                match origins.import(file, import).ok() {
                     Some(Origin::Export(export)) => {
                         if let Some(component) = self.component(export.module, &export.name) {
                             self.escaped.insert(component);
@@ -147,10 +144,10 @@ impl<'g> Context<'g> {
             }
             parse::Binding::Global => return None,
         };
-        let mut origin = origins.import(file, import)?;
+        let mut origin = origins.import(file, import).ok()?;
         for member in &members {
             match origin {
-                Origin::Namespace(module) => origin = origins.export(module, member)?,
+                Origin::Namespace(module) => origin = origins.export(module, member).ok()?,
                 Origin::Export(_) => return None,
             }
         }
@@ -265,29 +262,6 @@ fn wanted(prop: &Prop, filter: Option<&[String]>) -> bool {
 struct Declared<'p> {
     file: FileId,
     parameter: &'p parse::Parameter,
-}
-
-/// Origins of exports looked up so far, by module and name, shared by every file.
-struct Origins<'g> {
-    graph: &'g ModuleGraph,
-    exports: HashMap<(FileId, String), Option<Origin>>,
-}
-
-impl Origins<'_> {
-    fn export(&mut self, module: FileId, name: &str) -> Option<Origin> {
-        let graph = self.graph;
-        self.exports
-            .entry((module, name.to_owned()))
-            .or_insert_with(|| graph.export_origin(module, name).ok())
-            .clone()
-    }
-
-    fn import(&mut self, file: FileId, import: usize) -> Option<Origin> {
-        match self.graph.import_target(file, import).ok()? {
-            (target, parse::Imported::Namespace) => Some(Origin::Namespace(target)),
-            (target, parse::Imported::Name(name)) => self.export(target, name),
-        }
-    }
 }
 
 struct Resolver<'c, 'g> {

@@ -7,7 +7,7 @@
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use graph::{ModuleGraph, Origin, OriginError};
+use graph::{ModuleGraph, Origin, OriginError, Origins};
 use model::{FileId, Location, Parent, Reference, Through, Usage};
 use parse::{AliasRoot, Binding, FileSummary, Forwarded, Imported, JsxElement};
 
@@ -413,7 +413,7 @@ impl State<'_> {
         if !self.active.insert(wrapper) {
             return (Rc::from([]), true);
         }
-        let graph = self.origins.graph;
+        let graph = self.origins.graph();
         let (file, index) = wrapper;
         let mut reached: Vec<Reached> = Vec::new();
         let mut cyclic = false;
@@ -513,41 +513,38 @@ fn imported(summary: &FileSummary, import: usize) -> Option<String> {
     }
 }
 
-/// Origin lookups, memoised by export: many elements across files import the same names.
-struct Origins<'g> {
-    graph: &'g ModuleGraph,
-    exports: HashMap<(FileId, String), Result<Origin, OriginError>>,
+/// Lookups on top of [`Origins`] that only identification needs.
+trait Lookups {
+    fn alias(&mut self, file: FileId, root: &AliasRoot) -> Result<Origin, OriginError>;
+    fn element(
+        &mut self,
+        file: FileId,
+        summary: &FileSummary,
+        element: &JsxElement,
+        targets: &Targets,
+    ) -> Option<Resolved>;
+    fn resolve(
+        &mut self,
+        origin: Result<Origin, OriginError>,
+        name: Option<String>,
+        members: Vec<String>,
+        targets: &Targets,
+    ) -> Option<Resolved>;
+    fn key(
+        &mut self,
+        origin: Origin,
+        name: Option<String>,
+        members: Vec<String>,
+    ) -> Result<Key, OriginError>;
 }
 
-impl<'g> Origins<'g> {
-    fn new(graph: &'g ModuleGraph) -> Self {
-        Self {
-            graph,
-            exports: HashMap::new(),
-        }
-    }
-
-    fn export(&mut self, module: FileId, name: &str) -> Result<Origin, OriginError> {
-        let graph = self.graph;
-        self.exports
-            .entry((module, name.to_owned()))
-            .or_insert_with(|| graph.export_origin(module, name))
-            .clone()
-    }
-
-    fn import(&mut self, file: FileId, import: usize) -> Result<Origin, OriginError> {
-        match self.graph.import_target(file, import)? {
-            (target, Imported::Namespace) => Ok(Origin::Namespace(target)),
-            (target, Imported::Name(name)) => self.export(target, name),
-        }
-    }
-
+impl Lookups for Origins<'_> {
     /// Origin of an alias's root, before its members. `require` returns the module's namespace.
     fn alias(&mut self, file: FileId, root: &AliasRoot) -> Result<Origin, OriginError> {
         match root {
             AliasRoot::Import(import) => self.import(file, *import),
             AliasRoot::Require(specifier) => self
-                .graph
+                .graph()
                 .specifier_target(file, specifier)
                 .map(Origin::Namespace),
         }
@@ -600,7 +597,7 @@ impl<'g> Origins<'g> {
         }
         match (&key.origin, &key.members[..]) {
             (Origin::Export(export), []) => self
-                .graph
+                .graph()
                 .component(export.module, &export.name)
                 .map(|component| Resolved::Component((export.module, component))),
             _ => None,
