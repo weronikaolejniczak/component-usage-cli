@@ -7,5 +7,6 @@ export const App = () => (
     <Toned tone="primary" label="b" />
     <Toned label="c" />
     <Outer tone="danger" />
+    <Toned {...{ tone: 'x', label: 'y' }} />
   </>
 );

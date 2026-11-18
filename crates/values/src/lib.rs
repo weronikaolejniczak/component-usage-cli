@@ -201,9 +201,16 @@ pub fn usage_props(
         .attributes(usage.file, &element.attributes)
         .collect();
     for step in &usage.through {
-        props.retain(
-            |prop| !matches!(prop, Prop::Named { name, .. } if step.excluded.contains(name)),
-        );
+        props = props
+            .into_iter()
+            .filter_map(|prop| match prop {
+                Prop::Named { name, .. } if step.excluded.contains(&name) => None,
+                Prop::Spread { spread } => Some(Prop::Spread {
+                    spread: without(spread, &step.excluded),
+                }),
+                prop => Some(prop),
+            })
+            .collect();
         let Some((element, attribute)) = step.spread else {
             continue;
         };
@@ -641,7 +648,7 @@ impl<'c, 'g> Resolver<'c, 'g> {
                     value: self.value(file, value),
                 }),
                 Attribute::Spread(spread) => Some(Entry::Spread {
-                    spread: self.value(file, spread),
+                    spread: without(self.value(file, spread), taken),
                 }),
             })
             .collect();
@@ -951,6 +958,36 @@ impl<'c, 'g> Resolver<'c, 'g> {
     fn file(&self, file: FileId) -> Option<String> {
         (file != self.usage).then(|| self.context.paths[file.0 as usize].clone())
     }
+}
+
+/// `value` without the properties `keys` names, in an object and in each object spread into it
+/// or branch of a `one-of`.
+fn without(mut value: Value, keys: &[String]) -> Value {
+    if keys.is_empty() {
+        return value;
+    }
+    value.kind = match value.kind {
+        ValueKind::Object { entries } => ValueKind::Object {
+            entries: entries
+                .into_iter()
+                .filter_map(|entry| match entry {
+                    Entry::Property { key, .. } if keys.contains(&key) => None,
+                    Entry::Spread { spread } => Some(Entry::Spread {
+                        spread: without(spread, keys),
+                    }),
+                    entry => Some(entry),
+                })
+                .collect(),
+        },
+        ValueKind::OneOf { values } => ValueKind::OneOf {
+            values: values
+                .into_iter()
+                .map(|value| without(value, keys))
+                .collect(),
+        },
+        kind => kind,
+    };
+    value
 }
 
 /// `value` with `returns` only on functions that are `argument`s of a call, directly or as a

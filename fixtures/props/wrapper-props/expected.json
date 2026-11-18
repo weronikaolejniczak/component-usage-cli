@@ -74,6 +74,30 @@
         { "name": "label", "value": { "kind": "literal", "value": "x", "file": "components.jsx", "line": 6, "column": 71 } }
       ]
     },
+    {
+      "component": "Button", "file": "App.jsx", "line": 10, "column": 5,
+      "through": [{ "component": "Toned", "file": "components.jsx", "line": 5, "column": 45 }],
+      "props": [
+        {
+          "name": "color",
+          "value": {
+            "kind": "literal", "value": "x", "line": 10, "column": 24,
+            "via": [
+              { "text": "tone", "file": "components.jsx", "line": 5, "column": 60 },
+              { "text": "Toned", "line": 10, "column": 5 }
+            ]
+          }
+        },
+        {
+          "spread": {
+            "kind": "object", "line": 10, "column": 16,
+            "entries": [
+              { "key": "label", "value": { "kind": "literal", "value": "y", "line": 10, "column": 36 } }
+            ]
+          }
+        }
+      ]
+    },
     { "component": "Button", "file": "components.jsx", "line": 3, "column": 34 },
     { "component": "Button", "file": "components.jsx", "line": 4, "column": 33 },
     { "component": "Button", "file": "components.jsx", "line": 5, "column": 45 },
@@ -96,9 +120,7 @@
         {
           "spread": {
             "kind": "object", "file": "App.jsx", "line": 9, "column": 5,
-            "entries": [
-              { "key": "tone", "value": { "kind": "literal", "value": "danger", "file": "App.jsx", "line": 9, "column": 17 } }
-            ],
+            "entries": [],
             "via": [
               { "text": "props", "line": 6, "column": 58 },
               { "text": "Outer", "file": "App.jsx", "line": 9, "column": 5 }
