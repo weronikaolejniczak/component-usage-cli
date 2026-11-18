@@ -125,6 +125,12 @@ With `--wrappers`, the other 4,640 usages are the same, and 297 more go through 
 
 Of the 136 references without `--wrappers`, 127 are call arguments, 6 variables, 2 other and 1 an attribute. Most are in tests: `find` on a rendered tree, as in `wrapper.find(EuiComboBox)`, is the callee of 102. `styled` (19) and `euiStyled` (3) are others. With `--wrappers`, 23 references are left out, each a step in a usage's `through`, among them every `styled` and `euiStyled` call. A callee is its source text, line breaks included.
 
+### Props wrappers set
+
+The same scan with `--follow props --wrappers`, at tool commit `db99d42`, which adds the props each wrapper sets to the usages through it ([ADR-0031](../docs/decisions/0031-props-wrappers-set.md)), and at `ea27d5e` before it: [`ea27d5e`](./results/kibana-ea27d5e-follow-props-wrappers/), [`db99d42`](./results/kibana-db99d42-follow-props-wrappers/). The reports are 80.8 MB and 82.1 MB. The load average was 11.6 before the first scan and 13.6 after the last, so the times aren't compared here.
+
+The 4,938 usages are the same, and so are the references, unidentified elements and errors. Only usages through wrappers changed: 266 of the 297 gained props. The most frequent are `type` (123) and `size` (103) on `EuiIcon`, and `onChange` (43), `selectedOptions` (43) and `options` (37) on `EuiComboBox`. Four were read in the source, three picked at random with seed 7 and the first through two wrappers: each has the wrapper's attributes around the caller's, in source order, and a wrapper's own props, such as `size` and `title` in `<EuiIcon type={icon} size={size} title={agentName} {...props} />`, resolve to that caller. Usages through wrappers have 21 `other-callers` values, against 16 before; none is for a wrapper on the usage's path, each is for the props of a component a wrapper's element is in.
+
 ### Summary
 
 The same scan with `--summary` ([ADR-0030](../docs/decisions/0030-summary.md)), at tool commit [`5442a65`](./results/kibana-5442a65-follow-props-summary/), is 279 KB of JSON, against 60.3 MB for the full report at [`fdf169d`](./results/kibana-fdf169d-follow-props/), which finds the same usages. Its counts were recomputed from the full report with a script: usages, files, spreads, references, props, their literal values and owners per component, and unidentified elements per code and component, are the same for all 10 components, and so are the errors. The times of both runs were taken with the machine under load, so they aren't compared here.
