@@ -143,11 +143,14 @@ impl Report {
 
         let all: Vec<&Usage> = self.usages.iter().collect();
         let (owners, unowned) = owners(&all);
-        let mut unidentified: BTreeMap<(UnidentifiedCode, Option<&str>), usize> = BTreeMap::new();
+        let mut unidentified: BTreeMap<(String, Option<&str>), (UnidentifiedCode, usize)> =
+            BTreeMap::new();
         for element in &self.unidentified {
-            *unidentified
-                .entry((element.code, element.component.as_deref()))
-                .or_default() += 1;
+            let code = serde_json::to_string(&element.code).unwrap_or_default();
+            unidentified
+                .entry((code, element.component.as_deref()))
+                .or_insert((element.code, 0))
+                .1 += 1;
         }
         Summary {
             components,
@@ -155,7 +158,7 @@ impl Report {
             unowned: options.owners.then_some(unowned),
             unidentified: unidentified
                 .into_iter()
-                .map(|((code, component), elements)| UnidentifiedCount {
+                .map(|((_, component), (code, elements))| UnidentifiedCount {
                     code,
                     component: component.map(str::to_owned),
                     elements,

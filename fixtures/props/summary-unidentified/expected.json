@@ -1,0 +1,18 @@
+{
+  "query": { "components": ["Icon"], "from": "lib", "summary": true },
+  "summary": {
+    "components": [
+      {
+        "component": "Icon",
+        "usages": 0, "files": 0, "spreads": 0, "references": 1,
+        "props": []
+      }
+    ],
+    "unidentified": [
+      { "code": "alias", "component": "Icon", "elements": 1 },
+      { "code": "unresolved", "elements": 1 }
+    ],
+    "errors": [],
+    "warnings": []
+  }
+}

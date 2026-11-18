@@ -266,6 +266,7 @@ cases!(errors:
 );
 
 cases!(props:
+    alias_edge_cases,
     all_components,
     default_export,
     expressions,
@@ -283,6 +284,7 @@ cases!(props:
     references,
     summary,
     summary_spreads,
+    summary_unidentified,
     templates,
     wrapper_outside_root,
     wrapper_props,

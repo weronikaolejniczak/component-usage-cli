@@ -133,14 +133,11 @@ impl<'a> Visit<'a> for Round<'_, '_> {
                     .clone();
                 let path = leaf.path;
                 let default = leaf.default.map(|default| self.exprs.expr(default));
-                self.found.insert(
-                    leaf.symbol,
-                    Definition::Value {
-                        init,
-                        path,
-                        default,
-                    },
-                );
+                self.found.entry(leaf.symbol).or_insert(Definition::Value {
+                    init,
+                    path,
+                    default,
+                });
             }
         }
         walk::walk_variable_declarator(self, declarator);

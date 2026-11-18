@@ -173,6 +173,7 @@ fn passed(ancestors: &[AstKind], node: Node, source: &str) -> Option<Passed> {
             }
         }
         AstKind::CallExpression(call) if call.callee.span() == span => return None,
+        AstKind::TaggedTemplateExpression(tagged) if tagged.tag.span() == span => return None,
         AstKind::NewExpression(call) if call.callee.span() == span => return None,
         AstKind::CallExpression(call) => {
             argument(&call.arguments, span).map_or(Passed::Other, |index| Passed::Argument {

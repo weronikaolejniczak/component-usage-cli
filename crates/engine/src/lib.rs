@@ -264,7 +264,7 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
                 Cause::Alias { component } => (
                     UnidentifiedCode::Alias,
                     Some(component),
-                    "refers to the component through a local constant, which isn't followed"
+                    "refers to the component through a local name that may hold something else"
                         .to_owned(),
                 ),
                 Cause::Require { component } => (

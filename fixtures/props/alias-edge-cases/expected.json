@@ -1,0 +1,19 @@
+{
+  "query": { "components": ["Button", "Icon"], "from": "lib", "wrappers": true },
+  "usages": [
+    {
+      "component": "Button", "file": "App.jsx", "line": 15, "column": 5,
+      "through": [{ "component": "Wrapped", "file": "App.jsx", "line": 8, "column": 23 }],
+      "props": [
+        { "name": "size", "value": { "kind": "literal", "value": "s", "line": 15, "column": 19 } }
+      ]
+    }
+  ],
+  "references": [
+    { "component": "Icon", "file": "App.jsx", "line": 6, "column": 18, "in": { "kind": "variable", "name": "Redeclared" } }
+  ],
+  "unidentified": [
+    { "file": "App.jsx", "line": 13, "column": 5, "code": "alias", "component": "Icon" },
+    { "file": "App.jsx", "line": 14, "column": 5, "code": "alias", "component": "Icon" }
+  ]
+}

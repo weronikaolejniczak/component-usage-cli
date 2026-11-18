@@ -323,7 +323,8 @@ fn named(expression: &Expression) -> Option<(ReferenceId, Vec<String>, u32)> {
         match current {
             Expression::Identifier(identifier) => {
                 members.reverse();
-                return Some((identifier.reference_id(), members, expression.span().start));
+                let start = expression.get_inner_expression().span().start;
+                return Some((identifier.reference_id(), members, start));
             }
             Expression::StaticMemberExpression(member) => {
                 members.push(member.property.name.to_string());

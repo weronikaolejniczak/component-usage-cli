@@ -370,7 +370,7 @@ pub enum Reference {
 pub enum Binding {
     /// Index into [`FileSummary::imports`].
     Import(usize),
-    /// Index into [`FileSummary::aliases`]: a local constant that refers to an import or a
+    /// Index into [`FileSummary::aliases`]: a local name that refers to an import or a
     /// `require` call.
     Alias(usize),
     /// Declared in this file, including a declaration that shadows an import.

@@ -4,7 +4,8 @@ use crate::{Alias, AliasRoot, Definition, ExprKind, Key, Reference, Segment};
 /// the property accesses and destructured keys on the way: `const { Icon } = Lib` is `Lib` with
 /// members `["Icon"]`. Names that refer to each other in a cycle, to anything else, or through a
 /// key that isn't static or an array pattern, aren't aliases. `reassigned` says whether the name
-/// defined at an index may hold something other than its declaration.
+/// defined at an index may hold something other than its declaration; a name with a default, as
+/// in `const { Icon = Fallback } = Lib`, may too.
 pub(crate) fn alias(
     definitions: &[Definition],
     mut index: usize,
@@ -19,9 +20,15 @@ pub(crate) fn alias(
         }
         seen.push(index);
         any_reassigned |= reassigned(index);
-        let Definition::Value { init, path, .. } = definitions.get(index)? else {
+        let Definition::Value {
+            init,
+            path,
+            default,
+        } = definitions.get(index)?
+        else {
             return None;
         };
+        any_reassigned |= default.is_some();
         let (root, accesses) = match &init.kind {
             ExprKind::Reference { name, path, .. } => (Some(*name), path),
             ExprKind::Require { path, .. } => (None, path),
