@@ -29,6 +29,8 @@ Each group's `node_modules/` holds stub packages, such as `lib` and `other-lib`,
 | `namespace-import` | `import * as Lib from 'lib'; <Lib.Icon />` |
 | `barrel-reexport` | `export { Icon } from 'lib'` and `export * from 'lib'` in a local barrel |
 | `deep-import` | `import { Icon } from 'lib/components/icon'` |
+| `export-aliases` | A component exported under two names, each imported by name and through a namespace, with `--components` naming both ([ADR-0032](../docs/decisions/0032-export-aliases.md)) |
+| `export-aliases-all` | The same, without `--components` |
 | `member-expression` | `<Icon.Item />` reported as `Icon.Item`, separate from `Icon` |
 | `same-name-other-module` | `Icon` from `other-lib` is not counted |
 | `shadowed-local` | A local `Icon` shadowing the import is not counted |

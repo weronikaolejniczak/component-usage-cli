@@ -14,16 +14,43 @@ use parse::{AliasRoot, Binding, FileSummary, Forwarded, Imported, JsxElement};
 /// Resolved components to look for.
 #[derive(Debug)]
 pub struct Targets {
-    by_key: HashMap<Key, String>,
-    /// For [`Targets::all`]: exports by origin, which match with any members.
-    by_origin: HashMap<Origin, String>,
+    /// Every name a key is requested as, in order.
+    by_key: HashMap<Key, Vec<String>>,
+    /// For [`Targets::all`]: exports by origin, sorted, which match with any members.
+    by_origin: HashMap<Origin, Vec<String>>,
 }
 
 /// `Icon.Item` is `Icon` with members `["Item"]`; a namespace hop removes one member.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 struct Key {
     origin: Origin,
     members: Vec<String>,
+    /// The export name last written on the way to the origin: `Glyph` in `<Glyph>` or
+    /// `<L.Glyph>`. Not part of the key's identity; it picks among names an origin has.
+    name: Option<String>,
+}
+
+impl PartialEq for Key {
+    fn eq(&self, other: &Self) -> bool {
+        self.origin == other.origin && self.members == other.members
+    }
+}
+
+impl Eq for Key {}
+
+impl std::hash::Hash for Key {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.origin.hash(state);
+        self.members.hash(state);
+    }
+}
+
+/// The name in `names` whose export is `name`, or else the first.
+fn named<'n>(names: &'n [String], name: Option<&str>) -> Option<&'n String> {
+    names
+        .iter()
+        .find(|candidate| Some(candidate.split('.').next().unwrap_or_default()) == name)
+        .or_else(|| names.first())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -47,12 +74,15 @@ impl Targets {
             let export = parts.next().unwrap_or_default();
             let key = origins
                 .export(module, &export)
-                .and_then(|origin| origins.key(origin, parts.collect()))
+                .and_then(|origin| origins.key(origin, Some(export.clone()), parts.collect()))
                 .map_err(|error| TargetError {
                     component: component.clone(),
                     error,
                 })?;
-            by_key.entry(key).or_insert_with(|| component.clone());
+            let names: &mut Vec<String> = by_key.entry(key).or_default();
+            if !names.contains(component) {
+                names.push(component.clone());
+            }
         }
         Ok(Self {
             by_key,
@@ -67,7 +97,7 @@ impl Targets {
         let mut by_origin = HashMap::new();
         for name in graph.export_names(module) {
             if let Ok(origin) = graph.export_origin(module, &name) {
-                by_origin.entry(origin).or_insert(name);
+                by_origin.entry(origin).or_insert_with(Vec::new).push(name);
             }
         }
         Self {
@@ -79,20 +109,22 @@ impl Targets {
     /// The target a value refers to. With [`Targets::all`], property accesses after an export
     /// aren't one, since they're more often properties than components.
     fn value(&self, key: &Key) -> Option<String> {
-        if let Some(component) = self.by_key.get(key) {
-            return Some(component.clone());
+        let name = key.name.as_deref();
+        if let Some(names) = self.by_key.get(key) {
+            return named(names, name).cloned();
         }
         if !key.members.is_empty() {
             return None;
         }
-        self.by_origin.get(&key.origin).cloned()
+        named(self.by_origin.get(&key.origin)?, name).cloned()
     }
 
     fn component(&self, key: &Key) -> Option<String> {
-        if let Some(component) = self.by_key.get(key) {
-            return Some(component.clone());
+        let name = key.name.as_deref();
+        if let Some(names) = self.by_key.get(key) {
+            return named(names, name).cloned();
         }
-        let export = self.by_origin.get(&key.origin)?;
+        let export = named(self.by_origin.get(&key.origin)?, name)?;
         Some(
             std::iter::once(export.as_str())
                 .chain(key.members.iter().map(String::as_str))
@@ -158,14 +190,24 @@ pub fn identify(
         let elements = &module.summary.elements;
         let mut components: Vec<Rc<[Reached]>> = vec![Rc::from([]); elements.len()];
         for (index, element) in elements.iter().enumerate() {
-            let (origin, members, via) = match element.binding {
-                Binding::Import(import) => (state.origins.import(file, import), Vec::new(), None),
+            let (origin, name, members, via) = match element.binding {
+                Binding::Import(import) => (
+                    state.origins.import(file, import),
+                    imported(&module.summary, import),
+                    Vec::new(),
+                    None,
+                ),
                 Binding::Alias(index) => {
                     let Some(alias) = module.summary.aliases.get(index) else {
                         continue;
                     };
+                    let name = match alias.root {
+                        AliasRoot::Import(import) => imported(&module.summary, import),
+                        AliasRoot::Require(_) => None,
+                    };
                     (
                         state.origins.alias(file, &alias.root),
+                        name,
                         alias.members.clone(),
                         Some(alias),
                     )
@@ -180,7 +222,7 @@ pub fn identify(
                 cause,
             };
             let members = members.into_iter().chain(element.members.iter().cloned());
-            let key = origin.and_then(|origin| state.origins.key(origin, members.collect()));
+            let key = origin.and_then(|origin| state.origins.key(origin, name, members.collect()));
             match key {
                 Ok(key) => {
                     let Some(component) = targets.component(&key) else {
@@ -262,7 +304,10 @@ pub fn references(graph: &ModuleGraph, files: &[FileId], targets: &Targets) -> V
         for reference in &module.summary.references {
             let origin = origins.import(file, reference.import);
             let Some(key) = origin
-                .and_then(|origin| origins.key(origin, reference.members.clone()))
+                .and_then(|origin| {
+                    let name = imported(&module.summary, reference.import);
+                    origins.key(origin, name, reference.members.clone())
+                })
                 .ok()
             else {
                 continue;
@@ -386,7 +431,8 @@ impl State<'_> {
                     }
                     Forwarded::Import { import, members } => {
                         let origin = self.origins.import(file, *import);
-                        self.origins.resolve(origin, members.clone(), targets)
+                        let name = imported(&module.summary, *import);
+                        self.origins.resolve(origin, name, members.clone(), targets)
                     }
                     Forwarded::Component(component) => {
                         Some(Resolved::Component((file, *component)))
@@ -466,6 +512,14 @@ fn source(summary: &FileSummary, element: &JsxElement) -> Option<String> {
     }
 }
 
+/// The export name `summary`'s import at `import` binds, if it binds one.
+fn imported(summary: &FileSummary, import: usize) -> Option<String> {
+    match &summary.imports.get(import)?.imported {
+        Imported::Name(name) => Some(name.clone()),
+        Imported::Namespace => None,
+    }
+}
+
 /// Origin lookups, memoised by export: many elements across files import the same names.
 struct Origins<'g> {
     graph: &'g ModuleGraph,
@@ -520,13 +574,20 @@ impl<'g> Origins<'g> {
                 .map(|component| Resolved::Component((file, component))),
             Binding::Import(import) => {
                 let origin = self.import(file, import);
-                self.resolve(origin, element.members.clone(), targets)
+                let name = imported(summary, import);
+                self.resolve(origin, name, element.members.clone(), targets)
             }
             Binding::Alias(index) => {
                 let alias = summary.aliases.get(index)?;
-                let origin = self.import(file, alias.import()?);
+                let import = alias.import()?;
+                let origin = self.import(file, import);
                 let members = alias.members.iter().chain(&element.members).cloned();
-                self.resolve(origin, members.collect(), targets)
+                self.resolve(
+                    origin,
+                    imported(summary, import),
+                    members.collect(),
+                    targets,
+                )
             }
             Binding::Global => None,
         }
@@ -536,10 +597,11 @@ impl<'g> Origins<'g> {
     fn resolve(
         &mut self,
         origin: Result<Origin, OriginError>,
+        name: Option<String>,
         members: Vec<String>,
         targets: &Targets,
     ) -> Option<Resolved> {
-        let key = self.key(origin.ok()?, members).ok()?;
+        let key = self.key(origin.ok()?, name, members).ok()?;
         if let Some(target) = targets.component(&key) {
             return Some(Resolved::Target(target));
         }
@@ -552,12 +614,22 @@ impl<'g> Origins<'g> {
         }
     }
 
-    fn key(&mut self, mut origin: Origin, members: Vec<String>) -> Result<Key, OriginError> {
+    /// The key `members` after `origin` lead to; `name` is the export name `origin` was
+    /// imported as, if any.
+    fn key(
+        &mut self,
+        mut origin: Origin,
+        mut name: Option<String>,
+        members: Vec<String>,
+    ) -> Result<Key, OriginError> {
         let mut members = members.into_iter();
         let mut rest = Vec::new();
         for member in members.by_ref() {
             match origin {
-                Origin::Namespace(module) => origin = self.export(module, &member)?,
+                Origin::Namespace(module) => {
+                    origin = self.export(module, &member)?;
+                    name = Some(member);
+                }
                 Origin::Export(_) => {
                     rest.push(member);
                     break;
@@ -568,6 +640,7 @@ impl<'g> Origins<'g> {
         Ok(Key {
             origin,
             members: rest,
+            name,
         })
     }
 }

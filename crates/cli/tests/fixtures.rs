@@ -247,6 +247,8 @@ cases!(identify:
     commonjs,
     commonjs_module,
     deep_import,
+    export_aliases,
+    export_aliases_all,
     hidden_directory,
     local_alias,
     member_expression,
