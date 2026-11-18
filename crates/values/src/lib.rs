@@ -734,6 +734,9 @@ impl<'c, 'g> Resolver<'c, 'g> {
         let mut value = path
             .iter()
             .fold(value, |value, key| self.lookup(value, key, name));
+        if self.stopped_at(&value, name) {
+            return value;
+        }
         value.via.insert(
             0,
             Via {
@@ -743,6 +746,13 @@ impl<'c, 'g> Resolver<'c, 'g> {
             },
         );
         value
+    }
+
+    /// Whether `value` is where following stopped at `name`, which isn't a name on the way to it.
+    fn stopped_at(&self, value: &Value, name: &Name) -> bool {
+        value.location == name.location
+            && value.file == self.file(name.file)
+            && matches!(&value.kind, ValueKind::Unresolved { text, .. } if text == name.text)
     }
 
     /// What the export `export` of `module` holds, then `keys` in it. `Err` is the value to

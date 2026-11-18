@@ -623,6 +623,89 @@ fn imports_changed_in_place() {
 }
 
 #[test]
+fn imports_changed_by_delete_and_object_functions() {
+    let summary = with_imports(
+        "import { removed, assigned, read } from './a';\n\
+         delete removed.key;\n\
+         Object.assign(assigned.inner, {});\n\
+         Object.keys(read);\n",
+    );
+    assert_eq!(summary.changed_imports, [0, 1]);
+}
+
+#[test]
+fn exported_classes_and_enums_are_variables() {
+    let summary = with_imports(
+        "export class Panel {}\n\
+         export enum Size { S }\n\
+         export default class Main {}\n",
+    );
+    let mut names: Vec<&str> = summary.exported.keys().map(String::as_str).collect();
+    names.sort_unstable();
+    assert_eq!(names, ["Panel", "Size", "default"]);
+    assert!(
+        summary
+            .exported
+            .values()
+            .all(|exported| matches!(exported, crate::Exported::Variable(_)))
+    );
+}
+
+#[test]
+fn anonymous_classes_and_interfaces_arent_default_exports() {
+    assert!(with_imports("export default class {}").exported.is_empty());
+    assert!(
+        with_imports("export default interface Props {}")
+            .exported
+            .is_empty()
+    );
+}
+
+#[test]
+fn names_declared_in_loop_heads_arent_followed() {
+    let summary = with_imports(
+        "for (var item of list) {}\n\
+         export const last = item;\n",
+    );
+    let crate::Exported::Variable(last) = summary.exported["last"] else {
+        panic!("not a variable");
+    };
+    let crate::Definition::Value { init, .. } = &summary.definitions[last] else {
+        panic!("not a value");
+    };
+    let ExprKind::Reference {
+        name: Reference::Variable(item),
+        ..
+    } = init.kind
+    else {
+        panic!("not a variable reference");
+    };
+    assert!(!matches!(
+        summary.definitions[item],
+        crate::Definition::Value { .. }
+    ));
+}
+
+#[test]
+fn declarations_without_an_initializer_hold_undefined() {
+    let summary = with_imports(
+        "let unset;\n\
+         export { unset };\n",
+    );
+    let crate::Exported::Variable(unset) = summary.exported["unset"] else {
+        panic!("not a variable");
+    };
+    assert_eq!(
+        summary.definitions[unset],
+        crate::Definition::Value {
+            init: expr(1, 5, ExprKind::Undefined),
+            path: Vec::new(),
+            default: None,
+        }
+    );
+}
+
+#[test]
 fn value_imports_follow_definitions_from_exports() {
     let summary = with_imports(
         "import { a } from './a';\n\

@@ -71,8 +71,10 @@ Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-value
 | `follow-props` | `--follow props`: props as names, patterns with defaults and rest elements, and in the body; callers through imports, namespaces, default exports, `memo` and `forwardRef`; chains of components, `{...props}` and `{...rest}`, `children`, a component that renders itself, callback parameters, `displayName`, and the `no-callers` and `other-callers` codes ([ADR-0022](../docs/decisions/0022-follow-props.md), [ADR-0023](../docs/decisions/0023-component-properties.md)) |
 | `follow-variables` | `--follow variables`: chains, property access, destructuring and defaults, `mutated`, function declarations, names that refer back to themselves ([ADR-0019](../docs/decisions/0019-follow-variables.md)) |
 | `local-aliases` | Local names for a wrapper and for a component whose props are followed ([ADR-0029](../docs/decisions/0029-local-aliases.md)) |
+| `lookups` | `--follow variables`: property and index access through spreads of objects and arrays, an index that isn't known, and keys a computed key or a nested spread may set, which are `unsupported` |
 | `mutated-props` | Props reassigned or changed in place, which aren't followed, and a reassigned `props` spread, which isn't a wrapper |
 | `nested-namespace` | Callers through a namespace re-exported as a member of another, followed by `--follow props` |
+| `stopped-lookups` | `--follow props`: a lookup that stops in what a caller passes, whose `via` has the caller but not the name it stopped at |
 | `summary` | `--summary` ([ADR-0030](../docs/decisions/0030-summary.md)): counts per component, prop and owner, literal values with ternaries, a target without usages, wrappers, local names, references and unidentified elements |
 | `summary-spreads` | `--summary` with named props before and after spreads of objects, and of a name that isn't followed ([ADR-0033](../docs/decisions/0033-summary-spreads.md)) |
 | `summary-unidentified` | `--summary` with unidentified elements of two codes, sorted by code |

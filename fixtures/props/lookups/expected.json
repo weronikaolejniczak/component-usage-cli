@@ -1,0 +1,64 @@
+{
+  "query": { "components": ["Button"], "from": "lib", "follow": ["variables"] },
+  "usages": [
+    {
+      "component": "Button", "file": "App.jsx", "line": 12, "column": 5,
+      "props": [
+        {
+          "name": "size",
+          "value": {
+            "kind": "literal", "value": "s", "line": 3, "column": 22,
+            "via": [{ "text": "STYLE.size", "line": 13, "column": 13 }]
+          }
+        },
+        {
+          "name": "color",
+          "value": {
+            "kind": "literal", "value": "red", "line": 4, "column": 33,
+            "via": [{ "text": "STYLE.color", "line": 14, "column": 14 }]
+          }
+        },
+        {
+          "name": "type",
+          "value": {
+            "kind": "literal", "value": "c", "line": 6, "column": 24,
+            "via": [{ "text": "ALL[2]", "line": 15, "column": 13 }]
+          }
+        },
+        {
+          "name": "icon",
+          "value": {
+            "kind": "literal", "value": "b", "line": 5, "column": 21,
+            "via": [{ "text": "ALL[1]", "line": 16, "column": 13 }]
+          }
+        },
+        {
+          "name": "label",
+          "value": {
+            "kind": "one-of", "line": 5, "column": 15,
+            "values": [
+              { "kind": "literal", "value": "a", "line": 5, "column": 16 },
+              { "kind": "literal", "value": "b", "line": 5, "column": 21 }
+            ],
+            "via": [{ "text": "FIRST[index]", "line": 17, "column": 14 }]
+          }
+        },
+        {
+          "name": "title",
+          "value": { "kind": "unresolved", "code": "unsupported", "text": "NESTED[0]", "line": 18, "column": 14 }
+        },
+        {
+          "name": "name",
+          "value": {
+            "kind": "literal", "value": "m", "line": 8, "column": 34,
+            "via": [{ "text": "KEYS.size", "line": 19, "column": 13 }]
+          }
+        },
+        {
+          "name": "id",
+          "value": { "kind": "unresolved", "code": "unsupported", "text": "KEYS.other", "line": 20, "column": 11 }
+        }
+      ]
+    }
+  ]
+}

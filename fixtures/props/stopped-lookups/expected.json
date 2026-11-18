@@ -1,0 +1,17 @@
+{
+  "query": { "components": ["Button"], "from": "lib", "follow": ["props"] },
+  "usages": [
+    {
+      "component": "Button", "file": "App.jsx", "line": 4, "column": 10,
+      "props": [
+        {
+          "name": "id",
+          "value": {
+            "kind": "unresolved", "code": "unsupported", "text": "settings.id", "line": 4, "column": 22,
+            "via": [{ "text": "Field", "line": 7, "column": 27 }]
+          }
+        }
+      ]
+    }
+  ]
+}
