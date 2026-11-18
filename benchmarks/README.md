@@ -125,6 +125,10 @@ With `--wrappers`, the other 4,640 usages are the same, and 297 more go through 
 
 Of the 136 references without `--wrappers`, 127 are call arguments, 6 variables, 2 other and 1 an attribute. Most are in tests: `find` on a rendered tree, as in `wrapper.find(EuiComboBox)`, is the callee of 102. `styled` (19) and `euiStyled` (3) are others. With `--wrappers`, 23 references are left out, each a step in a usage's `through`, among them every `styled` and `euiStyled` call. A callee is its source text, line breaks included.
 
+### Summary
+
+The same scan with `--summary` ([ADR-0030](../docs/decisions/0030-summary.md)), at tool commit [`5442a65`](./results/kibana-5442a65-follow-props-summary/), is 279 KB of JSON, against 60.3 MB for the full report at [`fdf169d`](./results/kibana-fdf169d-follow-props/), which finds the same usages. Its counts were recomputed from the full report with a script: usages, files, spreads, references, props, their literal values and owners per component, and unidentified elements per code and component, are the same for all 10 components, and so are the errors. The times of both runs were taken with the machine under load, so they aren't compared here.
+
 ### Checked by hand
 
 `EuiIcon` positions were compared with a text search for `<EuiIcon` followed by whitespace, `>`, `/` or the end of the line. The scan found every match the search found, except 20, and none the search missed. Each of the 20 was read: all are in comments or template strings, such as inline snapshots, so they aren't usages. The search can't see usages through generics (`<EuiBasicTable<T>`), which is why `EuiBasicTable` has more usages than a text search finds.
