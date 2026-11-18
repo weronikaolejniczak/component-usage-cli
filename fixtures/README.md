@@ -74,6 +74,7 @@ Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-value
 | `nested-namespace` | Callers through a namespace re-exported as a member of another, followed by `--follow props` |
 | `summary` | `--summary` ([ADR-0030](../docs/decisions/0030-summary.md)): counts per component, prop and owner, literal values with ternaries, a target without usages, wrappers, local names, references and unidentified elements |
 | `summary-spreads` | `--summary` with named props before and after spreads of objects, and of a name that isn't followed ([ADR-0033](../docs/decisions/0033-summary-spreads.md)) |
+| `wrapper-outside-root` | `--wrappers` scanning a folder whose wrapper is beside it, with its path relative to the scan root ([ADR-0034](../docs/decisions/0034-paths-outside-the-root.md)) |
 | `wrapper-props` | Props wrappers set before and after the spread, a rest pattern taking a prop the caller and an outer wrapper set, a wrapper's prop followed to the caller, and a wrapper inside another ([ADR-0031](../docs/decisions/0031-props-wrappers-set.md)) |
 | `wrappers` | `--wrappers`: spreads of props and of a rest element, which leaves out the keys it takes, calls with member calls and tagged templates on their result, the default export, wrappers of wrappers, a wrapper of two targets, a component passing one prop, which isn't a wrapper, a wrapper that renders itself, and a usage through a wrapper inside a target ([ADR-0026](../docs/decisions/0026-wrappers.md)) |
 

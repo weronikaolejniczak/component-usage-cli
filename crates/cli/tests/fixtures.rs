@@ -284,6 +284,7 @@ cases!(props:
     summary,
     summary_spreads,
     templates,
+    wrapper_outside_root,
     wrapper_props,
     wrappers,
 );

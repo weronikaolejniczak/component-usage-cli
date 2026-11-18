@@ -44,13 +44,23 @@ impl Files {
     }
 }
 
-/// Relative to `root` with `/` separators, `.` for `root` itself, or absolute if outside it.
+/// Relative to `root` with `/` separators, `.` for `root` itself, with a `..` for each folder up
+/// from `root` when outside it, or absolute when no ancestor of `root` contains it, as with
+/// another drive.
 pub(crate) fn display(path: &Path, root: &Path) -> String {
-    match path.strip_prefix(root) {
-        Ok(relative) if relative.as_os_str().is_empty() => ".".to_owned(),
-        Ok(relative) => slashed(relative),
-        Err(_) => path.to_string_lossy().into_owned(),
+    for (up, base) in root.ancestors().enumerate() {
+        if let Ok(relative) = path.strip_prefix(base) {
+            if up == 0 && relative.as_os_str().is_empty() {
+                return ".".to_owned();
+            }
+            let relative = slashed(relative);
+            return std::iter::repeat_n("..", up)
+                .chain((!relative.is_empty()).then_some(relative.as_str()))
+                .collect::<Vec<_>>()
+                .join("/");
+        }
     }
+    path.to_string_lossy().into_owned()
 }
 
 pub(crate) fn slashed(path: &Path) -> String {
@@ -121,4 +131,27 @@ fn is_source(path: &Path) -> bool {
             .extension()
             .and_then(|extension| extension.to_str())
             .is_some_and(|extension| EXTENSIONS.contains(&extension))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::display;
+
+    #[test]
+    fn displays_paths_relative_to_the_root() {
+        let root = Path::new("/repo/app");
+        assert_eq!(display(Path::new("/repo/app"), root), ".");
+        assert_eq!(display(Path::new("/repo/app/src/a.tsx"), root), "src/a.tsx");
+        assert_eq!(display(Path::new("/repo"), root), "..");
+        assert_eq!(
+            display(Path::new("/repo/shared/b.tsx"), root),
+            "../shared/b.tsx"
+        );
+        assert_eq!(
+            display(Path::new("/other/c.tsx"), root),
+            "../../other/c.tsx"
+        );
+    }
 }

@@ -10,7 +10,7 @@ mod resolver;
 use std::collections::{HashMap, HashSet};
 
 use model::{ExportRef, FileId};
-use parse::{AliasRoot, Binding, Export, Exported, FileSummary, Forwarded, Imported};
+use parse::{AliasRoot, Binding, Export, Exported, FileSummary, Forwarded, Imported, JsxElement};
 
 pub use resolver::{ResolveError, Resolver};
 
@@ -367,36 +367,57 @@ pub fn value_specifiers(summary: &FileSummary, attributes: bool) -> impl Iterato
 /// Specifiers of the imports and `require` calls that JSX elements in this file refer to, of the
 /// imports components pass their props on to, and of the imports read as values.
 pub fn element_specifiers(summary: &FileSummary) -> impl Iterator<Item = &str> {
-    let import = |index: usize| {
-        summary
-            .imports
-            .get(index)
-            .map(|import| import.source.as_str())
-    };
     let elements = summary
         .elements
         .iter()
-        .filter_map(move |element| match element.binding {
-            Binding::Import(index) => import(index),
-            Binding::Alias(index) => match &summary.aliases.get(index)?.root {
-                AliasRoot::Import(index) => import(*index),
-                AliasRoot::Require(specifier) => Some(specifier.as_str()),
-            },
-            Binding::Local | Binding::Global => None,
-        });
+        .filter_map(|element| element_specifier(summary, element));
     let forwards = summary
         .components
         .iter()
         .flat_map(|component| &component.forwards)
-        .filter_map(move |forward| match forward.to {
-            Forwarded::Import { import: index, .. } => import(index),
+        .filter_map(|forward| match forward.to {
+            Forwarded::Import { import, .. } => import_specifier(summary, import),
             Forwarded::Element { .. } | Forwarded::Component(_) => None,
         });
     let references = summary
         .references
         .iter()
-        .filter_map(move |reference| import(reference.import));
+        .filter_map(|reference| import_specifier(summary, reference.import));
     elements.chain(forwards).chain(references)
+}
+
+/// Specifiers of what components in this file pass their props on to: the imports and `require`
+/// calls of the elements they spread them on, and the imports they're called with.
+pub fn forward_specifiers(summary: &FileSummary) -> impl Iterator<Item = &str> {
+    summary
+        .components
+        .iter()
+        .flat_map(|component| &component.forwards)
+        .filter_map(|forward| match forward.to {
+            Forwarded::Element { element, .. } => {
+                element_specifier(summary, summary.elements.get(element)?)
+            }
+            Forwarded::Import { import, .. } => import_specifier(summary, import),
+            Forwarded::Component(_) => None,
+        })
+}
+
+fn import_specifier(summary: &FileSummary, import: usize) -> Option<&str> {
+    summary
+        .imports
+        .get(import)
+        .map(|import| import.source.as_str())
+}
+
+fn element_specifier<'s>(summary: &'s FileSummary, element: &JsxElement) -> Option<&'s str> {
+    match element.binding {
+        Binding::Import(index) => import_specifier(summary, index),
+        Binding::Alias(index) => match &summary.aliases.get(index)?.root {
+            AliasRoot::Import(index) => import_specifier(summary, *index),
+            AliasRoot::Require(specifier) => Some(specifier.as_str()),
+        },
+        Binding::Local | Binding::Global => None,
+    }
 }
 
 #[cfg(test)]

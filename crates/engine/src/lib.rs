@@ -140,7 +140,7 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
                 let path = files.path(id);
                 let summary = read_and_parse(path, options);
                 let resolved = summary.as_ref().ok().map(|summary| {
-                    needed_specifiers(summary, scanned_set.contains(&id), options.imports)
+                    needed_specifiers(summary, scanned_set.contains(&id), options)
                         .into_iter()
                         .map(|specifier| {
                             let target = resolver.resolve(path, specifier);
@@ -324,12 +324,14 @@ fn file_error(file: String, error: ReadError) -> FileError {
     }
 }
 
-fn needed_specifiers(summary: &FileSummary, scanned: bool, imports: bool) -> Vec<&str> {
+fn needed_specifiers(summary: &FileSummary, scanned: bool, options: parse::Options) -> Vec<&str> {
     let mut specifiers: Vec<&str> = graph::export_specifiers(summary).collect();
     if scanned {
         specifiers.extend(graph::element_specifiers(summary));
+    } else if options.wrappers {
+        specifiers.extend(graph::forward_specifiers(summary));
     }
-    if imports {
+    if options.imports {
         specifiers.extend(graph::value_specifiers(summary, scanned));
     }
     specifiers.sort_unstable();

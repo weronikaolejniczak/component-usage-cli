@@ -1,0 +1,12 @@
+{
+  "query": { "components": ["Button"], "from": "lib", "dir": "app", "wrappers": true },
+  "usages": [
+    {
+      "component": "Button", "file": "App.jsx", "line": 3, "column": 26,
+      "through": [{ "component": "Wrapper", "file": "../shared/Wrapper.jsx", "line": 3, "column": 35 }],
+      "props": [
+        { "name": "size", "value": { "kind": "literal", "value": "s", "line": 3, "column": 40 } }
+      ]
+    }
+  ]
+}
