@@ -82,6 +82,12 @@ pub(crate) fn exported(program: &Program, exprs: &Exprs) -> HashMap<String, Expo
                         None => continue,
                     },
                     ExportDefaultDeclarationKind::TSInterfaceDeclaration(_) => continue,
+                    ExportDefaultDeclarationKind::Identifier(local)
+                        if let Some(symbol) = exprs.scope.symbol(local)
+                            && matches!(exprs.scope.declared(symbol), Declared::Local) =>
+                    {
+                        Exported::Variable(exprs.variable(symbol))
+                    }
                     declaration => match declaration.as_expression() {
                         Some(expression) => Exported::Value(exprs.expr(expression)),
                         None => continue,

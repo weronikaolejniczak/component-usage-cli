@@ -267,6 +267,7 @@ cases!(errors:
 
 cases!(props:
     all_components,
+    default_export,
     expressions,
     follow_calls,
     follow_imports,

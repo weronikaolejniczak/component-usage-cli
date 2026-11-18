@@ -1,0 +1,44 @@
+{
+  "query": { "components": ["Icon"], "from": "lib", "follow": ["props"], "wrappers": true },
+  "usages": [
+    {
+      "component": "Icon", "file": "App.jsx", "line": 7, "column": 5,
+      "through": [{ "component": "Wrapper", "file": "Wrapper.jsx", "line": 4, "column": 10 }],
+      "props": [
+        { "name": "type", "value": { "kind": "literal", "value": "bolt", "line": 7, "column": 19 } }
+      ]
+    },
+    {
+      "component": "Icon", "file": "W.jsx", "line": 4, "column": 10,
+      "props": [
+        {
+          "name": "type",
+          "value": {
+            "kind": "literal", "value": "gear", "file": "App.jsx", "line": 6, "column": 20,
+            "via": [
+              { "text": "iconType", "line": 4, "column": 22 },
+              { "text": "Menu", "file": "App.jsx", "line": 6, "column": 5 }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Icon", "file": "Wrapper.jsx", "line": 4, "column": 10,
+      "props": [
+        {
+          "spread": {
+            "kind": "object", "file": "App.jsx", "line": 7, "column": 5,
+            "entries": [
+              { "key": "type", "value": { "kind": "literal", "value": "bolt", "file": "App.jsx", "line": 7, "column": 19 } }
+            ],
+            "via": [
+              { "text": "props", "line": 4, "column": 20 },
+              { "text": "Wrapper", "file": "App.jsx", "line": 7, "column": 5 }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
