@@ -30,8 +30,9 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0023](./0023-component-properties.md) | Reading or setting a property of a component doesn't add `other-callers` | accepted |
 | [0024](./0024-follow-calls.md) | Describe calls: what's called, with what, and what the functions passed return | accepted; following in arguments superseded by ADR-0025 |
 | [0025](./0025-names-in-calls.md) | Names in a call's arguments aren't followed | accepted |
-| [0026](./0026-wrappers.md) | Report a wrapper's usages as usages of the components it passes its props to | accepted |
+| [0026](./0026-wrappers.md) | Report a wrapper's usages as usages of the components it passes its props to | accepted; props of usages through wrappers superseded by ADR-0031 |
 | [0027](./0027-references.md) | Report the places a target is passed as a value | accepted; leaving out wrappers' arguments superseded by ADR-0028 |
 | [0028](./0028-references-of-unrendered-wrappers.md) | Keep the references of wrappers nothing renders | accepted |
 | [0029](./0029-local-aliases.md) | Count usages through local names that are never assigned again | accepted |
 | [0030](./0030-summary.md) | Summarise a scan with counts per component, prop and owner | accepted |
+| [0031](./0031-props-wrappers-set.md) | Add the props wrappers set to the usages that go through them | accepted |

@@ -46,8 +46,6 @@ pub struct Usage {
     /// The wrappers from the element to the component, outermost first; empty for an element
     /// of the component itself.
     pub through: Vec<Through>,
-    /// Props the wrappers don't pass on.
-    pub excluded: Vec<String>,
 }
 
 /// A place a target is read as a value rather than rendered as a JSX tag.
@@ -102,6 +100,16 @@ pub struct Through {
     pub component: String,
     pub file: FileId,
     pub location: Location,
+    /// Index of the wrapper in its file's components.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub wrapper: usize,
+    /// Indices of the element the wrapper spreads its props on and of the spread among its
+    /// attributes; `None` when a call passes them on.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub spread: Option<(usize, usize)>,
+    /// The props the wrapper's rest pattern takes, which aren't passed on.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub excluded: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

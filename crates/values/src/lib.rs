@@ -169,29 +169,68 @@ pub fn props(
     element: &parse::JsxElement,
     filter: Option<&[String]>,
 ) -> Vec<Prop> {
-    let resolver = Resolver {
-        context,
-        usage: file,
-        active: RefCell::new(Vec::new()),
-        argument: Cell::new(false),
-        in_call: Cell::new(false),
-    };
-    element
-        .attributes
-        .iter()
-        .filter_map(|attribute| match attribute {
-            Attribute::Named { name, value } => {
-                let wanted = filter.is_none_or(|names| names.contains(name));
-                wanted.then(|| Prop::Named {
-                    name: name.clone(),
-                    value: returned_by_arguments(resolver.value(file, value), false),
-                })
-            }
-            Attribute::Spread(spread) => Some(Prop::Spread {
-                spread: returned_by_arguments(resolver.value(file, spread), false),
-            }),
-        })
+    let resolver = Resolver::new(context, file, Vec::new());
+    resolver
+        .attributes(file, &element.attributes)
+        .filter(|prop| wanted(prop, filter))
         .collect()
+}
+
+/// The props `usage` gives its component, in the order they apply: those of its element, of
+/// `element`, and those each wrapper in [`model::Usage::through`] sets around the spread that
+/// passes them on, without those its rest pattern takes. A wrapper's own props are followed to
+/// the element this usage goes through only. With `filter`, only the named ones, and spreads.
+pub fn usage_props(
+    context: &Context,
+    usage: &model::Usage,
+    element: &parse::JsxElement,
+    filter: Option<&[String]>,
+) -> Vec<Prop> {
+    let mut caller = (usage.file, usage.element);
+    let mut pins = Vec::with_capacity(usage.through.len());
+    for step in &usage.through {
+        pins.push(((step.file, step.wrapper), caller));
+        if let Some((element, _)) = step.spread {
+            caller = (step.file, element);
+        }
+    }
+    let resolver = Resolver::new(context, usage.file, pins);
+    let mut props: Vec<Prop> = resolver
+        .attributes(usage.file, &element.attributes)
+        .collect();
+    for step in &usage.through {
+        props.retain(
+            |prop| !matches!(prop, Prop::Named { name, .. } if step.excluded.contains(name)),
+        );
+        let Some((element, attribute)) = step.spread else {
+            continue;
+        };
+        let Some(element) = context
+            .graph
+            .module(step.file)
+            .and_then(|module| module.summary.elements.get(element))
+        else {
+            continue;
+        };
+        let (before, after) = element
+            .attributes
+            .split_at(attribute.min(element.attributes.len()));
+        let after = after.get(1..).unwrap_or_default();
+        props = resolver
+            .attributes(step.file, before)
+            .chain(props)
+            .chain(resolver.attributes(step.file, after))
+            .collect();
+    }
+    props.retain(|prop| wanted(prop, filter));
+    props
+}
+
+fn wanted(prop: &Prop, filter: Option<&[String]>) -> bool {
+    match prop {
+        Prop::Named { name, .. } => filter.is_none_or(|names| names.contains(name)),
+        Prop::Spread { .. } => true,
+    }
 }
 
 /// A name a component's props declare, in the component's file.
@@ -226,6 +265,8 @@ impl Origins<'_> {
 struct Resolver<'c, 'g> {
     context: &'c Context<'g>,
     usage: FileId,
+    /// Components whose props are followed to one element only, the one the usage goes through.
+    pins: Vec<(ComponentRef, (FileId, usize))>,
     /// What is being followed, to stop at names that refer back to themselves.
     active: RefCell<Vec<Active>>,
     /// Whether the value being found is, or is within, an argument of a call; only then are the
@@ -249,7 +290,39 @@ struct Name<'n> {
     location: Location,
 }
 
-impl Resolver<'_, '_> {
+impl<'c, 'g> Resolver<'c, 'g> {
+    fn new(
+        context: &'c Context<'g>,
+        usage: FileId,
+        pins: Vec<(ComponentRef, (FileId, usize))>,
+    ) -> Self {
+        Self {
+            context,
+            usage,
+            pins,
+            active: RefCell::new(Vec::new()),
+            argument: Cell::new(false),
+            in_call: Cell::new(false),
+        }
+    }
+
+    /// `attributes`, of an element of `file`, as props.
+    fn attributes<'a>(
+        &'a self,
+        file: FileId,
+        attributes: &'a [Attribute],
+    ) -> impl Iterator<Item = Prop> + 'a {
+        attributes.iter().map(move |attribute| match attribute {
+            Attribute::Named { name, value } => Prop::Named {
+                name: name.clone(),
+                value: returned_by_arguments(self.value(file, value), false),
+            },
+            Attribute::Spread(spread) => Prop::Spread {
+                spread: returned_by_arguments(self.value(file, spread), false),
+            },
+        })
+    }
+
     fn value(&self, file: FileId, expr: &Expr) -> Value {
         let kind = match &expr.kind {
             ExprKind::Literal(literal) => ValueKind::Literal {
@@ -430,11 +503,18 @@ impl Resolver<'_, '_> {
         if self.active.borrow().contains(&active) {
             return Err(self.stop(name, UnresolvedCode::Unsupported, None));
         }
-        let escaped = context.escaped.contains(&component);
-        let callers = context
-            .callers
-            .get(&component)
-            .map_or(&[][..], Vec::as_slice);
+        let pinned = self
+            .pins
+            .iter()
+            .find(|(pinned, _)| *pinned == component)
+            .map(|(_, caller)| std::slice::from_ref(caller));
+        let escaped = pinned.is_none() && context.escaped.contains(&component);
+        let callers = pinned.unwrap_or_else(|| {
+            context
+                .callers
+                .get(&component)
+                .map_or(&[][..], Vec::as_slice)
+        });
         if callers.is_empty() {
             let code = if escaped {
                 UnresolvedCode::Parameter

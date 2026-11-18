@@ -37,7 +37,6 @@ fn usage(line: u32, column: u32, component: &str) -> Usage {
         element: 0,
         parents: Vec::new(),
         through: Vec::new(),
-        excluded: Vec::new(),
     }
 }
 

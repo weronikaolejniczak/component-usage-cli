@@ -191,7 +191,6 @@ pub fn identify(
                             components[index] = Rc::from([Reached {
                                 component,
                                 through: Vec::new(),
-                                excluded: Vec::new(),
                             }]);
                             if let Some(alias) = via {
                                 identified.aliases.insert((file, alias.location));
@@ -238,7 +237,6 @@ pub fn identify(
                     element: index,
                     parents: parents(elements, &components, &at, index),
                     through: reached.through.clone(),
-                    excluded: reached.excluded.clone(),
                 });
             }
         }
@@ -331,7 +329,6 @@ fn parents(
 struct Reached {
     component: String,
     through: Vec<Through>,
-    excluded: Vec<String>,
 }
 
 /// A component, by file and index into its [`FileSummary::components`].
@@ -380,7 +377,7 @@ impl State<'_> {
         {
             for forward in &component.forwards {
                 let resolved = match &forward.to {
-                    Forwarded::Element(element) => {
+                    Forwarded::Element { element, .. } => {
                         let Some(element) = module.summary.elements.get(*element) else {
                             continue;
                         };
@@ -399,12 +396,17 @@ impl State<'_> {
                     component: component.name.clone(),
                     file,
                     location: forward.location,
+                    wrapper: index,
+                    spread: match forward.to {
+                        Forwarded::Element { element, attribute } => Some((element, attribute)),
+                        Forwarded::Import { .. } | Forwarded::Component(_) => None,
+                    },
+                    excluded: forward.excluded.clone(),
                 };
                 let found: Vec<Reached> = match resolved {
                     Some(Resolved::Target(target)) => vec![Reached {
                         component: target,
                         through: vec![step],
-                        excluded: forward.excluded.clone(),
                     }],
                     Some(Resolved::Component(next)) => {
                         let (inner, inner_cyclic) = self.reaches(targets, next);
@@ -415,12 +417,6 @@ impl State<'_> {
                                 component: inner.component.clone(),
                                 through: std::iter::once(step.clone())
                                     .chain(inner.through.iter().cloned())
-                                    .collect(),
-                                excluded: forward
-                                    .excluded
-                                    .iter()
-                                    .chain(&inner.excluded)
-                                    .cloned()
                                     .collect(),
                             })
                             .collect()

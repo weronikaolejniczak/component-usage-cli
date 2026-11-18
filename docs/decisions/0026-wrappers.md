@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; props of usages through wrappers superseded by ADR-0031
 date: 2026-11-17
 decision-makers: Weronika Olejniczak
 ---

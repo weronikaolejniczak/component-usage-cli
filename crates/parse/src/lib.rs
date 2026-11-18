@@ -160,8 +160,9 @@ pub struct Forward {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Forwarded {
-    /// Index into [`FileSummary::elements`].
-    Element(usize),
+    /// Indices into [`FileSummary::elements`] and the element's [`JsxElement::attributes`], of
+    /// the spread.
+    Element { element: usize, attribute: usize },
     /// An import, with the property accesses after it: `L.Button` in `wrap(L.Button)`.
     Import { import: usize, members: Vec<String> },
     /// Index into [`FileSummary::components`].

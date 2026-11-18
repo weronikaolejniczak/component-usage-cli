@@ -219,16 +219,13 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
         .usages
         .into_iter()
         .map(|usage| {
-            let mut props = graph
+            let props = graph
                 .module(usage.file)
                 .and_then(|module| module.summary.elements.get(usage.element))
                 .map(|element| {
-                    values::props(&context, usage.file, element, config.props.as_deref())
+                    values::usage_props(&context, &usage, element, config.props.as_deref())
                 })
                 .unwrap_or_default();
-            props.retain(|prop| {
-                !matches!(prop, report::Prop::Named { name, .. } if usage.excluded.contains(name))
-            });
             report::Usage {
                 file: files.display(usage.file, &root),
                 location: usage.location,

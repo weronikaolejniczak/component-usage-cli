@@ -278,6 +278,7 @@ cases!(props:
     references,
     summary,
     templates,
+    wrapper_props,
     wrappers,
 );
 

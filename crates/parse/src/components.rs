@@ -27,8 +27,8 @@ pub(crate) fn spreads(
     elements: &[JsxElement],
 ) {
     for (index, element) in elements.iter().enumerate() {
-        for attribute in &element.attributes {
-            let Attribute::Spread(spread) = attribute else {
+        for (attribute, value) in element.attributes.iter().enumerate() {
+            let Attribute::Spread(spread) = value else {
                 continue;
             };
             let ExprKind::Reference {
@@ -47,7 +47,10 @@ pub(crate) fn spreads(
             }
             components[parameter.component].forwards.push(Forward {
                 location: element.location,
-                to: Forwarded::Element(index),
+                to: Forwarded::Element {
+                    element: index,
+                    attribute,
+                },
                 excluded: parameter.rest.clone().unwrap_or_default(),
             });
         }

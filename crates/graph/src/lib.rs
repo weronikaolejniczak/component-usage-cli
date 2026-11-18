@@ -390,7 +390,7 @@ pub fn element_specifiers(summary: &FileSummary) -> impl Iterator<Item = &str> {
         .flat_map(|component| &component.forwards)
         .filter_map(move |forward| match forward.to {
             Forwarded::Import { import: index, .. } => import(index),
-            Forwarded::Element(_) | Forwarded::Component(_) => None,
+            Forwarded::Element { .. } | Forwarded::Component(_) => None,
         });
     let references = summary
         .references
