@@ -48,6 +48,10 @@ enum Command {
         /// with `--owners=FILE`
         #[arg(long, num_args = 0..=1, require_equals = true, value_name = "FILE")]
         owners: Option<Option<PathBuf>>,
+
+        /// Report counts per component, prop and owner instead of every usage
+        #[arg(long)]
+        summary: bool,
     },
 }
 
@@ -72,10 +76,11 @@ fn main() -> ExitCode {
             follow,
             wrappers,
             owners,
+            summary,
         } => {
             let config = engine::Config {
                 root: dir,
-                components,
+                components: components.clone(),
                 from,
                 props,
                 owners: owners
@@ -94,8 +99,17 @@ fn main() -> ExitCode {
                 }
             };
             let mut out = io::BufWriter::new(io::stdout().lock());
-            match report::write(&report, report::Format::Json, &mut out).and_then(|()| out.flush())
-            {
+            let written = if summary {
+                let options = report::Options {
+                    components: components.as_deref(),
+                    wrappers,
+                    owners: config.owners.is_some(),
+                };
+                report::write(&report.summarize(options), report::Format::Json, &mut out)
+            } else {
+                report::write(&report, report::Format::Json, &mut out)
+            };
+            match written.and_then(|()| out.flush()) {
                 Ok(()) => ExitCode::SUCCESS,
                 Err(error) if error.kind() == io::ErrorKind::BrokenPipe => ExitCode::SUCCESS,
                 Err(error) => {

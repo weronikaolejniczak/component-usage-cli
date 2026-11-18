@@ -1,0 +1,38 @@
+{
+  "query": { "components": ["Button", "Icon", "Select"], "from": "lib", "wrappers": true, "owners": "", "summary": true },
+  "summary": {
+    "components": [
+      {
+        "component": "Button",
+        "usages": 3, "files": 2, "spreads": 1, "references": 0, "through": 2,
+        "props": [
+          { "name": "size", "usages": 1, "values": [{ "value": "m", "usages": 1 }] }
+        ],
+        "owners": [{ "owner": "@team-a", "usages": 3 }, { "owner": "@team-b", "usages": 1 }],
+        "unowned": 0
+      },
+      {
+        "component": "Icon",
+        "usages": 5, "files": 3, "spreads": 0, "references": 2, "through": 0,
+        "props": [
+          { "name": "type", "usages": 4, "values": [{ "value": "gear", "usages": 3 }, { "value": "arrowDown", "usages": 1 }] },
+          { "name": "size", "usages": 1, "values": [{ "value": "s", "usages": 1 }] }
+        ],
+        "owners": [{ "owner": "@team-a", "usages": 4 }, { "owner": "@team-b", "usages": 1 }],
+        "unowned": 1
+      },
+      {
+        "component": "Select",
+        "usages": 0, "files": 0, "spreads": 0, "references": 0, "through": 0,
+        "props": [],
+        "owners": [],
+        "unowned": 0
+      }
+    ],
+    "owners": [{ "owner": "@team-a", "usages": 7 }, { "owner": "@team-b", "usages": 2 }],
+    "unowned": 1,
+    "unidentified": [{ "code": "alias", "component": "Icon", "elements": 1 }],
+    "errors": [],
+    "warnings": []
+  }
+}

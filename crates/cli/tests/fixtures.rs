@@ -8,7 +8,11 @@ use tempfile::TempDir;
 #[derive(Deserialize)]
 struct Case {
     query: Query,
+    #[serde(default)]
     usages: Vec<Usage>,
+    /// With `query.summary`, the whole report.
+    #[serde(default)]
+    summary: Option<serde_json::Value>,
     #[serde(default)]
     references: Vec<Reference>,
     #[serde(default)]
@@ -31,6 +35,8 @@ struct Query {
     follow: Option<Vec<String>>,
     #[serde(default)]
     wrappers: bool,
+    #[serde(default)]
+    summary: bool,
     /// Scan root, relative to the case folder.
     #[serde(default)]
     dir: Option<String>,
@@ -161,6 +167,9 @@ fn run_case(group: &str, name: &str) {
     if case.query.wrappers {
         command.arg("--wrappers");
     }
+    if case.query.summary {
+        command.arg("--summary");
+    }
     match case.query.owners.as_deref() {
         Some("") => {
             command.arg("--owners");
@@ -178,6 +187,11 @@ fn run_case(group: &str, name: &str) {
         String::from_utf8_lossy(&output.stderr)
     );
 
+    if case.query.summary {
+        let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(Some(report), case.summary, "{group}/{name} summary");
+        return;
+    }
     let mut report: Report = serde_json::from_slice(&output.stdout).unwrap();
     for (actual, expected) in report.usages.iter_mut().zip(&case.usages) {
         if expected.parents.is_none() {
@@ -262,6 +276,7 @@ cases!(props:
     parents,
     props_filter,
     references,
+    summary,
     templates,
     wrappers,
 );

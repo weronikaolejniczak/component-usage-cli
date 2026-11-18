@@ -2,11 +2,16 @@
 //!
 //! Output is deterministic: sorted by file path, then position.
 
+mod summary;
+
 use std::io::{self, Write};
 
 use model::Location;
 pub use model::{Parent, Passed, Prop};
 use serde::Serialize;
+pub use summary::{
+    ComponentSummary, Options, OwnerCount, PropCount, Summary, UnidentifiedCount, ValueCount,
+};
 
 /// Paths are relative to the scan root, with `/` separators.
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
@@ -134,7 +139,7 @@ pub enum UnidentifiedCode {
     Ambiguous,
     /// Re-exports form a cycle.
     Cycle,
-    /// Refers to a target through a local constant, which isn't followed.
+    /// Refers to a target through a local name that may hold something else.
     Alias,
     /// Refers to a target through `require`; only ES modules are supported.
     #[serde(rename = "commonjs")]
@@ -172,7 +177,8 @@ pub enum Format {
     Json,
 }
 
-pub fn write(report: &Report, format: Format, mut writer: impl Write) -> io::Result<()> {
+/// Writes a [`Report`] or a [`Summary`].
+pub fn write(report: &impl Serialize, format: Format, mut writer: impl Write) -> io::Result<()> {
     match format {
         Format::Json => {
             serde_json::to_writer_pretty(&mut writer, report)?;

@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: proposed; `--summary` superseded by ADR-0030
 date: 2026-11-12
 decision-makers: Weronika Olejniczak
 ---

@@ -14,7 +14,7 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0007](./0007-react-only.md) | Support React JSX only | superseded by [0014](./0014-file-discovery.md) |
 | [0008](./0008-distribute-via-npx.md) | Distribute through npm with per-platform binaries | accepted |
 | [0009](./0009-opt-in-cache.md) | Cache scan results between runs, opt-in | proposed |
-| [0010](./0010-output.md) | Output formats and query options | proposed |
+| [0010](./0010-output.md) | Output formats and query options | proposed; `--summary` superseded by ADR-0030 |
 | [0011](./0011-crate-layout.md) | Split the code into workspace crates by pipeline stage | superseded by [0012](./0012-architecture.md) |
 | [0012](./0012-architecture.md) | Crate boundaries and interfaces | superseded by [0020](./0020-architecture.md) |
 | [0013](./0013-code-owners.md) | Attribute results to code owners | accepted |
@@ -34,3 +34,4 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0027](./0027-references.md) | Report the places a target is passed as a value | accepted; leaving out wrappers' arguments superseded by ADR-0028 |
 | [0028](./0028-references-of-unrendered-wrappers.md) | Keep the references of wrappers nothing renders | accepted |
 | [0029](./0029-local-aliases.md) | Count usages through local names that are never assigned again | accepted |
+| [0030](./0030-summary.md) | Summarise a scan with counts per component, prop and owner | accepted |
