@@ -32,7 +32,7 @@ Each group's `node_modules/` holds stub packages, such as `lib` and `other-lib`,
 | `member-expression` | `<Icon.Item />` reported as `Icon.Item`, separate from `Icon` |
 | `same-name-other-module` | `Icon` from `other-lib` is not counted |
 | `shadowed-local` | A local `Icon` shadowing the import is not counted |
-| `local-alias` | `const I = Icon`, destructuring, chains, computed keys, optional chaining and reassigned names are unidentified with code `alias` ([ADR-0015](../docs/decisions/0015-es-modules-only.md)), and the target they're declared from is a `variable` reference |
+| `local-alias` | `const I = Icon`, destructuring, chains, computed keys, optional chaining and `let` are usages ([ADR-0029](../docs/decisions/0029-local-aliases.md)); names assigned again or changed in place are unidentified with code `alias`, and the target they're declared from is a `variable` reference |
 | `commonjs` | `require('lib')` is unidentified with code `commonjs`; other modules aren't reported |
 | `tsconfig-paths` | `tsconfig.json` `paths` aliases |
 | `package-exports` | `package.json` `exports`, including subpaths |
@@ -66,6 +66,7 @@ Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-value
 | `follow-imports` | `--follow imports`: named, default and namespace imports, re-exports, values in other files, imports changed in place, and each code for an import that can't be followed ([ADR-0021](../docs/decisions/0021-follow-imports.md)) |
 | `follow-props` | `--follow props`: props as names, patterns with defaults and rest elements, and in the body; callers through imports, namespaces, default exports, `memo` and `forwardRef`; chains of components, `{...props}` and `{...rest}`, `children`, a component that renders itself, callback parameters, `displayName`, and the `no-callers` and `other-callers` codes ([ADR-0022](../docs/decisions/0022-follow-props.md), [ADR-0023](../docs/decisions/0023-component-properties.md)) |
 | `follow-variables` | `--follow variables`: chains, property access, destructuring and defaults, `mutated`, function declarations, names that refer back to themselves ([ADR-0019](../docs/decisions/0019-follow-variables.md)) |
+| `local-aliases` | Local names for a wrapper and for a component whose props are followed ([ADR-0029](../docs/decisions/0029-local-aliases.md)) |
 | `wrappers` | `--wrappers`: spreads of props and of a rest element, which leaves out the keys it takes, calls with member calls and tagged templates on their result, the default export, wrappers of wrappers, a wrapper of two targets, a component passing one prop, which isn't a wrapper, a wrapper that renders itself, and a usage through a wrapper inside a target ([ADR-0026](../docs/decisions/0026-wrappers.md)) |
 
 ## owners

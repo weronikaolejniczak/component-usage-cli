@@ -1,3 +1,4 @@
+use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
@@ -14,7 +15,7 @@ use oxc_syntax::module_record::{
 use crate::aliases::alias;
 use crate::attributes::Exprs;
 use crate::components::{components, spreads};
-use crate::definitions::{Mode, changed, definitions};
+use crate::definitions::{Mode, changed, definitions, mutated};
 use crate::elements::elements;
 use crate::exported::exported;
 use crate::lines::LineIndex;
@@ -160,6 +161,15 @@ fn bind_aliases(
         .map(|(_, local)| local.map(|symbol| tags.variable(symbol)))
         .collect();
     let definitions = definitions(program, &tags, Mode::Tags, &HashSet::new());
+    let changed = OnceCell::new();
+    let reassigned = |index: usize| {
+        let symbol = tags.variables.borrow().symbols[index];
+        mutated(
+            scope.scoping,
+            changed.get_or_init(|| self::changed(program, scope)),
+            symbol,
+        )
+    };
     let mut aliases = Vec::new();
     let mut alias_of: HashMap<usize, Option<usize>> = HashMap::new();
     let elements = elements
@@ -168,7 +178,7 @@ fn bind_aliases(
         .map(|((mut element, _), local)| {
             if let Some(local) = local {
                 let alias = *alias_of.entry(local).or_insert_with(|| {
-                    let alias = alias(&definitions, local)?;
+                    let alias = alias(&definitions, local, reassigned)?;
                     aliases.push(alias);
                     Some(aliases.len() - 1)
                 });

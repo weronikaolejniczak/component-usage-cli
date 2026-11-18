@@ -5,7 +5,7 @@ use oxc_ast::ast::{
     SimpleAssignmentTarget, UnaryExpression, VariableDeclaration, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
-use oxc_semantic::{SymbolFlags, SymbolId};
+use oxc_semantic::{Scoping, SymbolFlags, SymbolId};
 use oxc_span::GetSpan;
 use oxc_syntax::operator::UnaryOperator;
 use oxc_syntax::scope::ScopeFlags;
@@ -74,12 +74,7 @@ pub(crate) fn definitions(
         };
         round.visit_program(program);
         for symbol in symbols {
-            let flags = scoping.symbol_flags(symbol);
-            let redeclared = flags.contains(SymbolFlags::FunctionScopedVariable)
-                && scoping.symbol_declarations(symbol).count() > 1;
-            let mutated =
-                scoping.symbol_is_mutated(symbol) || redeclared || changed.contains(&symbol);
-            let definition = if mutations && mutated {
+            let definition = if mutations && mutated(scoping, changed, symbol) {
                 Definition::Mutated
             } else {
                 round
@@ -166,6 +161,15 @@ impl<'a> Visit<'a> for Round<'_, '_> {
         }
         walk::walk_function(self, function, flags);
     }
+}
+
+/// Whether `symbol` is assigned after its declaration, declared more than once, or in `changed`.
+pub(crate) fn mutated(scoping: &Scoping, changed: &HashSet<SymbolId>, symbol: SymbolId) -> bool {
+    let redeclared = scoping
+        .symbol_flags(symbol)
+        .contains(SymbolFlags::FunctionScopedVariable)
+        && scoping.symbol_declarations(symbol).count() > 1;
+    scoping.symbol_is_mutated(symbol) || redeclared || changed.contains(&symbol)
 }
 
 /// Names whose contents are changed in place: `a.b = c`, `a.b++`, `delete a.b`, `a.push(b)`,

@@ -235,10 +235,40 @@ fn unknown_target() {
 }
 
 #[test]
-fn aliases_of_targets_are_unidentified() {
+fn aliases_of_targets_are_usages() {
     let graph = graph(&[
         (
             "import * as L from 'lib';\nconst I = L.Icon;\nconst a = <I.Item />;\nconst b = <I />;",
+            &[("lib", 1)],
+        ),
+        LIB,
+        ICON,
+    ]);
+    let identified = identify(
+        &graph,
+        &[FileId(0)],
+        &targets(&graph, 1, &["Icon.Item"]),
+        false,
+    );
+    assert!(matches!(
+        &identified.usages[..],
+        [usage] if usage.component == "Icon.Item" && usage.location == Location { line: 3, column: 11 }
+    ));
+    assert_eq!(identified.unidentified, []);
+    assert!(identified.aliases.contains(&(
+        FileId(0),
+        Location {
+            line: 2,
+            column: 11
+        }
+    )));
+}
+
+#[test]
+fn reassigned_aliases_of_targets_are_unidentified() {
+    let graph = graph(&[
+        (
+            "import * as L from 'lib';\nlet I = L.Icon;\nI = L.Other;\nconst a = <I.Item />;",
             &[("lib", 1)],
         ),
         LIB,

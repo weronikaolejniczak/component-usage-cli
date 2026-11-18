@@ -86,7 +86,7 @@ impl<'g> Context<'g> {
         for (file, module) in graph.modules() {
             let summary = &module.summary;
             for (index, element) in summary.elements.iter().enumerate() {
-                if let Some(component) = self.rendered(file, element, &mut origins) {
+                if let Some(component) = self.rendered(file, summary, element, &mut origins) {
                     self.callers
                         .entry(component)
                         .or_default()
@@ -130,26 +130,29 @@ impl<'g> Context<'g> {
     fn rendered(
         &self,
         file: FileId,
+        summary: &parse::FileSummary,
         element: &JsxElement,
         origins: &mut Origins,
     ) -> Option<ComponentRef> {
-        match element.binding {
-            parse::Binding::Local => element.component.map(|index| (file, index)),
-            parse::Binding::Import(import) => {
-                let export = match (origins.import(file, import)?, &element.members[..]) {
-                    (Origin::Export(export), []) => export,
-                    (Origin::Namespace(module), [member]) => {
-                        match origins.export(module, member)? {
-                            Origin::Export(export) => export,
-                            Origin::Namespace(_) => return None,
-                        }
-                    }
-                    _ => return None,
-                };
-                self.component(export.module, &export.name)
+        let (import, members) = match element.binding {
+            parse::Binding::Local => return element.component.map(|index| (file, index)),
+            parse::Binding::Import(import) => (import, element.members.clone()),
+            parse::Binding::Alias(index) => {
+                let alias = summary.aliases.get(index)?;
+                let members = alias.members.iter().chain(&element.members).cloned();
+                (alias.import()?, members.collect())
             }
-            parse::Binding::Alias(_) | parse::Binding::Global => None,
-        }
+            parse::Binding::Global => return None,
+        };
+        let export = match (origins.import(file, import)?, &members[..]) {
+            (Origin::Export(export), []) => export,
+            (Origin::Namespace(module), [member]) => match origins.export(module, member)? {
+                Origin::Export(export) => export,
+                Origin::Namespace(_) => return None,
+            },
+            _ => return None,
+        };
+        self.component(export.module, &export.name)
     }
 
     /// The component `module` exports as `name`.

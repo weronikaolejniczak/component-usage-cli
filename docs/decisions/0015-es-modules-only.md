@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; reporting local constants as unidentified superseded by ADR-0029
 date: 2026-11-13
 decision-makers: Weronika Olejniczak
 ---

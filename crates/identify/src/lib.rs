@@ -118,7 +118,7 @@ pub struct Unidentified {
 pub enum Cause {
     /// The origin couldn't be determined.
     Origin(OriginError),
-    /// Refers to `component` through a local constant; constants aren't followed yet.
+    /// Refers to `component` through a local name that may hold something else.
     Alias { component: String },
     /// Refers to `component` through `require`; only ES modules are supported.
     Require { component: String },
@@ -130,6 +130,9 @@ pub struct Identified {
     pub usages: Vec<Usage>,
     /// Sorted by file, then location.
     pub unidentified: Vec<Unidentified>,
+    /// Where local names that usages go through refer to their import: `Icon` in
+    /// `const I = Icon`.
+    pub aliases: HashSet<(FileId, Location)>,
 }
 
 /// Finds usages of `targets` among the JSX elements of `files`. With `wrappers`, also elements
@@ -164,7 +167,7 @@ pub fn identify(
                     (
                         state.origins.alias(file, &alias.root),
                         alias.members.clone(),
-                        Some(&alias.root),
+                        Some(alias),
                     )
                 }
                 Binding::Local | Binding::Global => continue,
@@ -183,18 +186,21 @@ pub fn identify(
                     let Some(component) = targets.component(&key) else {
                         continue;
                     };
-                    match via {
-                        None => {
+                    match via.map(|alias| (&alias.root, alias.reassigned)) {
+                        None | Some((AliasRoot::Import(_), false)) => {
                             components[index] = Rc::from([Reached {
                                 component,
                                 through: Vec::new(),
                                 excluded: Vec::new(),
                             }]);
+                            if let Some(alias) = via {
+                                identified.aliases.insert((file, alias.location));
+                            }
                         }
-                        Some(AliasRoot::Import(_)) => identified
+                        Some((AliasRoot::Import(_), true)) => identified
                             .unidentified
                             .push(unidentified(Cause::Alias { component })),
-                        Some(AliasRoot::Require(_)) => identified
+                        Some((AliasRoot::Require(_), _)) => identified
                             .unidentified
                             .push(unidentified(Cause::Require { component })),
                     }
@@ -209,17 +215,10 @@ pub fn identify(
                 if !components[index].is_empty() {
                     continue;
                 }
-                let wrapper = match element.binding {
-                    Binding::Local => element.component.map(|component| (file, component)),
-                    Binding::Import(import) => {
-                        let origin = state.origins.import(file, import);
-                        state
-                            .origins
-                            .resolve(origin, element.members.clone(), targets)
-                            .and_then(Resolved::component)
-                    }
-                    Binding::Alias(_) | Binding::Global => None,
-                };
+                let wrapper = state
+                    .origins
+                    .element(file, &module.summary, element, targets)
+                    .and_then(Resolved::component);
                 if let Some(wrapper) = wrapper {
                     components[index] = state.reaches(targets, wrapper).0;
                 }
@@ -284,15 +283,20 @@ pub fn references(graph: &ModuleGraph, files: &[FileId], targets: &Targets) -> V
     references
 }
 
-/// `references` without those that are a step of a usage's [`Usage::through`].
+/// `references` without those that are a step of a usage's [`Usage::through`], or where a
+/// local name that a usage goes through refers to its import.
 #[must_use]
-pub fn outside_wrappers(mut references: Vec<Reference>, usages: &[Usage]) -> Vec<Reference> {
-    let steps: HashSet<(FileId, Location)> = usages
+pub fn outside_usages(mut references: Vec<Reference>, identified: &Identified) -> Vec<Reference> {
+    let steps: HashSet<(FileId, Location)> = identified
+        .usages
         .iter()
         .flat_map(|usage| &usage.through)
         .map(|step| (step.file, step.location))
         .collect();
-    references.retain(|reference| !steps.contains(&(reference.file, reference.location)));
+    references.retain(|reference| {
+        let at = (reference.file, reference.location);
+        !steps.contains(&at) && !identified.aliases.contains(&at)
+    });
     references
 }
 
@@ -380,17 +384,8 @@ impl State<'_> {
                         let Some(element) = module.summary.elements.get(*element) else {
                             continue;
                         };
-                        match element.binding {
-                            Binding::Local => element
-                                .component
-                                .map(|component| Resolved::Component((file, component))),
-                            Binding::Import(import) => {
-                                let origin = self.origins.import(file, import);
-                                self.origins
-                                    .resolve(origin, element.members.clone(), targets)
-                            }
-                            Binding::Alias(_) | Binding::Global => None,
-                        }
+                        self.origins
+                            .element(file, &module.summary, element, targets)
                     }
                     Forwarded::Import { import, members } => {
                         let origin = self.origins.import(file, *import);
@@ -512,6 +507,32 @@ impl<'g> Origins<'g> {
                 .graph
                 .specifier_target(file, specifier)
                 .map(Origin::Namespace),
+        }
+    }
+
+    /// The target or component `element`, an element of `file`, renders.
+    fn element(
+        &mut self,
+        file: FileId,
+        summary: &FileSummary,
+        element: &JsxElement,
+        targets: &Targets,
+    ) -> Option<Resolved> {
+        match element.binding {
+            Binding::Local => element
+                .component
+                .map(|component| Resolved::Component((file, component))),
+            Binding::Import(import) => {
+                let origin = self.import(file, import);
+                self.resolve(origin, element.members.clone(), targets)
+            }
+            Binding::Alias(index) => {
+                let alias = summary.aliases.get(index)?;
+                let origin = self.import(file, alias.import()?);
+                let members = alias.members.iter().chain(&element.members).cloned();
+                self.resolve(origin, members.collect(), targets)
+            }
+            Binding::Global => None,
         }
     }
 

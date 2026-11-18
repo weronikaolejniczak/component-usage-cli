@@ -3,15 +3,22 @@ use crate::{Alias, AliasRoot, Definition, ExprKind, Key, Reference, Segment};
 /// Follows the name defined at `index` through other names back to an import or `require`, with
 /// the property accesses and destructured keys on the way: `const { Icon } = Lib` is `Lib` with
 /// members `["Icon"]`. Names that refer to each other in a cycle, to anything else, or through a
-/// key that isn't static or an array pattern, aren't aliases.
-pub(crate) fn alias(definitions: &[Definition], mut index: usize) -> Option<Alias> {
+/// key that isn't static or an array pattern, aren't aliases. `reassigned` says whether the name
+/// defined at an index may hold something other than its declaration.
+pub(crate) fn alias(
+    definitions: &[Definition],
+    mut index: usize,
+    reassigned: impl Fn(usize) -> bool,
+) -> Option<Alias> {
     let mut members = Vec::new();
     let mut seen = Vec::new();
+    let mut any_reassigned = false;
     loop {
         if seen.contains(&index) {
             return None;
         }
         seen.push(index);
+        any_reassigned |= reassigned(index);
         let Definition::Value { init, path, .. } = definitions.get(index)? else {
             return None;
         };
@@ -40,6 +47,11 @@ pub(crate) fn alias(definitions: &[Definition], mut index: usize) -> Option<Alia
             }
             _ => return None,
         };
-        return Some(Alias { root, members });
+        return Some(Alias {
+            root,
+            members,
+            location: init.location,
+            reassigned: any_reassigned,
+        });
     }
 }

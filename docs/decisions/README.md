@@ -19,7 +19,7 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0012](./0012-architecture.md) | Crate boundaries and interfaces | superseded by [0020](./0020-architecture.md) |
 | [0013](./0013-code-owners.md) | Attribute results to code owners | accepted |
 | [0014](./0014-file-discovery.md) | Support React JSX only, and discover files including hidden folders | accepted |
-| [0015](./0015-es-modules-only.md) | Follow ES module imports only, and report what isn't followed | accepted |
+| [0015](./0015-es-modules-only.md) | Follow ES module imports only, and report what isn't followed | accepted; reporting local constants as unidentified superseded by ADR-0029 |
 | [0016](./0016-rust-and-oxc.md) | Implement in Rust on top of Oxc | accepted |
 | [0017](./0017-prop-values.md) | Report every prop of a usage as a tree of values with kinds | accepted |
 | [0018](./0018-all-components.md) | Target every export of the module when no components are given | accepted |
@@ -33,3 +33,4 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0026](./0026-wrappers.md) | Report a wrapper's usages as usages of the components it passes its props to | accepted |
 | [0027](./0027-references.md) | Report the places a target is passed as a value | accepted; leaving out wrappers' arguments superseded by ADR-0028 |
 | [0028](./0028-references-of-unrendered-wrappers.md) | Keep the references of wrappers nothing renders | accepted |
+| [0029](./0029-local-aliases.md) | Count usages through local names that are never assigned again | accepted |

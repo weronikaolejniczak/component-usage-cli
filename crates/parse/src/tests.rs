@@ -421,10 +421,12 @@ fn unrecoverable_error_is_reported_over_earlier_recovered_ones() {
     assert_eq!(error.location.line, 3);
 }
 
-fn alias(root: AliasRoot, members: &[&str]) -> Alias {
+fn alias(root: AliasRoot, members: &[&str], (line, column): (u32, u32)) -> Alias {
     Alias {
         root,
         members: members.iter().map(|&member| member.to_owned()).collect(),
+        location: Location { line, column },
+        reassigned: false,
     }
 }
 
@@ -457,11 +459,11 @@ fn constants_from_imports_are_aliases() {
     assert_eq!(
         summary.aliases,
         [
-            alias(AliasRoot::Import(0), &["Icon"]),
-            alias(AliasRoot::Import(0), &["Icon"]),
-            alias(AliasRoot::Import(0), &["Nested", "Item"]),
-            alias(AliasRoot::Import(0), &["Icon"]),
-            alias(AliasRoot::Import(0), &["Icon"]),
+            alias(AliasRoot::Import(0), &["Icon"], (2, 11)),
+            alias(AliasRoot::Import(0), &["Icon"], (3, 42)),
+            alias(AliasRoot::Import(0), &["Nested", "Item"], (3, 42)),
+            alias(AliasRoot::Import(0), &["Icon"], (2, 11)),
+            alias(AliasRoot::Import(0), &["Icon"], (2, 11)),
         ]
     );
     assert_eq!(summary.elements[4].members, ["Part"]);
@@ -477,10 +479,32 @@ fn require_calls_are_aliases() {
     assert_eq!(
         summary.aliases,
         [
-            alias(AliasRoot::Require("lib".to_owned()), &["Icon"]),
-            alias(AliasRoot::Require("lib".to_owned()), &["default"]),
+            alias(AliasRoot::Require("lib".to_owned()), &["Icon"], (1, 18)),
+            alias(AliasRoot::Require("lib".to_owned()), &["default"], (2, 13)),
         ]
     );
+}
+
+#[test]
+fn aliases_say_whether_a_name_on_the_way_may_hold_something_else() {
+    let summary = tsx(concat!(
+        "import * as Lib from 'lib';\n",
+        "let A = Lib.Icon;\n",
+        "A = Lib.Other;\n",
+        "const B = Lib;\n",
+        "B.Icon = Lib.Other;\n",
+        "let C = Lib.Icon;\n",
+        "var D = Lib.Icon;\n",
+        "var D = Lib.Other;\n",
+        "const E = A;\n",
+        "<A />; <B.Icon />; <C />; <D />; <E />;\n",
+    ));
+    let reassigned: Vec<bool> = summary
+        .aliases
+        .iter()
+        .map(|alias| alias.reassigned)
+        .collect();
+    assert_eq!(reassigned, [true, true, false, true, true]);
 }
 
 #[test]
@@ -747,6 +771,22 @@ fn components_and_imports_escape_when_used_as_values() {
         .collect();
     assert_eq!(escapes, [("Tag", false), ("Value", true)]);
     assert_eq!(summary.escaping_imports, [1]);
+}
+
+#[test]
+fn names_for_imports_escape_only_when_they_do() {
+    let summary = with_props(
+        "import { Kept } from 'kept';\n\
+         import { Passed } from 'passed';\n\
+         import { Reassigned } from 'reassigned';\n\
+         const K = Kept;\n\
+         const Chained = K;\n\
+         const P = Passed;\n\
+         let R = Reassigned;\n\
+         R = null;\n\
+         const a = <><Chained /><P component={P} /><R /></>;\n",
+    );
+    assert_eq!(summary.escaping_imports, [1, 2]);
 }
 
 #[test]

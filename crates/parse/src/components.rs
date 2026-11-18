@@ -13,6 +13,7 @@ use oxc_span::GetSpan;
 use oxc_syntax::scope::ScopeFlags;
 
 use crate::attributes::Exprs;
+use crate::definitions::{changed, mutated};
 use crate::scope::Declared;
 use crate::{
     Attribute, Component, ExprKind, Forward, Forwarded, JsxElement, Parameter, Reference, Segment,
@@ -77,6 +78,7 @@ pub(crate) fn components(program: &Program, exprs: &Exprs, calls: bool) -> Compo
         calls: calls.then(Vec::new),
         allowed: HashSet::new(),
         members: HashSet::new(),
+        aliases: Vec::new(),
     };
     collector.visit_program(program);
     let Collector {
@@ -85,6 +87,7 @@ pub(crate) fn components(program: &Program, exprs: &Exprs, calls: bool) -> Compo
         calls,
         mut allowed,
         members,
+        aliases,
         ..
     } = collector;
 
@@ -185,7 +188,7 @@ pub(crate) fn components(program: &Program, exprs: &Exprs, calls: bool) -> Compo
     };
     defaults.visit_program(program);
 
-    let escapes = |symbol: SymbolId, members: &HashSet<ReferenceId>| {
+    let escapes_with = |allowed: &HashSet<ReferenceId>, symbol, members: &HashSet<ReferenceId>| {
         scoping
             .get_resolved_reference_ids(symbol)
             .iter()
@@ -195,6 +198,32 @@ pub(crate) fn components(program: &Program, exprs: &Exprs, calls: bool) -> Compo
                     && scoping.get_reference(id).is_value()
             })
     };
+    // A name that holds an import and doesn't escape is the import, so declaring it doesn't make
+    // the import escape: `Icon` in `const I = Icon; <I />`.
+    if !aliases.is_empty() {
+        let changed = changed(program, exprs.scope);
+        let names: HashSet<SymbolId> = aliases.iter().map(|&(name, _)| name).collect();
+        let mut added = true;
+        while added {
+            added = false;
+            for &(name, reference) in &aliases {
+                let Some(root) = scoping.get_reference(reference).symbol_id() else {
+                    continue;
+                };
+                let import = matches!(exprs.scope.declared(root), Declared::Import(_));
+                if !allowed.contains(&reference)
+                    && (import || names.contains(&root))
+                    && !mutated(scoping, &changed, name)
+                    && !escapes_with(&allowed, name, &HashSet::new())
+                {
+                    allowed.insert(reference);
+                    added = true;
+                }
+            }
+        }
+    }
+    let escapes =
+        |symbol: SymbolId, members: &HashSet<ReferenceId>| escapes_with(&allowed, symbol, members);
     for (&symbol, &index) in &by_symbol {
         if escapes(symbol, &members) {
             components[index].escapes = true;
@@ -239,6 +268,9 @@ struct Collector<'e, 's> {
     /// Objects of member expressions, such as `Name` in `Name.displayName = …`: they don't make
     /// a component escape, but do an import, whose member can be a component.
     members: HashSet<ReferenceId>,
+    /// Names declared as a name or static property accesses on one, directly or with static
+    /// keys: `I` and the reference to `Icon` in `const I = Icon`, or `const { Icon: I } = Lib`.
+    aliases: Vec<(SymbolId, ReferenceId)>,
 }
 
 /// `const Styled = wrap(Button)`, or `export default wrap(Button)` without a symbol.
@@ -371,6 +403,23 @@ impl<'a> Visit<'a> for Collector<'_, '_> {
     }
 
     fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
+        if let Some((reference, _, _)) = declarator.init.as_ref().and_then(named) {
+            match &declarator.id {
+                BindingPattern::BindingIdentifier(id) => {
+                    self.aliases.push((id.symbol_id(), reference));
+                }
+                BindingPattern::ObjectPattern(pattern) if pattern.rest.is_none() => {
+                    for property in &pattern.properties {
+                        if !property.computed
+                            && let BindingPattern::BindingIdentifier(id) = &property.value
+                        {
+                            self.aliases.push((id.symbol_id(), reference));
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
         if self.in_const
             && let BindingPattern::BindingIdentifier(id) = &declarator.id
             && let Some(init) = &declarator.init

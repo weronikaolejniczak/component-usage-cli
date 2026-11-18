@@ -376,13 +376,30 @@ pub enum Binding {
     Global,
 }
 
-/// A local constant initialised from an import or `require`, followed through other constants:
+/// A local name initialised from an import or `require`, followed through other names:
 /// `const I = Lib.Icon`, `const { Icon } = Lib`, `const { Icon } = require('lib')`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Alias {
     pub root: AliasRoot,
     /// Property accesses after the root: `["Icon"]` in each example above.
     pub members: Vec<String>,
+    /// The position of the root in the declaration that names it: `Lib` in `const I = Lib.Icon`.
+    pub location: Location,
+    /// Whether a name on the way is assigned after its declaration, declared more than once, or
+    /// changed in place, so it may hold something else.
+    pub reassigned: bool,
+}
+
+impl Alias {
+    /// The index into [`FileSummary::imports`] of the import it holds, unless it's `require` or
+    /// may hold something else.
+    #[must_use]
+    pub fn import(&self) -> Option<usize> {
+        match self.root {
+            AliasRoot::Import(import) if !self.reassigned => Some(import),
+            AliasRoot::Import(_) | AliasRoot::Require(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

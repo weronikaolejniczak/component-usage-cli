@@ -21,3 +21,8 @@ const Optional = Lib?.Icon;
 export const G = () => <Reassigned />;
 export const H = () => <Computed />;
 export const I = () => <Optional />;
+let Kept = Icon;
+const Mut = Lib;
+Mut.Icon = OtherIcon;
+export const J = () => <Kept />;
+export const K = () => <Mut.Icon />;

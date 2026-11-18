@@ -1,0 +1,23 @@
+{
+  "query": { "components": ["Button"], "from": "lib", "follow": ["props"], "wrappers": true },
+  "usages": [
+    {
+      "component": "Button", "file": "App.jsx", "line": 8, "column": 5,
+      "through": [{ "component": "Spread", "file": "components.jsx", "line": 3, "column": 34 }],
+      "props": [{ "name": "size", "value": { "kind": "literal", "value": "s", "line": 8, "column": 13 } }]
+    },
+    { "component": "Button", "file": "components.jsx", "line": 3, "column": 34 },
+    {
+      "component": "Button", "file": "components.jsx", "line": 4, "column": 36,
+      "props": [
+        {
+          "name": "label",
+          "value": {
+            "kind": "literal", "value": "hi", "file": "App.jsx", "line": 9, "column": 13,
+            "via": [{ "text": "text", "line": 4, "column": 51 }, { "text": "L", "file": "App.jsx", "line": 9, "column": 5 }]
+          }
+        }
+      ]
+    }
+  ]
+}

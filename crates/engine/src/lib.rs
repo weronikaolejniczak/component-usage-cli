@@ -211,7 +211,7 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
     let references = identify::references(&graph, &scanned, &targets);
     graph.clear_references();
     let identified = identify::identify(&graph, &scanned, &targets, config.wrappers);
-    let references = identify::outside_wrappers(references, &identified.usages);
+    let references = identify::outside_usages(references, &identified);
     let paths = files.displays(&root);
     let context = values::Context::new(&graph, &paths, options.imports, options.props);
 
