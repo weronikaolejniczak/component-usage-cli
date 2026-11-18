@@ -199,6 +199,7 @@ pub fn usage_props(
     let resolver = Resolver::new(context, usage.file, pins);
     let mut props: Vec<Prop> = resolver
         .attributes(usage.file, &element.attributes)
+        .filter(|prop| usage.through.is_empty() || !is_key(prop))
         .collect();
     for step in &usage.through {
         props = props
@@ -233,6 +234,13 @@ pub fn usage_props(
     }
     props.retain(|prop| wanted(prop, filter));
     props
+}
+
+/// React keeps `key` for itself rather than passing it in the props.
+const KEY: &str = "key";
+
+fn is_key(prop: &Prop) -> bool {
+    matches!(prop, Prop::Named { name, .. } if name == KEY)
 }
 
 fn wanted(prop: &Prop, filter: Option<&[String]>) -> bool {
@@ -613,6 +621,9 @@ impl<'c, 'g> Resolver<'c, 'g> {
 
     /// The last attribute of `element` that sets `key`, or its children for `children`.
     fn caller_prop(&self, file: FileId, element: &JsxElement, key: &str) -> Value {
+        if key == KEY {
+            return self.at(file, element.location, ValueKind::Undefined);
+        }
         let mut found = None;
         for attribute in &element.attributes {
             match attribute {
@@ -642,7 +653,7 @@ impl<'c, 'g> Resolver<'c, 'g> {
             .attributes
             .iter()
             .filter_map(|attribute| match attribute {
-                Attribute::Named { name, .. } if taken.contains(name) => None,
+                Attribute::Named { name, .. } if name == KEY || taken.contains(name) => None,
                 Attribute::Named { name, value } => Some(Entry::Property {
                     key: name.clone(),
                     value: self.value(file, value),

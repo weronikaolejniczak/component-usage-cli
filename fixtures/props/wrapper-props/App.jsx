@@ -8,5 +8,6 @@ export const App = () => (
     <Toned label="c" />
     <Outer tone="danger" />
     <Toned {...{ tone: 'x', label: 'y' }} />
+    <Before key="k" />
   </>
 );

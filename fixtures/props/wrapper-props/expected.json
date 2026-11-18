@@ -98,6 +98,13 @@
         }
       ]
     },
+    {
+      "component": "Button", "file": "App.jsx", "line": 11, "column": 5,
+      "through": [{ "component": "Before", "file": "components.jsx", "line": 3, "column": 34 }],
+      "props": [
+        { "name": "size", "value": { "kind": "literal", "value": "s", "file": "components.jsx", "line": 3, "column": 47 } }
+      ]
+    },
     { "component": "Button", "file": "components.jsx", "line": 3, "column": 34 },
     { "component": "Button", "file": "components.jsx", "line": 4, "column": 33 },
     { "component": "Button", "file": "components.jsx", "line": 5, "column": 45 },
