@@ -143,6 +143,8 @@ Of 2,375 unidentified elements in the `09dad13` report:
 - 1 is `missing-export`: an example app imports `SideNavigation` from a package index that doesn't export it.
 - 1 is `alias`: `EuiPopover` through a local constant.
 
+Since [`fdf169d`](./results/kibana-fdf169d-follow-props/) ([ADR-0029](../docs/decisions/0029-local-aliases.md)), that element, `<EuiPopoverAny>` with `const EuiPopoverAny = EuiPopover as any as React.FC<any>` in canvas's `popover.tsx`, read in the source, is a usage, and the `variable` reference in its declaration is left out. Compared with the `bb39e7c` report of the same scan, that's the only change: 4,641 usages, 135 references.
+
 The [`kibana-alternatives`](./results/kibana-alternatives/) report, which covers every EUI component, has one more `alias`: `let ButtonComponent = EuiButton`, reassigned to `EuiButtonIcon` in an `if`. It is reported with `component: EuiButton`, because reassignments of `let` aren't checked, though the element can render either.
 
 Not reported as usages, because they aren't JSX elements whose name is bound to an import:
