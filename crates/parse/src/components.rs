@@ -13,7 +13,7 @@ use oxc_span::GetSpan;
 use oxc_syntax::scope::ScopeFlags;
 
 use crate::attributes::Exprs;
-use crate::definitions::{changed, mutated};
+use crate::definitions::mutated;
 use crate::scope::Declared;
 use crate::{
     Attribute, Component, ExprKind, Forward, Forwarded, JsxElement, Parameter, Reference, Segment,
@@ -42,7 +42,7 @@ pub(crate) fn spreads(
             let Some(parameter) = parameters.get(*parameter) else {
                 continue;
             };
-            if !path.is_empty() || !parameter.path.is_empty() {
+            if !path.is_empty() || !parameter.path.is_empty() || parameter.mutated {
                 continue;
             }
             components[parameter.component].forwards.push(Forward {
@@ -71,7 +71,12 @@ pub(crate) struct Components {
 /// so expressions built afterwards refer to props by [`crate::Reference::Parameter`] index.
 /// With `calls`, also the `const`s and default exports holding a call that passes a name on, as
 /// [`Forwarded::Import`] or [`Forwarded::Component`].
-pub(crate) fn components(program: &Program, exprs: &Exprs, calls: bool) -> Components {
+pub(crate) fn components(
+    program: &Program,
+    exprs: &Exprs,
+    calls: bool,
+    changed: &HashSet<SymbolId>,
+) -> Components {
     let mut collector = Collector {
         exprs,
         in_const: false,
@@ -127,6 +132,7 @@ pub(crate) fn components(program: &Program, exprs: &Exprs, calls: bool) -> Compo
                 path: leaf.path,
                 default: None,
                 rest: leaf.rest,
+                mutated: mutated(scoping, changed, leaf.symbol),
             });
         }
     }
@@ -204,7 +210,6 @@ pub(crate) fn components(program: &Program, exprs: &Exprs, calls: bool) -> Compo
     // A name that holds an import and doesn't escape is the import, so declaring it doesn't make
     // the import escape: `Icon` in `const I = Icon; <I />`.
     if !aliases.is_empty() {
-        let changed = changed(program, exprs.scope);
         let names: HashSet<SymbolId> = aliases.iter().map(|&(name, _)| name).collect();
         let mut added = true;
         while added {
@@ -216,7 +221,7 @@ pub(crate) fn components(program: &Program, exprs: &Exprs, calls: bool) -> Compo
                 let import = matches!(exprs.scope.declared(root), Declared::Import(_));
                 if !allowed.contains(&reference)
                     && (import || names.contains(&root))
-                    && !mutated(scoping, &changed, name)
+                    && !mutated(scoping, changed, name)
                     && !escapes_with(&allowed, name, &HashSet::new())
                 {
                     allowed.insert(reference);

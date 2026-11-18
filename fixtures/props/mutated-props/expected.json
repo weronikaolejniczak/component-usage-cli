@@ -1,0 +1,23 @@
+{
+  "query": { "components": ["Icon"], "from": "lib", "follow": ["props"], "wrappers": true },
+  "usages": [
+    {
+      "component": "Icon", "file": "App.jsx", "line": 5, "column": 10,
+      "props": [
+        { "name": "type", "value": { "kind": "unresolved", "code": "mutated", "text": "iconType", "line": 5, "column": 22 } }
+      ]
+    },
+    {
+      "component": "Icon", "file": "App.jsx", "line": 10, "column": 10,
+      "props": [
+        { "name": "size", "value": { "kind": "unresolved", "code": "mutated", "text": "props.size", "line": 10, "column": 22 } }
+      ]
+    },
+    {
+      "component": "Icon", "file": "App.jsx", "line": 15, "column": 10,
+      "props": [
+        { "spread": { "kind": "unresolved", "code": "mutated", "text": "props", "line": 15, "column": 20 } }
+      ]
+    }
+  ]
+}

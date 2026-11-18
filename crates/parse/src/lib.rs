@@ -183,6 +183,8 @@ pub struct Parameter {
     pub default: Option<Expr>,
     /// For a rest element, the keys the pattern takes before it.
     pub rest: Option<Vec<String>>,
+    /// Whether the name is assigned, or changed in place, in the component.
+    pub mutated: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

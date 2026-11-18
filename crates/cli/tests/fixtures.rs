@@ -275,6 +275,7 @@ cases!(props:
     follow_variables,
     literals,
     local_aliases,
+    mutated_props,
     objects,
     parents,
     props_filter,

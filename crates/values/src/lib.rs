@@ -493,6 +493,9 @@ impl<'c, 'g> Resolver<'c, 'g> {
             return Err(self.stop(name, UnresolvedCode::Unparsed, None));
         };
         let parameter = &summary.parameters[index];
+        if parameter.mutated {
+            return Err(self.stop(name, UnresolvedCode::Mutated, None));
+        }
         if let (Some(taken), Some(Key::Static(key))) = (&parameter.rest, keys.first())
             && taken.contains(key)
         {

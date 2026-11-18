@@ -82,8 +82,10 @@ pub(crate) fn extract(
     let scope = Scope::new(&parsed.program, semantic.scoping(), &lines, import_at);
     let mut exprs = Exprs::new(source, &scope);
     exprs.calls = options.calls;
+    let changed = OnceCell::new();
+    let changed = || changed.get_or_init(|| self::changed(&parsed.program, &scope));
     let found = (options.props || options.wrappers)
-        .then(|| components(&parsed.program, &exprs, options.wrappers));
+        .then(|| components(&parsed.program, &exprs, options.wrappers, changed()));
     let mut elements = elements(&parsed.program, &exprs);
     if let Some(found) = &found {
         for (element, local) in &mut elements {
@@ -92,20 +94,17 @@ pub(crate) fn extract(
             }
         }
     }
-    let (elements, aliases) = bind_aliases(&parsed.program, &scope, source, elements);
+    let (elements, aliases) = bind_aliases(&scope, source, elements, &parsed.program, changed);
     let exported = if options.imports || options.props || options.wrappers {
         exported(&parsed.program, &exprs)
     } else {
         HashMap::new()
     };
     let follow = options.variables || options.imports || options.props;
-    let changed = if follow {
-        changed(&parsed.program, &scope)
-    } else {
-        HashSet::new()
-    };
+    let none = HashSet::new();
+    let changed = if follow { changed() } else { &none };
     let definitions = if follow {
-        definitions(&parsed.program, &exprs, Mode::Values, &changed)
+        definitions(&parsed.program, &exprs, Mode::Values, changed)
     } else {
         vec![Definition::NotFollowed; exprs.variables.borrow().symbols.len()]
     };
@@ -149,11 +148,12 @@ pub(crate) fn extract(
 /// Sets [`Binding::Alias`] on elements whose tag starts with a local name that refers to an
 /// import or `require`. Tags are followed by their declarations, separately from attribute
 /// values and whatever `--follow` says: a tag that may be a component is always reported.
-fn bind_aliases(
-    program: &Program,
+fn bind_aliases<'c>(
     scope: &Scope,
     source: &str,
     elements: Vec<(JsxElement, Option<SymbolId>)>,
+    program: &Program,
+    changed: impl Fn() -> &'c HashSet<SymbolId>,
 ) -> (Vec<JsxElement>, Vec<Alias>) {
     let tags = Exprs::new(source, scope);
     let locals: Vec<Option<usize>> = elements
@@ -161,14 +161,9 @@ fn bind_aliases(
         .map(|(_, local)| local.map(|symbol| tags.variable(symbol)))
         .collect();
     let definitions = definitions(program, &tags, Mode::Tags, &HashSet::new());
-    let changed = OnceCell::new();
     let reassigned = |index: usize| {
         let symbol = tags.variables.borrow().symbols[index];
-        mutated(
-            scope.scoping,
-            changed.get_or_init(|| self::changed(program, scope)),
-            symbol,
-        )
+        mutated(scope.scoping, changed(), symbol)
     };
     let mut aliases = Vec::new();
     let mut alias_of: HashMap<usize, Option<usize>> = HashMap::new();
