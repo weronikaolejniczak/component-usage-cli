@@ -144,15 +144,17 @@ impl<'g> Context<'g> {
             }
             parse::Binding::Global => return None,
         };
-        let export = match (origins.import(file, import)?, &members[..]) {
-            (Origin::Export(export), []) => export,
-            (Origin::Namespace(module), [member]) => match origins.export(module, member)? {
-                Origin::Export(export) => export,
-                Origin::Namespace(_) => return None,
-            },
-            _ => return None,
-        };
-        self.component(export.module, &export.name)
+        let mut origin = origins.import(file, import)?;
+        for member in &members {
+            match origin {
+                Origin::Namespace(module) => origin = origins.export(module, member)?,
+                Origin::Export(_) => return None,
+            }
+        }
+        match origin {
+            Origin::Export(export) => self.component(export.module, &export.name),
+            Origin::Namespace(_) => None,
+        }
     }
 
     /// The component `module` exports as `name`.

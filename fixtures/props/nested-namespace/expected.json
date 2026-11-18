@@ -1,0 +1,21 @@
+{
+  "query": { "components": ["Button"], "from": "lib", "follow": ["props"] },
+  "usages": [
+    {
+      "component": "Button", "file": "components.jsx", "line": 3, "column": 36,
+      "props": [
+        {
+          "name": "color",
+          "value": {
+            "kind": "one-of", "line": 3, "column": 25,
+            "values": [
+              { "kind": "literal", "value": "x", "file": "App.jsx", "line": 6, "column": 24, "via": [{ "text": "All.ui.Toned", "file": "App.jsx", "line": 6, "column": 5 }] },
+              { "kind": "literal", "value": "y", "file": "App.jsx", "line": 7, "column": 20, "via": [{ "text": "ui.Toned", "file": "App.jsx", "line": 7, "column": 5 }] }
+            ],
+            "via": [{ "text": "tone", "line": 3, "column": 51 }]
+          }
+        }
+      ]
+    }
+  ]
+}

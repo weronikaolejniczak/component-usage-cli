@@ -276,6 +276,7 @@ cases!(props:
     literals,
     local_aliases,
     mutated_props,
+    nested_namespace,
     objects,
     parents,
     props_filter,
