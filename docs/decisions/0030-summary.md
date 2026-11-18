@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; counting props superseded by ADR-0033
 date: 2026-11-17
 decision-makers: Weronika Olejniczak
 ---

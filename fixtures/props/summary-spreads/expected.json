@@ -1,0 +1,18 @@
+{
+  "query": { "components": ["Button"], "from": "lib", "summary": true },
+  "summary": {
+    "components": [
+      {
+        "component": "Button",
+        "usages": 5, "files": 1, "spreads": 5, "references": 0,
+        "props": [
+          { "name": "type", "usages": 3, "values": [{ "value": "right", "usages": 1 }, { "value": "second", "usages": 1 }] },
+          { "name": "size", "usages": 2, "values": [{ "value": "s", "usages": 1 }] }
+        ]
+      }
+    ],
+    "unidentified": [],
+    "errors": [],
+    "warnings": []
+  }
+}

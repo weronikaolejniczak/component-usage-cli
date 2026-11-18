@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use model::{Literal, Prop, Value, ValueKind};
+use model::{Entry, Literal, Prop, Value, ValueKind};
 use serde::Serialize;
 
 use crate::{FileError, Report, UnidentifiedCode, Usage, Warning};
@@ -167,8 +167,10 @@ impl Report {
     }
 }
 
-/// Named props by count, then name, each with its literal values by count, then JSON text. A
-/// prop set twice on a usage is counted once, with the value of the last, as React does.
+/// Props by count, then name, each with its literal values by count, then JSON text. Props apply
+/// in order, as React does: a prop set twice on a usage is counted once, with the value of the
+/// last, and a spread of an object sets its properties. Any other spread may set any prop, so
+/// the values of those set before it aren't counted.
 fn props(usages: &[&Usage]) -> Vec<PropCount> {
     struct Counts {
         usages: usize,
@@ -176,18 +178,24 @@ fn props(usages: &[&Usage]) -> Vec<PropCount> {
     }
     let mut counts: HashMap<&str, Counts> = HashMap::new();
     for usage in usages {
-        let mut last: HashMap<&str, &Value> = HashMap::new();
+        let mut set: HashMap<&str, Option<&Value>> = HashMap::new();
         for prop in &usage.props {
-            if let Prop::Named { name, value } = prop {
-                last.insert(name, value);
+            match prop {
+                Prop::Named { name, value } => {
+                    set.insert(name, Some(value));
+                }
+                Prop::Spread { spread } => spread_into(spread, &mut set),
             }
         }
-        for (name, value) in last {
+        for (name, value) in set {
             let entry = counts.entry(name).or_insert_with(|| Counts {
                 usages: 0,
                 values: HashMap::new(),
             });
             entry.usages += 1;
+            let Some(value) = value else {
+                continue;
+            };
             let mut found = BTreeMap::new();
             literals(value, &mut found);
             for (text, literal) in found {
@@ -255,4 +263,27 @@ fn owners(usages: &[&Usage]) -> (Vec<OwnerCount>, usize) {
         .collect();
     owners.sort_by(|a, b| b.usages.cmp(&a.usages).then_with(|| a.owner.cmp(&b.owner)));
     (owners, unowned)
+}
+
+/// Applies a spread of `value` to the props `set` so far: an object sets its properties in
+/// order, `undefined` and `null` set nothing, and anything else may set any prop.
+fn spread_into<'v>(value: &'v Value, set: &mut HashMap<&'v str, Option<&'v Value>>) {
+    match &value.kind {
+        ValueKind::Object { entries } => {
+            for entry in entries {
+                match entry {
+                    Entry::Property { key, value } => {
+                        set.insert(key, Some(value));
+                    }
+                    Entry::Spread { spread } => spread_into(spread, set),
+                    Entry::Computed { .. } => set.values_mut().for_each(|value| *value = None),
+                }
+            }
+        }
+        ValueKind::Undefined
+        | ValueKind::Literal {
+            value: Literal::Null,
+        } => {}
+        _ => set.values_mut().for_each(|value| *value = None),
+    }
 }

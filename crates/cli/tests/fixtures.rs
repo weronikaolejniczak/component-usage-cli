@@ -279,6 +279,7 @@ cases!(props:
     props_filter,
     references,
     summary,
+    summary_spreads,
     templates,
     wrapper_props,
     wrappers,

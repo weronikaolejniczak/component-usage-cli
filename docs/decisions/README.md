@@ -34,6 +34,7 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0027](./0027-references.md) | Report the places a target is passed as a value | accepted; leaving out wrappers' arguments superseded by ADR-0028 |
 | [0028](./0028-references-of-unrendered-wrappers.md) | Keep the references of wrappers nothing renders | accepted |
 | [0029](./0029-local-aliases.md) | Count usages through local names that are never assigned again | accepted |
-| [0030](./0030-summary.md) | Summarise a scan with counts per component, prop and owner | accepted |
+| [0030](./0030-summary.md) | Summarise a scan with counts per component, prop and owner | accepted; counting props superseded by ADR-0033 |
 | [0031](./0031-props-wrappers-set.md) | Add the props wrappers set to the usages that go through them | accepted |
 | [0032](./0032-export-aliases.md) | Name a component exported under several names by the name it's imported as | accepted |
+| [0033](./0033-summary-spreads.md) | Apply spreads when counting props in the summary | accepted |
