@@ -173,7 +173,8 @@ impl Report {
 /// Props by count, then name, each with its literal values by count, then JSON text. Props apply
 /// in order, as React does: a prop set twice on a usage is counted once, with the value of the
 /// last, and a spread of an object sets its properties. Any other spread may set any prop, so
-/// the values of those set before it aren't counted.
+/// the values of those set before it aren't counted, except a wrapper's spread that passes its
+/// props on, which sets nothing: what it passes is counted on the usages through the wrapper.
 fn props(usages: &[&Usage]) -> Vec<PropCount> {
     struct Counts {
         usages: usize,
@@ -187,7 +188,8 @@ fn props(usages: &[&Usage]) -> Vec<PropCount> {
                 Prop::Named { name, value } => {
                     set.insert(name, Some(value));
                 }
-                Prop::Spread { spread } => spread_into(spread, &mut set),
+                Prop::Spread { forwards: true, .. } => {}
+                Prop::Spread { spread, .. } => spread_into(spread, &mut set),
             }
         }
         for (name, value) in set {

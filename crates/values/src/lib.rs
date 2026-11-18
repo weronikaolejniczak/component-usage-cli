@@ -36,6 +36,8 @@ pub struct Context<'g> {
     /// Components used other than as a JSX tag, an export or the argument of `memo` or
     /// `forwardRef`, in their file or through an import.
     escaped: HashSet<ComponentRef>,
+    /// The spreads wrappers pass their props on with, by file and location.
+    forwarding: HashSet<(FileId, Location)>,
 }
 
 impl<'g> Context<'g> {
@@ -70,6 +72,7 @@ impl<'g> Context<'g> {
             props,
             callers: HashMap::new(),
             escaped: HashSet::new(),
+            forwarding: forwarding(graph),
         };
         if props {
             context.index_callers();
@@ -163,6 +166,28 @@ impl<'g> Context<'g> {
     }
 }
 
+fn forwarding(graph: &ModuleGraph) -> HashSet<(FileId, Location)> {
+    let mut forwarding = HashSet::new();
+    for (file, module) in graph.modules() {
+        let summary = &module.summary;
+        for forward in summary
+            .components
+            .iter()
+            .flat_map(|component| &component.forwards)
+        {
+            if let parse::Forwarded::Element { element, attribute } = forward.to
+                && let Some(Attribute::Spread(spread)) = summary
+                    .elements
+                    .get(element)
+                    .and_then(|element| element.attributes.get(attribute))
+            {
+                forwarding.insert((file, spread.location));
+            }
+        }
+    }
+    forwarding
+}
+
 /// The attributes of `element`, an element of `file`, in source order. With `filter`, only the
 /// named ones, and spreads, which may set any prop.
 pub fn props(
@@ -206,8 +231,9 @@ pub fn usage_props(
             .into_iter()
             .filter_map(|prop| match prop {
                 Prop::Named { name, .. } if step.excluded.contains(&name) => None,
-                Prop::Spread { spread } => Some(Prop::Spread {
+                Prop::Spread { spread, forwards } => Some(Prop::Spread {
                     spread: without(spread, &step.excluded),
+                    forwards,
                 }),
                 prop => Some(prop),
             })
@@ -336,6 +362,7 @@ impl<'c, 'g> Resolver<'c, 'g> {
             },
             Attribute::Spread(spread) => Prop::Spread {
                 spread: returned_by_arguments(self.value(file, spread), false),
+                forwards: self.context.forwarding.contains(&(file, spread.location)),
             },
         })
     }

@@ -223,6 +223,7 @@ mod tests {
                         },
                     },
                     Prop::Spread {
+                        forwards: false,
                         spread: Value {
                             file: None,
                             kind: ValueKind::Unresolved {

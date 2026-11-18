@@ -126,8 +126,17 @@ pub struct Parent {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize), serde(untagged))]
 pub enum Prop {
-    Named { name: String, value: Value },
-    Spread { spread: Value },
+    Named {
+        name: String,
+        value: Value,
+    },
+    Spread {
+        spread: Value,
+        /// Whether it's the spread a wrapper passes its props on with, whose values belong to
+        /// the usages through the wrapper.
+        #[cfg_attr(feature = "serde", serde(skip))]
+        forwards: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

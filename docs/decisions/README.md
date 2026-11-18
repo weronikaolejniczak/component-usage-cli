@@ -37,5 +37,6 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0030](./0030-summary.md) | Summarise a scan with counts per component, prop and owner | accepted; counting props superseded by [0033](./0033-summary-spreads.md) |
 | [0031](./0031-props-wrappers-set.md) | Add the props wrappers set to the usages that go through them | accepted |
 | [0032](./0032-export-aliases.md) | Name a component exported under several names by the name it's imported as | accepted |
-| [0033](./0033-summary-spreads.md) | Apply spreads when counting props in the summary | accepted |
+| [0033](./0033-summary-spreads.md) | Apply spreads when counting props in the summary | accepted; wrappers' forwarding spreads superseded by [0035](./0035-summary-forwarding-spreads.md) |
 | [0034](./0034-paths-outside-the-root.md) | Show paths outside the scan root relative to it | accepted |
+| [0035](./0035-summary-forwarding-spreads.md) | Count what a wrapper passes on once in the summary | accepted |

@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; wrappers' forwarding spreads superseded by ADR-0035
 date: 2026-11-18
 decision-makers: Weronika Olejniczak
 ---

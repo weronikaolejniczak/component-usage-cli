@@ -1,0 +1,18 @@
+{
+  "query": { "components": ["Button"], "from": "lib", "follow": ["props"], "wrappers": true, "summary": true },
+  "summary": {
+    "components": [
+      {
+        "component": "Button",
+        "usages": 5, "files": 1, "spreads": 2, "references": 0, "through": 3,
+        "props": [
+          { "name": "fill", "usages": 3, "values": [{ "value": "solid", "usages": 3 }] },
+          { "name": "size", "usages": 3, "values": [{ "value": "m", "usages": 2 }, { "value": "s", "usages": 1 }] }
+        ]
+      }
+    ],
+    "unidentified": [],
+    "errors": [],
+    "warnings": []
+  }
+}

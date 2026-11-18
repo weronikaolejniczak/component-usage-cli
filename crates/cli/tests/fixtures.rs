@@ -285,6 +285,7 @@ cases!(props:
     summary,
     summary_spreads,
     summary_unidentified,
+    summary_wrappers,
     templates,
     wrapper_outside_root,
     wrapper_props,
