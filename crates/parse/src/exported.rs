@@ -23,7 +23,10 @@ pub(crate) fn exported(program: &Program, exprs: &Exprs) -> HashMap<String, Expo
             Statement::ExportDeclaration(export) => match &export.declaration {
                 Declaration::VariableDeclaration(declaration) => {
                     for declarator in &declaration.declarations {
-                        for leaf in leaves(&declarator.id) {
+                        for leaf in leaves(&declarator.id)
+                            .into_iter()
+                            .filter(|leaf| leaf.rest.is_none())
+                        {
                             variable(
                                 &mut exported,
                                 scoping.symbol_name(leaf.symbol).to_owned(),

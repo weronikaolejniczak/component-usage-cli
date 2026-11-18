@@ -115,6 +115,16 @@ pub struct JsxElement {
     pub component: Option<usize>,
 }
 
+impl JsxElement {
+    /// The tag as written: `Panel` or `C.Panel`.
+    pub fn tag(&self) -> String {
+        std::iter::once(self.root.as_str())
+            .chain(self.members.iter().map(String::as_str))
+            .collect::<Vec<_>>()
+            .join(".")
+    }
+}
+
 /// An import read as a value: `L.Icon` in `<Panel icon={L.Icon} />`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValueReference {

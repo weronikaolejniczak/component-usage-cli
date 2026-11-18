@@ -217,7 +217,7 @@ pub fn identify(
             let unidentified = |cause| Unidentified {
                 file,
                 location: element.location,
-                tag: tag(element),
+                tag: element.tag(),
                 source: source(&module.summary, element).unwrap_or_default(),
                 cause,
             };
@@ -486,13 +486,6 @@ impl State<'_> {
         }
         (reached, cyclic)
     }
-}
-
-fn tag(element: &JsxElement) -> String {
-    std::iter::once(element.root.as_str())
-        .chain(element.members.iter().map(String::as_str))
-        .collect::<Vec<_>>()
-        .join(".")
 }
 
 fn source(summary: &FileSummary, element: &JsxElement) -> Option<String> {

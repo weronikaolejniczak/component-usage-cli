@@ -13,9 +13,13 @@ pub(crate) struct Leaf<'p, 'a> {
     pub(crate) default: Option<&'p Expression<'a>>,
     /// Whether a pattern on the way has a default, as in `{ a: { name } = {} }`.
     pub(crate) inner_default: bool,
+    /// For an object's rest element, the keys the pattern takes before it: `["a"]` in
+    /// `{ a, ...name }`.
+    pub(crate) rest: Option<Vec<String>>,
 }
 
-/// The names `pattern` declares, other than those behind computed keys and rest elements.
+/// The names `pattern` declares, other than those behind computed keys and array rest
+/// elements.
 pub(crate) fn leaves<'p, 'a>(pattern: &'p BindingPattern<'a>) -> Vec<Leaf<'p, 'a>> {
     let mut leaves = Vec::new();
     walk(pattern, &mut Vec::new(), None, false, &mut leaves);
@@ -35,6 +39,7 @@ fn walk<'p, 'a>(
             path: path.clone(),
             default,
             inner_default,
+            rest: None,
         }),
         BindingPattern::AssignmentPattern(assignment) => walk(
             &assignment.left,
@@ -45,14 +50,27 @@ fn walk<'p, 'a>(
         ),
         BindingPattern::ObjectPattern(object) => {
             let inner_default = inner_default || default.is_some();
+            let mut keys = Vec::new();
             for property in &object.properties {
                 let key = property.key.static_name().filter(|_| !property.computed);
                 let Some(key) = key.as_ref().and_then(|key| key.as_str()) else {
                     continue;
                 };
+                keys.push(key.to_owned());
                 path.push(Segment::Key(key.to_owned()));
                 walk(&property.value, path, None, inner_default, leaves);
                 path.pop();
+            }
+            if let Some(rest) = &object.rest
+                && let BindingPattern::BindingIdentifier(identifier) = &rest.argument
+            {
+                leaves.push(Leaf {
+                    symbol: identifier.symbol_id(),
+                    path: path.clone(),
+                    default: None,
+                    inner_default,
+                    rest: Some(keys),
+                });
             }
         }
         BindingPattern::ArrayPattern(array) => {

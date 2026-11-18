@@ -14,6 +14,7 @@ use oxc_syntax::scope::ScopeFlags;
 
 use crate::attributes::Exprs;
 use crate::definitions::mutated;
+use crate::patterns::leaves;
 use crate::scope::Declared;
 use crate::{
     Attribute, Component, ExprKind, Forward, Forwarded, JsxElement, Parameter, Reference, Segment,
@@ -368,10 +369,17 @@ impl Collector<'_, '_> {
         start: u32,
         params: &FormalParameters,
     ) {
-        let mut props = Vec::new();
-        if let Some(first) = params.items.first() {
-            leaves(&first.pattern, &mut Vec::new(), false, &mut props);
-        }
+        let props = params.items.first().map_or_else(Vec::new, |first| {
+            leaves(&first.pattern)
+                .into_iter()
+                .filter(|leaf| !leaf.inner_default)
+                .map(|leaf| Leaf {
+                    symbol: leaf.symbol,
+                    path: leaf.path,
+                    rest: leaf.rest,
+                })
+                .collect()
+        });
         self.found.push(Found {
             name,
             symbol,
@@ -442,8 +450,10 @@ impl<'a> Visit<'a> for Collector<'_, '_> {
                         params,
                     );
                 }
-                Some(Held::Name(argument)) => {
-                    self.wrappers.push((Some(id.symbol_id()), argument));
+                held => {
+                    if let Some(Held::Name(argument)) = held {
+                        self.wrappers.push((Some(id.symbol_id()), argument));
+                    }
                     self.call(
                         id.name.to_string(),
                         Some(id.symbol_id()),
@@ -451,12 +461,6 @@ impl<'a> Visit<'a> for Collector<'_, '_> {
                         init,
                     );
                 }
-                None => self.call(
-                    id.name.to_string(),
-                    Some(id.symbol_id()),
-                    id.span.start,
-                    init,
-                ),
             }
         }
         walk::walk_variable_declarator(self, declarator);
@@ -498,11 +502,12 @@ impl<'a> Visit<'a> for Collector<'_, '_> {
                         Some(Held::Function(params, start)) => {
                             self.add("default".to_owned(), None, start, params);
                         }
-                        Some(Held::Name(argument)) => {
-                            self.wrappers.push((None, argument));
+                        held => {
+                            if let Some(Held::Name(argument)) = held {
+                                self.wrappers.push((None, argument));
+                            }
                             self.call_default(expression);
                         }
-                        None => self.call_default(expression),
                     }
                 }
             }
@@ -597,56 +602,4 @@ struct Leaf {
     symbol: SymbolId,
     path: Vec<Segment>,
     rest: Option<Vec<String>>,
-}
-
-/// The names `pattern` declares, other than those behind computed keys, array rest elements
-/// and defaults on the way, such as `{ a: { b } = {} }`.
-fn leaves(pattern: &BindingPattern, path: &mut Vec<Segment>, inner: bool, leaves_: &mut Vec<Leaf>) {
-    match pattern {
-        BindingPattern::BindingIdentifier(identifier) => leaves_.push(Leaf {
-            symbol: identifier.symbol_id(),
-            path: path.clone(),
-            rest: None,
-        }),
-        BindingPattern::AssignmentPattern(assignment) => {
-            leaves(&assignment.left, path, true, leaves_);
-        }
-        BindingPattern::ObjectPattern(object) => {
-            if inner {
-                return;
-            }
-            let mut keys = Vec::new();
-            for property in &object.properties {
-                let key = property.key.static_name().filter(|_| !property.computed);
-                let Some(key) = key.as_ref().and_then(|key| key.as_str()) else {
-                    continue;
-                };
-                keys.push(key.to_owned());
-                path.push(Segment::Key(key.to_owned()));
-                leaves(&property.value, path, false, leaves_);
-                path.pop();
-            }
-            if let Some(rest) = &object.rest
-                && let BindingPattern::BindingIdentifier(identifier) = &rest.argument
-            {
-                leaves_.push(Leaf {
-                    symbol: identifier.symbol_id(),
-                    path: path.clone(),
-                    rest: Some(keys),
-                });
-            }
-        }
-        BindingPattern::ArrayPattern(array) => {
-            if inner {
-                return;
-            }
-            for (index, element) in array.elements.iter().enumerate() {
-                if let Some(element) = element {
-                    path.push(Segment::Index(index));
-                    leaves(element, path, false, leaves_);
-                    path.pop();
-                }
-            }
-        }
-    }
 }

@@ -33,7 +33,6 @@ pub struct ExportRef {
 
 /// One JSX opening element that renders a target component.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Usage {
     pub file: FileId,
     pub location: Location,
@@ -95,20 +94,16 @@ pub enum Passed {
 
 /// A wrapper a usage goes through, and where it passes its props on.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Through {
     pub component: String,
     pub file: FileId,
     pub location: Location,
     /// Index of the wrapper in its file's components.
-    #[cfg_attr(feature = "serde", serde(skip))]
     pub wrapper: usize,
     /// Indices of the element the wrapper spreads its props on and of the spread among its
     /// attributes; `None` when a call passes them on.
-    #[cfg_attr(feature = "serde", serde(skip))]
     pub spread: Option<(usize, usize)>,
     /// The props the wrapper's rest pattern takes, which aren't passed on.
-    #[cfg_attr(feature = "serde", serde(skip))]
     pub excluded: Vec<String>,
 }
 

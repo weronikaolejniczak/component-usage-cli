@@ -188,21 +188,6 @@ fn forwarding(graph: &ModuleGraph) -> HashSet<(FileId, Location)> {
     forwarding
 }
 
-/// The attributes of `element`, an element of `file`, in source order. With `filter`, only the
-/// named ones, and spreads, which may set any prop.
-pub fn props(
-    context: &Context,
-    file: FileId,
-    element: &parse::JsxElement,
-    filter: Option<&[String]>,
-) -> Vec<Prop> {
-    let resolver = Resolver::new(context, file, Vec::new());
-    resolver
-        .attributes(file, &element.attributes)
-        .filter(|prop| wanted(prop, filter))
-        .collect()
-}
-
 /// The props `usage` gives its component, in the order they apply: those of its element, of
 /// `element`, and those each wrapper in [`model::Usage::through`] sets around the spread that
 /// passes them on, without those its rest pattern takes. A wrapper's own props are followed to
@@ -591,7 +576,7 @@ impl<'c, 'g> Resolver<'c, 'g> {
                 value.via.insert(
                     0,
                     Via {
-                        text: tag(element),
+                        text: element.tag(),
                         file: self.file(caller),
                         location: element.location,
                     },
@@ -1125,14 +1110,6 @@ fn segment_key(segment: &Segment) -> String {
         Segment::Key(key) => key.clone(),
         Segment::Index(index) => index.to_string(),
     }
-}
-
-/// The tag of `element` as written: `Panel` or `C.Panel`.
-fn tag(element: &JsxElement) -> String {
-    std::iter::once(element.root.as_str())
-        .chain(element.members.iter().map(String::as_str))
-        .collect::<Vec<_>>()
-        .join(".")
 }
 
 fn code(error: &OriginError) -> UnresolvedCode {

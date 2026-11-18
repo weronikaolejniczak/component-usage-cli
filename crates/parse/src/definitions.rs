@@ -114,6 +114,7 @@ impl<'a> Visit<'a> for Round<'_, '_> {
             let mut init: Option<Expr> = None;
             for leaf in leaves(&declarator.id) {
                 if (leaf.inner_default && self.mode == Mode::Values)
+                    || leaf.rest.is_some()
                     || !self.wanted.contains(&leaf.symbol)
                 {
                     continue;
