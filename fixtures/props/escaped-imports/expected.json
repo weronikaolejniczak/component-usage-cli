@@ -1,0 +1,30 @@
+{
+  "query": { "components": ["Button"], "from": "lib", "follow": ["props"] },
+  "usages": [
+    {
+      "component": "Button", "file": "card.jsx", "line": 4, "column": 10,
+      "props": [
+        { "name": "size", "value": { "kind": "unresolved", "code": "parameter", "text": "size", "line": 4, "column": 24 } }
+      ]
+    },
+    {
+      "component": "Button", "file": "panel.jsx", "line": 4, "column": 10,
+      "props": [
+        {
+          "name": "iconType",
+          "value": {
+            "kind": "one-of", "line": 3, "column": 25,
+            "values": [
+              {
+                "kind": "literal", "value": "gear", "file": "App.jsx", "line": 6, "column": 38,
+                "via": [{ "text": "Panel", "file": "App.jsx", "line": 6, "column": 26 }]
+              },
+              { "kind": "unresolved", "code": "other-callers", "text": "Panel", "line": 3, "column": 17 }
+            ],
+            "via": [{ "text": "icon", "line": 4, "column": 28 }]
+          }
+        }
+      ]
+    }
+  ]
+}

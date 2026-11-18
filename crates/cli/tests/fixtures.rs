@@ -269,6 +269,7 @@ cases!(props:
     alias_edge_cases,
     all_components,
     default_export,
+    escaped_imports,
     expressions,
     follow_calls,
     follow_imports,
