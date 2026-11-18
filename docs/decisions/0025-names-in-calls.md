@@ -10,7 +10,7 @@ Supersedes, in [ADR-0024](./0024-follow-calls.md), that the arguments of a call 
 
 ## Context and Problem Statement
 
-A value is written out in full wherever it's reached. With [ADR-0024](./0024-follow-calls.md), a name in a call's arguments, or in what a function among them returns, is followed like any other. Calls often repeat a name: `useMemo(() => options.filter(…), [options])` reads `options` twice, and a second `useMemo` that reads the first's result twice reads `options` four times. With `--follow props`, each read is every caller's value. On Kibana (one run, the components and command of the [benchmarks](../../benchmarks/README.md), `--follow props,calls`), the report was 102 GB; one prop, `options` of an `EuiSelectable`, was 87 MB, with the same value written 1,452 times. How should the report stay usable?
+A value is written out in full wherever it's reached. With [ADR-0024](./0024-follow-calls.md), a name in a call's arguments, or in what a function among them returns, is followed like any other. Calls often repeat a name: `useMemo(() => options.filter(…), [options])` reads `options` twice, and a second `useMemo` that reads the first's result twice reads `options` four times. With `--follow props`, each read is every caller's value. On the benchmark codebase, with the components and command of the [benchmarks](../../benchmarks/README.md) and `--follow props,calls`, one run wrote a 102 GB report. How should the report stay usable?
 
 ## Considered Options
 
@@ -24,7 +24,7 @@ Chosen option: "Names in a call's arguments aren't followed", because it bounds 
 
 Within a call's arguments, including what a function among them returns, a variable, an import, or a parameter that `--follow props` would follow is `unresolved` with code `in-call`, at the name. Parameters that wouldn't be followed and globals keep their codes. A call's receiver is followed as before: in `ICONS.map(…)`, `ICONS` is the array it names, unless the call is itself within another call's arguments. Only functions written in place in the arguments have `returns`; `useMemo(compute)` is a call whose argument is `compute`, `in-call`.
 
-With this, the same scan writes a 92 MB report in 6.81 seconds (one run).
+The [benchmarks](../../benchmarks/README.md) have the same scan with this decision.
 
 ### Consequences
 

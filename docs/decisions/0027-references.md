@@ -1,5 +1,5 @@
 ---
-status: accepted; leaving out wrappers' arguments superseded by ADR-0028
+status: accepted; leaving out wrappers' arguments superseded by ADR-0028; not following local names superseded by ADR-0029
 date: 2026-11-17
 decision-makers: Weronika Olejniczak
 ---

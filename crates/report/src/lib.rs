@@ -40,7 +40,8 @@ pub struct Usage {
     pub through: Vec<Through>,
     /// Enclosing usages, nearest first.
     pub parents: Vec<Parent>,
-    /// Attributes in source order, without those a wrapper doesn't pass on.
+    /// The props the component is given, in the order they apply: through wrappers, those each
+    /// sets around the caller's, without those a rest pattern takes.
     pub props: Vec<Prop>,
     /// Code owners of `file`; empty if unowned. Absent unless owners were requested.
     #[serde(skip_serializing_if = "Option::is_none")]
