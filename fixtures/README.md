@@ -67,6 +67,8 @@ Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-value
 | `props-filter` | `--props` keeps the named props and spreads |
 | `alias-edge-cases` | A destructured name with a default and a redeclared `var`, which are `alias`, a parenthesised wrapper argument, and a tagged template, which isn't a reference |
 | `all-components` | Every export of `--from` without `--components` ([ADR-0018](../docs/decisions/0018-all-components.md)) |
+| `callbacks` | `--follow variables`: the first parameter of a callback passed to an array method is an item of the array, destructured with defaults; an index, a mutated item and a callback that isn't the first argument aren't followed ([ADR-0037](../docs/decisions/0037-callback-items.md)) |
+| `callbacks-props` | `--follow props`: the items of an array a caller passes ([ADR-0037](../docs/decisions/0037-callback-items.md)) |
 | `default-export` | Components exported as `export default Name`, followed to their callers and as a wrapper |
 | `follow-calls` | `--follow calls`: calls of names and members, with optional chaining and spread arguments, properties read from a result, the returns of functions written as arguments: arrow and function expressions, async functions and nested functions, and names in arguments and returns, which aren't followed, with `--follow props` too ([ADR-0024](../docs/decisions/0024-follow-calls.md), [ADR-0025](../docs/decisions/0025-names-in-calls.md)) |
 | `escaped-imports` | `--follow props`: components imported by name or through a namespace and used as values in another file, so their props are `other-callers` or `parameter` ([ADR-0022](../docs/decisions/0022-follow-props.md)) |

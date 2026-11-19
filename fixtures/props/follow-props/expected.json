@@ -180,7 +180,7 @@
     {
       "component": "Button", "file": "components.jsx", "line": 36, "column": 30,
       "props": [
-        { "name": "prepend", "value": { "kind": "unresolved", "code": "parameter", "text": "item.icon", "line": 36, "column": 47 } }
+        { "name": "prepend", "value": { "kind": "unresolved", "code": "no-items", "text": "item.icon", "file": "App.jsx", "line": 19, "column": 20, "via": [{ "text": "item.icon", "line": 36, "column": 47 }, { "text": "items", "line": 36, "column": 10 }, { "text": "List", "file": "App.jsx", "line": 19, "column": 7 }] } }
       ]
     },
     {

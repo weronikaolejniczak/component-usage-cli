@@ -8,6 +8,7 @@
 
 mod aliases;
 mod attributes;
+mod callbacks;
 mod components;
 mod definitions;
 mod elements;
@@ -48,6 +49,9 @@ pub struct FileSummary {
     /// The names declared by the props of [`FileSummary::components`], indexed by
     /// [`Reference::Parameter`].
     pub parameters: Vec<Parameter>,
+    /// The names declared by the first parameter of callbacks of array methods, indexed by
+    /// [`Reference::Callback`], when following is on.
+    pub callbacks: Vec<CallbackParameter>,
     /// Imports used other than as a JSX tag or an export, as indices into
     /// [`FileSummary::imports`], when [`Options::props`] is set.
     pub escaping_imports: Vec<usize>,
@@ -194,6 +198,24 @@ pub struct Parameter {
     /// For a rest element, the keys the pattern takes before it.
     pub rest: Option<Vec<String>>,
     /// Whether the name is assigned, or changed in place, in the component.
+    pub mutated: bool,
+}
+
+/// A name declared by the first parameter of a callback of an array method, such as `item` in
+/// `items.map((item) => …)`, which holds an item of the receiver.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CallbackParameter {
+    /// Where the name is declared.
+    pub location: Location,
+    /// `items` in `items.map(…)`.
+    pub receiver: Expr,
+    /// The steps from the item to the name.
+    pub path: Vec<Segment>,
+    /// The name's own default.
+    pub default: Option<Expr>,
+    /// For a rest element, the keys the pattern takes before it.
+    pub rest: Option<Vec<String>>,
+    /// Whether the name is assigned, or changed in place, in the callback.
     pub mutated: bool,
 }
 
@@ -374,6 +396,9 @@ pub enum Reference {
     /// A function or `catch` parameter, including a name destructured from one. With
     /// [`Options::props`], the index into [`FileSummary::parameters`] when it's a component's prop.
     Parameter(Option<usize>),
+    /// The first parameter of a callback of an array method, or a name destructured from it.
+    /// Index into [`FileSummary::callbacks`].
+    Callback(usize),
     /// Any other declaration in this file. Index into [`FileSummary::definitions`].
     Variable(usize),
     /// Not declared in this file.

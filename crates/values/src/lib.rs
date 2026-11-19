@@ -281,6 +281,7 @@ struct Resolver<'c, 'g> {
 #[derive(PartialEq, Eq)]
 enum Active {
     Definition(FileId, usize),
+    Callback(FileId, usize),
     Export(FileId, String),
     Component(FileId, usize),
 }
@@ -399,10 +400,15 @@ impl<'c, 'g> Resolver<'c, 'g> {
                     Reference::Variable(_) | Reference::Import(_) if self.in_call.get() => {
                         unresolved(UnresolvedCode::InCall, None, text)
                     }
+                    Reference::Callback(_) if self.in_call.get() => {
+                        unresolved(UnresolvedCode::Parameter, None, text)
+                    }
                     Reference::Parameter(Some(_)) if self.context.props && self.in_call.get() => {
                         unresolved(UnresolvedCode::InCall, None, text)
                     }
-                    Reference::Variable(_) => return self.value_at(file, expr, &[]),
+                    Reference::Variable(_) | Reference::Callback(_) => {
+                        return self.value_at(file, expr, &[]);
+                    }
                     Reference::Parameter(Some(_)) if self.context.props => {
                         return self.value_at(file, expr, &[]);
                     }
@@ -461,6 +467,7 @@ impl<'c, 'g> Resolver<'c, 'g> {
                 Reference::Variable(index) => {
                     Some(self.definition(&reference, file, *index, &keys))
                 }
+                Reference::Callback(index) => Some(self.callback(&reference, file, *index, &keys)),
                 Reference::Parameter(Some(index)) if self.context.props => {
                     Some(self.parameter(&reference, file, *index, keys))
                 }
@@ -486,6 +493,54 @@ impl<'c, 'g> Resolver<'c, 'g> {
             };
             self.lookup(value, key, &name)
         })
+    }
+
+    /// An item of the receiver of the callback whose parameter declares the name at `index` in
+    /// `file`'s [`parse::FileSummary::callbacks`], then `keys` in it. `Err` is the value to
+    /// report for `name`.
+    fn callback(
+        &self,
+        name: &Name,
+        file: FileId,
+        index: usize,
+        keys: &[Key],
+    ) -> Result<Value, Value> {
+        let Some(summary) = self
+            .context
+            .graph
+            .module(file)
+            .map(|module| &module.summary)
+        else {
+            return Err(self.stop(name, UnresolvedCode::Unparsed, None));
+        };
+        let callback = &summary.callbacks[index];
+        if callback.mutated {
+            return Err(self.stop(name, UnresolvedCode::Mutated, None));
+        }
+        let active = Active::Callback(file, index);
+        if self.active.borrow().contains(&active) {
+            return Err(self.stop(name, UnresolvedCode::Unsupported, None));
+        }
+        self.active.borrow_mut().push(active);
+        let receiver = self.value(file, &callback.receiver);
+        let mut value = callback
+            .path
+            .iter()
+            .map(|segment| Key::Static(segment_key(segment)))
+            .fold(self.item(receiver, name), |value, key| {
+                self.lookup(value, &key, name)
+            });
+        if let Some(default) = &callback.default {
+            value = self.with_default(value, file, default);
+        }
+        if let Some(taken) = &callback.rest {
+            value = without(value, taken);
+        }
+        for key in keys {
+            value = self.lookup(value, key, name);
+        }
+        self.active.borrow_mut().pop();
+        Ok(value)
     }
 
     /// What callers pass for the prop the name at `index` in `file`'s
@@ -872,6 +927,26 @@ impl<'c, 'g> Resolver<'c, 'g> {
                 self.active.borrow_mut().pop();
                 Ok(value)
             }
+        }
+    }
+
+    /// Any item of `value`, an array a callback is called with.
+    fn item(&self, value: Value, name: &Name) -> Value {
+        match value.kind {
+            ValueKind::Array { ref items } if items.is_empty() => Value {
+                kind: unresolved(UnresolvedCode::NoItems, None, name.text),
+                ..value
+            },
+            ValueKind::OneOf { values } => Value {
+                kind: ValueKind::OneOf {
+                    values: values
+                        .into_iter()
+                        .map(|value| self.item(value, name))
+                        .collect(),
+                },
+                ..value
+            },
+            _ => self.lookup(value, &Key::Dynamic, name),
         }
     }
 

@@ -41,3 +41,4 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0034](./0034-paths-outside-the-root.md) | Show paths outside the scan root relative to it | accepted |
 | [0035](./0035-summary-forwarding-spreads.md) | Count what a wrapper passes on once in the summary | accepted |
 | [0036](./0036-operations.md) | Report operators with their operands | accepted |
+| [0037](./0037-callback-items.md) | Follow the items of arrays into callbacks | accepted |

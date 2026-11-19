@@ -1,0 +1,25 @@
+{
+  "query": { "components": ["Badge"], "from": "lib", "follow": ["props"] },
+  "usages": [
+    {
+      "component": "Badge", "file": "App.jsx", "line": 4, "column": 30,
+      "props": [
+        {
+          "name": "color",
+          "value": {
+            "kind": "one-of", "line": 7, "column": 39,
+            "values": [
+              { "kind": "literal", "value": "red", "line": 7, "column": 49 },
+              { "kind": "literal", "value": "blue", "line": 7, "column": 67 }
+            ],
+            "via": [
+              { "text": "item.color", "line": 4, "column": 44 },
+              { "text": "items", "line": 4, "column": 10 },
+              { "text": "List", "line": 7, "column": 26 }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

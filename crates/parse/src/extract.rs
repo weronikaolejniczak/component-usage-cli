@@ -14,6 +14,7 @@ use oxc_syntax::module_record::{
 
 use crate::aliases::alias;
 use crate::attributes::Exprs;
+use crate::callbacks::callbacks;
 use crate::components::{components, spreads};
 use crate::definitions::{Mode, changed, definitions, mutated};
 use crate::elements::elements;
@@ -86,6 +87,12 @@ pub(crate) fn extract(
     let changed = || changed.get_or_init(|| self::changed(&parsed.program, &scope));
     let found = (options.props || options.wrappers)
         .then(|| components(&parsed.program, &exprs, options.wrappers, changed()));
+    let follow = options.variables || options.imports || options.props;
+    let callbacks = if follow {
+        callbacks(&parsed.program, &exprs, changed())
+    } else {
+        Vec::new()
+    };
     let mut elements = elements(&parsed.program, &exprs);
     if let Some(found) = &found {
         for (element, local) in &mut elements {
@@ -100,7 +107,6 @@ pub(crate) fn extract(
     } else {
         HashMap::new()
     };
-    let follow = options.variables || options.imports || options.props;
     let none = HashSet::new();
     let changed = if follow { changed() } else { &none };
     let definitions = if follow {
@@ -139,6 +145,7 @@ pub(crate) fn extract(
         changed_imports,
         components,
         parameters,
+        callbacks,
         escaping_imports,
         references,
         errors,

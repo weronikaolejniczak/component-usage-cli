@@ -23,6 +23,8 @@ pub(crate) struct Exprs<'s> {
     /// Indices into [`crate::FileSummary::parameters`] by the symbols of the names props
     /// declare, set by [`crate::components`].
     pub(crate) parameters: RefCell<HashMap<SymbolId, usize>>,
+    /// Indices into [`crate::FileSummary::callbacks`] by symbol, set by [`crate::callbacks`].
+    pub(crate) callbacks: RefCell<HashMap<SymbolId, usize>>,
     /// Describe calls and what functions return: [`crate::Options::calls`].
     pub(crate) calls: bool,
 }
@@ -41,6 +43,7 @@ impl<'s> Exprs<'s> {
             scope,
             variables: RefCell::new(Variables::default()),
             parameters: RefCell::new(HashMap::new()),
+            callbacks: RefCell::new(HashMap::new()),
             calls: false,
         }
     }
@@ -384,7 +387,13 @@ impl<'a> Exprs<'_> {
         match self.scope.declared(symbol) {
             Declared::Import(import) => Reference::Import(import),
             Declared::Parameter => {
-                Reference::Parameter(self.parameters.borrow().get(&symbol).copied())
+                if let Some(&index) = self.parameters.borrow().get(&symbol) {
+                    Reference::Parameter(Some(index))
+                } else if let Some(&index) = self.callbacks.borrow().get(&symbol) {
+                    Reference::Callback(index)
+                } else {
+                    Reference::Parameter(None)
+                }
             }
             Declared::Local => Reference::Variable(self.variable(symbol)),
         }

@@ -269,6 +269,8 @@ cases!(errors:
 cases!(props:
     alias_edge_cases,
     all_components,
+    callbacks,
+    callbacks_props,
     default_export,
     escaped_imports,
     expressions,

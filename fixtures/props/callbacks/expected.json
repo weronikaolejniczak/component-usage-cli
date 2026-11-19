@@ -1,0 +1,82 @@
+{
+  "query": { "components": ["Badge", "Button"], "from": "lib", "follow": ["variables"] },
+  "usages": [
+    {
+      "component": "Badge", "file": "App.jsx", "line": 9, "column": 33,
+      "props": [
+        {
+          "name": "color",
+          "value": {
+            "kind": "one-of", "line": 3, "column": 14,
+            "values": [
+              { "kind": "literal", "value": "a", "line": 3, "column": 15 },
+              { "kind": "literal", "value": "b", "line": 3, "column": 20 }
+            ],
+            "via": [
+              { "text": "tag", "line": 9, "column": 47 },
+              { "text": "TAGS", "line": 9, "column": 8 }
+            ]
+          }
+        },
+        { "name": "label", "value": { "kind": "unresolved", "code": "parameter", "text": "index", "line": 9, "column": 59 } }
+      ]
+    },
+    {
+      "component": "Button", "file": "App.jsx", "line": 10, "column": 48,
+      "props": [
+        {
+          "name": "title",
+          "value": {
+            "kind": "one-of", "line": 4, "column": 15,
+            "values": [
+              { "kind": "literal", "value": "Docs", "line": 4, "column": 25 },
+              { "kind": "literal", "value": "Home", "line": 4, "column": 58 }
+            ],
+            "via": [
+              { "text": "title", "line": 10, "column": 63 },
+              { "text": "LINKS", "line": 10, "column": 8 }
+            ]
+          }
+        },
+        {
+          "name": "iconType",
+          "value": {
+            "kind": "one-of", "line": 4, "column": 15,
+            "values": [
+              { "kind": "literal", "value": "help", "line": 4, "column": 39 },
+              { "kind": "literal", "value": "link", "line": 10, "column": 35 }
+            ],
+            "via": [
+              { "text": "icon", "line": 10, "column": 80 },
+              { "text": "LINKS", "line": 10, "column": 8 }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Badge", "file": "App.jsx", "line": 11, "column": 28,
+      "props": [
+        {
+          "name": "color",
+          "value": {
+            "kind": "unresolved", "code": "parameter", "text": "items", "line": 11, "column": 8,
+            "via": [{ "text": "item.color", "line": 11, "column": 42 }]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Badge", "file": "App.jsx", "line": 14, "column": 16,
+      "props": [
+        { "name": "color", "value": { "kind": "unresolved", "code": "mutated", "text": "link.title", "line": 14, "column": 30 } }
+      ]
+    },
+    {
+      "component": "Badge", "file": "App.jsx", "line": 16, "column": 39,
+      "props": [
+        { "name": "color", "value": { "kind": "unresolved", "code": "parameter", "text": "child", "line": 16, "column": 53 } }
+      ]
+    }
+  ]
+}

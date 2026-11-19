@@ -1,10 +1,13 @@
 use crate::{
-    Attribute, Definition, Entry, Exported, Expr, ExprKind, FileSummary, Item, Part, Reference,
+    Attribute, CallbackParameter, Definition, Entry, Exported, Expr, ExprKind, FileSummary, Item,
+    Part, Reference,
 };
 
 pub(crate) fn value_imports(summary: &FileSummary, attributes: bool) -> Vec<usize> {
     let mut reads = Reads {
         definitions: &summary.definitions,
+        callbacks: &summary.callbacks,
+        read_callbacks: vec![false; summary.callbacks.len()],
         visited: vec![false; summary.definitions.len()],
         imports: summary
             .changed_imports
@@ -46,6 +49,8 @@ pub(crate) fn value_imports(summary: &FileSummary, attributes: bool) -> Vec<usiz
 
 struct Reads<'s> {
     definitions: &'s [Definition],
+    callbacks: &'s [CallbackParameter],
+    read_callbacks: Vec<bool>,
     visited: Vec<bool>,
     imports: Vec<usize>,
 }
@@ -64,11 +69,24 @@ impl Reads<'_> {
         }
     }
 
+    fn callback(&mut self, index: usize) {
+        if self.read_callbacks.get(index).is_none_or(|read| *read) {
+            return;
+        }
+        self.read_callbacks[index] = true;
+        let callback = &self.callbacks[index];
+        self.expr(&callback.receiver);
+        if let Some(default) = &callback.default {
+            self.expr(default);
+        }
+    }
+
     fn expr(&mut self, expr: &Expr) {
         match &expr.kind {
             ExprKind::Reference { name, .. } => match name {
                 Reference::Import(import) => self.imports.push(*import),
                 Reference::Variable(index) => self.definition(*index),
+                Reference::Callback(index) => self.callback(*index),
                 Reference::Parameter(_) | Reference::Global => {}
             },
             ExprKind::Object(entries) => {

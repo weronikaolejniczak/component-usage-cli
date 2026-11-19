@@ -308,6 +308,8 @@ pub enum UnresolvedCode {
     Parameter,
     /// A component's prop, where the component isn't rendered as a JSX tag or used any other way.
     NoCallers,
+    /// An item of an empty array, passed to a callback that isn't called.
+    NoItems,
     /// One of a prop's values: the component is also used other than as a JSX tag, so it may
     /// receive values that aren't listed.
     OtherCallers,
