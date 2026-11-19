@@ -15,6 +15,7 @@ use oxc_syntax::module_record::{
 use crate::aliases::alias;
 use crate::attributes::Exprs;
 use crate::callbacks::callbacks;
+use crate::classes::{self, ClassMember, classes};
 use crate::components::{components, spreads};
 use crate::definitions::{Mode, changed, definitions, mutated};
 use crate::elements::elements;
@@ -23,7 +24,7 @@ use crate::lines::LineIndex;
 use crate::references::references;
 use crate::scope::{Declared, Scope};
 use crate::{
-    Alias, Binding, Definition, Export, FileSummary, Import, Imported, JsxElement, Options,
+    Alias, Binding, Definition, Export, FileSummary, Import, Imported, JsxElement, Member, Options,
     ParseError, SyntaxError,
 };
 
@@ -85,14 +86,62 @@ pub(crate) fn extract(
     exprs.calls = options.calls;
     let changed = OnceCell::new();
     let changed = || changed.get_or_init(|| self::changed(&parsed.program, &scope));
-    let found = (options.props || options.wrappers)
-        .then(|| components(&parsed.program, &exprs, options.wrappers, changed()));
     let follow = options.variables || options.imports || options.props;
+    let mut classes = classes(&parsed.program, source);
+    exprs.this = std::mem::take(&mut classes.this);
+    let mut members = Vec::new();
+    let mut spans = HashSet::new();
+    for (class, component) in classes.components.iter().enumerate() {
+        let names = component
+            .members
+            .iter()
+            .map(|(name, member)| (name, Some(member)))
+            .chain(component.assigned.iter().map(|name| (name, None)));
+        for (name, member) in names {
+            let key = (class, name.clone());
+            if exprs.members.contains_key(&key) {
+                continue;
+            }
+            exprs.members.insert(key, members.len());
+            let assigned = component.assigned.contains(name);
+            if let (Some(ClassMember::Field(span)), true, false) = (member, follow, assigned) {
+                spans.insert(*span);
+            }
+            members.push((member, assigned));
+        }
+        spans.extend(component.default_props.filter(|_| follow));
+    }
+    if follow {
+        spans.extend(classes.default_props.iter().map(|&(_, span)| span));
+    }
+    let found = (options.props || options.wrappers).then(|| {
+        components(
+            &parsed.program,
+            &exprs,
+            &classes,
+            options.wrappers,
+            changed(),
+        )
+    });
     let callbacks = if follow {
         callbacks(&parsed.program, &exprs, changed())
     } else {
         Vec::new()
     };
+    let mut values = classes::values(&parsed.program, &exprs, spans);
+    let members = members
+        .into_iter()
+        .map(|(member, assigned)| match member {
+            _ if assigned => Member::Mutated,
+            _ if !follow => Member::NotFollowed,
+            Some(ClassMember::Field(span)) => values
+                .get(span)
+                .cloned()
+                .map_or(Member::NotFollowed, Member::Value),
+            Some(ClassMember::Method(start)) => Member::Method(lines.location(*start)),
+            None => Member::Mutated,
+        })
+        .collect();
     let mut elements = elements(&parsed.program, &exprs);
     if let Some(found) = &found {
         for (element, local) in &mut elements {
@@ -126,10 +175,35 @@ pub(crate) fn extract(
         Vec::new()
     };
     changed_imports.sort_unstable();
-    let (mut components, parameters, escaping_imports) = found
-        .map_or_else(Default::default, |found| {
-            (found.components, found.parameters, found.escaping_imports)
+    let (mut components, parameters, escaping_imports, by_symbol) =
+        found.map_or_else(Default::default, |found| {
+            (
+                found.components,
+                found.parameters,
+                found.escaping_imports,
+                found.by_symbol,
+            )
         });
+    for (class, component) in classes.components.iter().enumerate() {
+        let index = exprs
+            .class_props
+            .borrow()
+            .get(&class)
+            .map(|&parameter| parameters[parameter].component);
+        if let (Some(index), Some(span)) = (index, component.default_props) {
+            components[index].default_props = values.remove(&span);
+        }
+    }
+    for (reference, span) in &classes.default_props {
+        let index = scope
+            .scoping
+            .get_reference(*reference)
+            .symbol_id()
+            .and_then(|symbol| by_symbol.get(&symbol));
+        if let Some(&index) = index {
+            components[index].default_props = values.remove(span);
+        }
+    }
     if options.wrappers {
         spreads(&mut components, &parameters, &elements);
     }
@@ -146,6 +220,7 @@ pub(crate) fn extract(
         components,
         parameters,
         callbacks,
+        members,
         escaping_imports,
         references,
         errors,

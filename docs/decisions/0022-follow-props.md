@@ -1,5 +1,5 @@
 ---
-status: accepted; other-callers definition superseded by ADR-0023
+status: accepted; other-callers definition superseded by ADR-0023; class components superseded by ADR-0038
 date: 2026-11-17
 decision-makers: Weronika Olejniczak
 ---

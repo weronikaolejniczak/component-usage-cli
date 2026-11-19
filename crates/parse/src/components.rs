@@ -13,6 +13,7 @@ use oxc_span::GetSpan;
 use oxc_syntax::scope::ScopeFlags;
 
 use crate::attributes::Exprs;
+use crate::classes::Classes;
 use crate::definitions::mutated;
 use crate::patterns::leaves;
 use crate::scope::Declared;
@@ -75,6 +76,7 @@ pub(crate) struct Components {
 pub(crate) fn components(
     program: &Program,
     exprs: &Exprs,
+    classes: &Classes,
     calls: bool,
     changed: &HashSet<SymbolId>,
 ) -> Components {
@@ -91,7 +93,7 @@ pub(crate) fn components(
     };
     collector.visit_program(program);
     let Collector {
-        found,
+        mut found,
         wrappers,
         calls,
         mut allowed,
@@ -101,6 +103,20 @@ pub(crate) fn components(
     } = collector;
 
     let scoping = exprs.scope.scoping;
+    found.extend(
+        classes
+            .components
+            .iter()
+            .enumerate()
+            .map(|(class, component)| Found {
+                name: component.name.clone(),
+                symbol: component.symbol,
+                location: exprs.scope.lines.location(component.start),
+                props: Vec::new(),
+                class: Some(class),
+            }),
+    );
+    let mut class_props = HashMap::new();
     let mut components = Vec::new();
     let mut by_symbol = HashMap::new();
     let mut parameters = Vec::new();
@@ -118,9 +134,21 @@ pub(crate) fn components(
             default: found.symbol.is_none(),
             escapes: false,
             forwards: Vec::new(),
+            default_props: None,
         });
         if let Some(symbol) = found.symbol {
             by_symbol.insert(symbol, index);
+        }
+        if let Some(class) = found.class {
+            class_props.insert(class, parameters.len());
+            parameters.push(Parameter {
+                component: index,
+                location: found.location,
+                path: Vec::new(),
+                default: None,
+                rest: None,
+                mutated: false,
+            });
         }
         for leaf in found.props {
             parameter_of.insert(leaf.symbol, parameters.len());
@@ -188,10 +216,12 @@ pub(crate) fn components(
                 to,
                 excluded: Vec::new(),
             }],
+            default_props: None,
         });
     }
 
     *exprs.parameters.borrow_mut() = parameter_of;
+    *exprs.class_props.borrow_mut() = class_props;
     let mut defaults = Defaults {
         exprs,
         parameters: &mut parameters,
@@ -260,6 +290,8 @@ struct Found {
     symbol: Option<SymbolId>,
     location: model::Location,
     props: Vec<Leaf>,
+    /// Index into [`Classes::components`], whose props are `this.props`.
+    class: Option<usize>,
 }
 
 struct Collector<'e, 's> {
@@ -385,6 +417,7 @@ impl Collector<'_, '_> {
             symbol,
             location: self.exprs.scope.lines.location(start),
             props,
+            class: None,
         });
     }
 

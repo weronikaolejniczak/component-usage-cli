@@ -310,6 +310,8 @@ pub enum UnresolvedCode {
     NoCallers,
     /// An item of an empty array, passed to a callback that isn't called.
     NoItems,
+    /// A class component's state, which changes while it runs.
+    State,
     /// One of a prop's values: the component is also used other than as a JSX tag, so it may
     /// receive values that aren't listed.
     OtherCallers,

@@ -48,7 +48,7 @@
       "component": "Icon", "file": "App.tsx", "line": 27, "column": 12,
       "parents": [],
       "props": [
-        { "name": "type", "value": { "kind": "unresolved", "code": "unsupported", "text": "this.props.type", "line": 27, "column": 24 } }
+        { "name": "type", "value": { "kind": "unresolved", "code": "parameter", "text": "this.props.type", "line": 27, "column": 24 } }
       ]
     }
   ]

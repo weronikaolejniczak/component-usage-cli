@@ -25,6 +25,13 @@ pub(crate) struct Exprs<'s> {
     pub(crate) parameters: RefCell<HashMap<SymbolId, usize>>,
     /// Indices into [`crate::FileSummary::callbacks`] by symbol, set by [`crate::callbacks`].
     pub(crate) callbacks: RefCell<HashMap<SymbolId, usize>>,
+    /// The class component each `this` is the instance of, by the start of `this`.
+    pub(crate) this: HashMap<u32, usize>,
+    /// The [`crate::FileSummary::parameters`] index of each class component's `this.props`,
+    /// set by [`crate::components`].
+    pub(crate) class_props: RefCell<HashMap<usize, usize>>,
+    /// Indices into [`crate::FileSummary::members`] by class component and name.
+    pub(crate) members: HashMap<(usize, String), usize>,
     /// Describe calls and what functions return: [`crate::Options::calls`].
     pub(crate) calls: bool,
 }
@@ -44,6 +51,9 @@ impl<'s> Exprs<'s> {
             variables: RefCell::new(Variables::default()),
             parameters: RefCell::new(HashMap::new()),
             callbacks: RefCell::new(HashMap::new()),
+            this: HashMap::new(),
+            class_props: RefCell::new(HashMap::new()),
+            members: HashMap::new(),
             calls: false,
         }
     }
@@ -285,8 +295,29 @@ impl<'a> Exprs<'_> {
                 },
                 None => self.call(call, text, path),
             },
+            Expression::ThisExpression(this) => self.this(this.span.start, text, path),
             _ => ExprKind::Unsupported { text },
         }
+    }
+
+    /// `this` then `path`, in a class component: its props, its state or one of its members.
+    fn this(&self, start: u32, text: String, mut path: Vec<Key>) -> ExprKind {
+        let Some(&class) = self.this.get(&start) else {
+            return ExprKind::Unsupported { text };
+        };
+        let name = match path.first() {
+            Some(Key::Static(first)) if first == "props" => {
+                Reference::Parameter(self.class_props.borrow().get(&class).copied())
+            }
+            Some(Key::Static(first)) if first == "state" => Reference::State,
+            Some(Key::Static(first)) => match self.members.get(&(class, first.clone())) {
+                Some(&member) => Reference::Member(member),
+                None => return ExprKind::Unsupported { text },
+            },
+            _ => return ExprKind::Unsupported { text },
+        };
+        path.remove(0);
+        ExprKind::Reference { name, text, path }
     }
 
     /// A call, then `path` in its result: described with [`Exprs::calls`].

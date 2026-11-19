@@ -1,0 +1,103 @@
+{
+  "query": { "components": ["Badge", "Button"], "from": "lib", "follow": ["props"] },
+  "usages": [
+    {
+      "component": "Button", "file": "App.jsx", "line": 19, "column": 9,
+      "props": [
+        {
+          "name": "size",
+          "value": {
+            "kind": "one-of", "line": 4, "column": 7,
+            "values": [
+              { "kind": "literal", "value": "s", "line": 5, "column": 33, "via": [{ "text": "Panel", "line": 36, "column": 7 }] },
+              { "kind": "literal", "value": "l", "line": 37, "column": 19, "via": [{ "text": "Panel", "line": 37, "column": 7 }] }
+            ],
+            "via": [{ "text": "this.props.size", "line": 19, "column": 23 }]
+          }
+        },
+        {
+          "name": "color",
+          "value": {
+            "kind": "one-of", "line": 4, "column": 7,
+            "values": [
+              { "kind": "literal", "value": "red", "line": 36, "column": 20, "via": [{ "text": "Panel", "line": 36, "column": 7 }] },
+              { "kind": "literal", "value": "blue", "line": 37, "column": 29, "via": [{ "text": "Panel", "line": 37, "column": 7 }] }
+            ],
+            "via": [
+              { "text": "color", "line": 19, "column": 47 },
+              { "text": "this.props", "line": 16, "column": 23 }
+            ]
+          }
+        },
+        {
+          "name": "label",
+          "value": { "kind": "literal", "value": "Panel", "line": 7, "column": 11, "via": [{ "text": "this.title", "line": 19, "column": 61 }] }
+        },
+        {
+          "name": "onClick",
+          "value": { "kind": "function", "line": 8, "column": 13, "via": [{ "text": "this.onClick", "line": 19, "column": 82 }] }
+        }
+      ]
+    },
+    {
+      "component": "Button", "file": "App.jsx", "line": 20, "column": 9,
+      "props": [
+        {
+          "name": "onToggle",
+          "value": { "kind": "function", "line": 14, "column": 3, "via": [{ "text": "this.toggle", "line": 20, "column": 27 }] }
+        },
+        { "name": "isOpen", "value": { "kind": "unresolved", "code": "state", "text": "this.state.open", "line": 20, "column": 48 } },
+        { "name": "onBlur", "value": { "kind": "unresolved", "code": "mutated", "text": "this.handler", "line": 20, "column": 73 } },
+        { "name": "other", "value": { "kind": "unresolved", "code": "unsupported", "text": "this.missing", "line": 20, "column": 94 } }
+      ]
+    },
+    {
+      "component": "Badge", "file": "App.jsx", "line": 21, "column": 41,
+      "props": [
+        {
+          "name": "id",
+          "value": {
+            "kind": "one-of", "line": 4, "column": 7,
+            "values": [
+              {
+                "kind": "one-of", "line": 36, "column": 33,
+                "values": [{ "kind": "literal", "value": 1, "line": 36, "column": 40 }],
+                "via": [{ "text": "Panel", "line": 36, "column": 7 }]
+              },
+              {
+                "kind": "unresolved", "code": "no-items", "text": "item.id", "line": 37, "column": 43,
+                "via": [{ "text": "Panel", "line": 37, "column": 7 }]
+              }
+            ],
+            "via": [
+              { "text": "item.id", "line": 21, "column": 52 },
+              { "text": "this.props.items", "line": 21, "column": 10 }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Badge", "file": "App.jsx", "line": 22, "column": 31,
+      "props": [
+        { "name": "color", "value": { "kind": "unresolved", "code": "unsupported", "text": "this.props.color", "line": 22, "column": 45 } }
+      ]
+    },
+    {
+      "component": "Badge", "file": "App.jsx", "line": 29, "column": 10,
+      "props": [
+        {
+          "name": "size",
+          "value": {
+            "kind": "one-of", "line": 28, "column": 16,
+            "values": [
+              { "kind": "literal", "value": "m", "line": 31, "column": 28, "via": [{ "text": "Tag", "line": 38, "column": 7 }] },
+              { "kind": "literal", "value": "xl", "line": 39, "column": 17, "via": [{ "text": "Tag", "line": 39, "column": 7 }] }
+            ],
+            "via": [{ "text": "size", "line": 29, "column": 23 }]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -6,7 +6,7 @@
 //! Pure. Every value has a kind and a location; unresolved values carry a code. Values and names
 //! in another file than the usage's say which.
 
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, OnceCell, RefCell};
 use std::collections::{HashMap, HashSet};
 
 use graph::{ModuleGraph, Origin, OriginError, Origins};
@@ -14,7 +14,9 @@ use model::{
     Entry, ExportRef, FileId, Item, Literal, Location, Part, Prop, Step, UnresolvedCode, Value,
     ValueKind, Via,
 };
-use parse::{Attribute, Definition, Exported, Expr, ExprKind, JsxElement, Key, Reference, Segment};
+use parse::{
+    Attribute, Definition, Exported, Expr, ExprKind, JsxElement, Key, Member, Reference, Segment,
+};
 
 /// A component: its file and its index in that file's [`parse::FileSummary::components`].
 type ComponentRef = (FileId, usize);
@@ -262,6 +264,7 @@ fn wanted(prop: &Prop, filter: Option<&[String]>) -> bool {
 struct Declared<'p> {
     file: FileId,
     parameter: &'p parse::Parameter,
+    default_props: Option<&'p Expr>,
 }
 
 struct Resolver<'c, 'g> {
@@ -282,6 +285,7 @@ struct Resolver<'c, 'g> {
 enum Active {
     Definition(FileId, usize),
     Callback(FileId, usize),
+    Member(FileId, usize),
     Export(FileId, String),
     Component(FileId, usize),
 }
@@ -397,7 +401,9 @@ impl<'c, 'g> Resolver<'c, 'g> {
                     location: expr.location,
                 };
                 match name {
-                    Reference::Variable(_) | Reference::Import(_) if self.in_call.get() => {
+                    Reference::Variable(_) | Reference::Import(_) | Reference::Member(_)
+                        if self.in_call.get() =>
+                    {
                         unresolved(UnresolvedCode::InCall, None, text)
                     }
                     Reference::Callback(_) if self.in_call.get() => {
@@ -406,9 +412,10 @@ impl<'c, 'g> Resolver<'c, 'g> {
                     Reference::Parameter(Some(_)) if self.context.props && self.in_call.get() => {
                         unresolved(UnresolvedCode::InCall, None, text)
                     }
-                    Reference::Variable(_) | Reference::Callback(_) => {
+                    Reference::Variable(_) | Reference::Callback(_) | Reference::Member(_) => {
                         return self.value_at(file, expr, &[]);
                     }
+                    Reference::State => unresolved(UnresolvedCode::State, None, text),
                     Reference::Parameter(Some(_)) if self.context.props => {
                         return self.value_at(file, expr, &[]);
                     }
@@ -468,6 +475,7 @@ impl<'c, 'g> Resolver<'c, 'g> {
                     Some(self.definition(&reference, file, *index, &keys))
                 }
                 Reference::Callback(index) => Some(self.callback(&reference, file, *index, &keys)),
+                Reference::Member(index) => Some(self.member(&reference, file, *index, &keys)),
                 Reference::Parameter(Some(index)) if self.context.props => {
                     Some(self.parameter(&reference, file, *index, keys))
                 }
@@ -597,7 +605,13 @@ impl<'c, 'g> Resolver<'c, 'g> {
             .map(|segment| Key::Static(segment_key(segment)))
             .chain(keys)
             .collect();
-        let declared = Declared { file, parameter };
+        let declared = Declared {
+            file,
+            parameter,
+            default_props: summary.components[parameter.component]
+                .default_props
+                .as_ref(),
+        };
         self.active.borrow_mut().push(active);
         let mut values: Vec<Value> = callers
             .iter()
@@ -651,8 +665,39 @@ impl<'c, 'g> Resolver<'c, 'g> {
         let parameter = declared.parameter;
         let taken = parameter.rest.as_deref().unwrap_or_default();
         let (mut value, consumed) = match keys.first() {
-            Some(Key::Static(key)) => (self.caller_prop(file, element, key), 1),
-            _ => (self.caller_props(file, element, taken), 0),
+            Some(Key::Static(key)) => {
+                let mut value = self.caller_prop(file, element, key);
+                if let Some(default_props) = declared.default_props {
+                    value = self.with_default_prop(value, declared.file, default_props, key, name);
+                }
+                (value, 1)
+            }
+            _ => {
+                let mut value = self.caller_props(file, element, taken);
+                if let (Some(default_props), ValueKind::Object { entries }) =
+                    (declared.default_props, &mut value.kind)
+                {
+                    *entries = std::mem::take(entries)
+                        .into_iter()
+                        .map(|entry| match entry {
+                            Entry::Property { key, value } => {
+                                let value = self.with_default_prop(
+                                    value,
+                                    declared.file,
+                                    default_props,
+                                    &key,
+                                    name,
+                                );
+                                Entry::Property { key, value }
+                            }
+                            entry => entry,
+                        })
+                        .collect();
+                    let defaults = without(self.value(declared.file, default_props), taken);
+                    entries.insert(0, Entry::Spread { spread: defaults });
+                }
+                (value, 0)
+            }
         };
         let boundary = parameter.path.len().max(consumed);
         for key in &keys[consumed..boundary] {
@@ -732,19 +777,29 @@ impl<'c, 'g> Resolver<'c, 'g> {
 
     /// `value`, with `default`, an expression of `file`, in place of `undefined`, in each branch.
     fn with_default(&self, value: Value, file: FileId, default: &Expr) -> Value {
-        match value.kind {
-            ValueKind::Undefined => self.value(file, default),
-            ValueKind::OneOf { values } => Value {
-                kind: ValueKind::OneOf {
-                    values: values
-                        .into_iter()
-                        .map(|value| self.with_default(value, file, default))
-                        .collect(),
-                },
-                ..value
-            },
-            kind => Value { kind, ..value },
-        }
+        otherwise(value, &|| Some(self.value(file, default)))
+    }
+
+    /// `value`, with the default `defaultProps`, an expression of `file`, has for `key` in place
+    /// of `undefined`, in each branch.
+    fn with_default_prop(
+        &self,
+        value: Value,
+        file: FileId,
+        default_props: &Expr,
+        key: &str,
+        name: &Name,
+    ) -> Value {
+        let default = OnceCell::new();
+        otherwise(value, &|| {
+            default
+                .get_or_init(|| {
+                    let defaults = self.value(file, default_props);
+                    Some(self.lookup(defaults, &Key::Static(key.to_owned()), name))
+                        .filter(|value| value.kind != ValueKind::Undefined)
+                })
+                .clone()
+        })
     }
 
     fn follow_import(&self, name: &Name, index: usize, path: &[Key]) -> Value {
@@ -930,6 +985,47 @@ impl<'c, 'g> Resolver<'c, 'g> {
         }
     }
 
+    /// What `this.name` is at `index` in `file`'s [`parse::FileSummary::members`], then `keys`
+    /// in it. `Err` is the value to report for `name`.
+    fn member(
+        &self,
+        name: &Name,
+        file: FileId,
+        index: usize,
+        keys: &[Key],
+    ) -> Result<Value, Value> {
+        let Some(summary) = self
+            .context
+            .graph
+            .module(file)
+            .map(|module| &module.summary)
+        else {
+            return Err(self.stop(name, UnresolvedCode::Unparsed, None));
+        };
+        match &summary.members[index] {
+            Member::NotFollowed => {
+                Err(self.stop(name, UnresolvedCode::NotFollowed, Some(Step::Variables)))
+            }
+            Member::Mutated => Err(self.stop(name, UnresolvedCode::Mutated, None)),
+            Member::Method(location) => {
+                let value = self.at(file, *location, ValueKind::Function { returns: None });
+                Ok(keys
+                    .iter()
+                    .fold(value, |value, key| self.lookup(value, key, name)))
+            }
+            Member::Value(value) => {
+                let active = Active::Member(file, index);
+                if self.active.borrow().contains(&active) {
+                    return Err(self.stop(name, UnresolvedCode::Unsupported, None));
+                }
+                self.active.borrow_mut().push(active);
+                let value = self.value_at(file, value, keys);
+                self.active.borrow_mut().pop();
+                Ok(value)
+            }
+        }
+    }
+
     /// Any item of `value`, an array a callback is called with.
     fn item(&self, value: Value, name: &Name) -> Value {
         match value.kind {
@@ -1051,6 +1147,23 @@ impl<'c, 'g> Resolver<'c, 'g> {
 
 /// `value` without the properties `keys` names, in an object and in each object spread into it
 /// or branch of a `one-of`.
+/// `value`, with what `default` gives, if anything, in place of `undefined`, in each branch.
+fn otherwise(value: Value, default: &dyn Fn() -> Option<Value>) -> Value {
+    match value.kind {
+        ValueKind::Undefined => default().unwrap_or(value),
+        ValueKind::OneOf { values } => Value {
+            kind: ValueKind::OneOf {
+                values: values
+                    .into_iter()
+                    .map(|value| otherwise(value, default))
+                    .collect(),
+            },
+            ..value
+        },
+        kind => Value { kind, ..value },
+    }
+}
+
 fn without(mut value: Value, keys: &[String]) -> Value {
     if keys.is_empty() {
         return value;

@@ -1,5 +1,5 @@
 ---
-status: accepted; operators superseded by ADR-0036
+status: accepted; operators superseded by ADR-0036; `this.props` superseded by ADR-0038
 date: 2026-11-13
 decision-makers: Weronika Olejniczak
 ---

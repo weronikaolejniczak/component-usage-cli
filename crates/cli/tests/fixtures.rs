@@ -271,6 +271,7 @@ cases!(props:
     all_components,
     callbacks,
     callbacks_props,
+    class_components,
     default_export,
     escaped_imports,
     expressions,

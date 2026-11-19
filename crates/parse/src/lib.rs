@@ -9,6 +9,7 @@
 mod aliases;
 mod attributes;
 mod callbacks;
+mod classes;
 mod components;
 mod definitions;
 mod elements;
@@ -52,6 +53,9 @@ pub struct FileSummary {
     /// The names declared by the first parameter of callbacks of array methods, indexed by
     /// [`Reference::Callback`], when following is on.
     pub callbacks: Vec<CallbackParameter>,
+    /// The fields and methods of class components read as `this.name`, indexed by
+    /// [`Reference::Member`].
+    pub members: Vec<Member>,
     /// Imports used other than as a JSX tag or an export, as indices into
     /// [`FileSummary::imports`], when [`Options::props`] is set.
     pub escaping_imports: Vec<usize>,
@@ -143,7 +147,7 @@ pub struct ValueReference {
 
 /// A function that can be rendered as a JSX tag: declared with a name, or assigned to a `const`,
 /// optionally inside `memo(…)` or `forwardRef(…)`, or the default export.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Component {
     /// The name it's declared as, or `default` for an anonymous default export.
     pub name: String,
@@ -159,6 +163,22 @@ pub struct Component {
     pub escapes: bool,
     /// With [`Options::wrappers`], where it passes all its props on, in source order.
     pub forwards: Vec<Forward>,
+    /// `defaultProps`, which replaces `undefined` in what a caller passes for each prop, when
+    /// following is on.
+    pub default_props: Option<Expr>,
+}
+
+/// What `this.name` is in a class component.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Member {
+    /// A field, with its value.
+    Value(Expr),
+    /// A method, at its start.
+    Method(Location),
+    /// Assigned to as `this.name`.
+    Mutated,
+    /// Not followed: following is off.
+    NotFollowed,
 }
 
 /// Where a component passes all its props on: an element given a spread of its props or of a
@@ -399,6 +419,10 @@ pub enum Reference {
     /// The first parameter of a callback of an array method, or a name destructured from it.
     /// Index into [`FileSummary::callbacks`].
     Callback(usize),
+    /// `this.name` in a class component. Index into [`FileSummary::members`].
+    Member(usize),
+    /// `this.state` in a class component.
+    State,
     /// Any other declaration in this file. Index into [`FileSummary::definitions`].
     Variable(usize),
     /// Not declared in this file.

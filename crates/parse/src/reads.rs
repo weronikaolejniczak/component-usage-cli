@@ -1,6 +1,6 @@
 use crate::{
     Attribute, CallbackParameter, Definition, Entry, Exported, Expr, ExprKind, FileSummary, Item,
-    Part, Reference,
+    Member, Part, Reference,
 };
 
 pub(crate) fn value_imports(summary: &FileSummary, attributes: bool) -> Vec<usize> {
@@ -8,6 +8,8 @@ pub(crate) fn value_imports(summary: &FileSummary, attributes: bool) -> Vec<usiz
         definitions: &summary.definitions,
         callbacks: &summary.callbacks,
         read_callbacks: vec![false; summary.callbacks.len()],
+        members: &summary.members,
+        read_members: vec![false; summary.members.len()],
         visited: vec![false; summary.definitions.len()],
         imports: summary
             .changed_imports
@@ -16,11 +18,15 @@ pub(crate) fn value_imports(summary: &FileSummary, attributes: bool) -> Vec<usiz
             .copied()
             .collect(),
     };
-    for default in summary
+    let defaults = summary
         .parameters
         .iter()
-        .filter_map(|parameter| parameter.default.as_ref())
-    {
+        .filter_map(|parameter| parameter.default.as_ref());
+    let default_props = summary
+        .components
+        .iter()
+        .filter_map(|component| component.default_props.as_ref());
+    for default in defaults.chain(default_props) {
         reads.expr(default);
     }
     for exported in summary.exported.values() {
@@ -51,6 +57,8 @@ struct Reads<'s> {
     definitions: &'s [Definition],
     callbacks: &'s [CallbackParameter],
     read_callbacks: Vec<bool>,
+    members: &'s [Member],
+    read_members: Vec<bool>,
     visited: Vec<bool>,
     imports: Vec<usize>,
 }
@@ -81,13 +89,24 @@ impl Reads<'_> {
         }
     }
 
+    fn member(&mut self, index: usize) {
+        if self.read_members.get(index).is_none_or(|read| *read) {
+            return;
+        }
+        self.read_members[index] = true;
+        if let Member::Value(value) = &self.members[index] {
+            self.expr(value);
+        }
+    }
+
     fn expr(&mut self, expr: &Expr) {
         match &expr.kind {
             ExprKind::Reference { name, .. } => match name {
                 Reference::Import(import) => self.imports.push(*import),
                 Reference::Variable(index) => self.definition(*index),
                 Reference::Callback(index) => self.callback(*index),
-                Reference::Parameter(_) | Reference::Global => {}
+                Reference::Member(index) => self.member(*index),
+                Reference::Parameter(_) | Reference::State | Reference::Global => {}
             },
             ExprKind::Object(entries) => {
                 for entry in entries {
