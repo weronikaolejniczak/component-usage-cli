@@ -262,6 +262,7 @@ cases!(identify:
 );
 
 cases!(errors:
+    read_error,
     syntax_error,
 );
 

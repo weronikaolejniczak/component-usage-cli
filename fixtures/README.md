@@ -48,6 +48,7 @@ Files that can't be scanned ([ADR-0010](../docs/decisions/0010-output.md)).
 
 | Case | Covers |
 |---|---|
+| `read-error` | A file that isn't UTF-8 is an error with code `read`; other files are still scanned |
 | `syntax-error` | A file that can't be parsed is an error with code `syntax`; other files are still scanned |
 
 ## props
