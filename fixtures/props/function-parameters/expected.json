@@ -1,0 +1,370 @@
+{
+  "query": {
+    "components": [
+      "Badge"
+    ],
+    "from": "lib",
+    "follow": [
+      "props"
+    ]
+  },
+  "usages": [
+    {
+      "component": "Badge",
+      "file": "App.jsx",
+      "line": 5,
+      "column": 10,
+      "props": [
+        {
+          "name": "color",
+          "value": {
+            "kind": "one-of",
+            "line": 4,
+            "column": 22,
+            "values": [
+              {
+                "kind": "literal",
+                "value": "red",
+                "line": 23,
+                "column": 20,
+                "via": [
+                  {
+                    "text": "renderBadge",
+                    "line": 23,
+                    "column": 8
+                  }
+                ]
+              },
+              {
+                "kind": "literal",
+                "value": "blue",
+                "line": 24,
+                "column": 20,
+                "via": [
+                  {
+                    "text": "renderBadge",
+                    "line": 24,
+                    "column": 8
+                  }
+                ]
+              },
+              {
+                "kind": "unresolved",
+                "code": "unsupported",
+                "text": "color",
+                "line": 25,
+                "column": 8,
+                "via": [
+                  {
+                    "text": "renderBadge",
+                    "line": 25,
+                    "column": 8
+                  }
+                ]
+              }
+            ],
+            "via": [
+              {
+                "text": "color",
+                "line": 5,
+                "column": 24
+              }
+            ]
+          }
+        },
+        {
+          "name": "size",
+          "value": {
+            "kind": "one-of",
+            "line": 4,
+            "column": 31,
+            "values": [
+              {
+                "kind": "literal",
+                "value": "l",
+                "line": 23,
+                "column": 35,
+                "via": [
+                  {
+                    "text": "renderBadge",
+                    "line": 23,
+                    "column": 8
+                  }
+                ]
+              },
+              {
+                "kind": "literal",
+                "value": "s",
+                "line": 4,
+                "column": 38,
+                "via": [
+                  {
+                    "text": "renderBadge",
+                    "line": 24,
+                    "column": 8
+                  }
+                ]
+              },
+              {
+                "kind": "unresolved",
+                "code": "unsupported",
+                "text": "size",
+                "line": 25,
+                "column": 8,
+                "via": [
+                  {
+                    "text": "renderBadge",
+                    "line": 25,
+                    "column": 8
+                  }
+                ]
+              }
+            ],
+            "via": [
+              {
+                "text": "size",
+                "line": 5,
+                "column": 37
+              }
+            ]
+          }
+        },
+        {
+          "name": "title",
+          "value": {
+            "kind": "one-of",
+            "line": 4,
+            "column": 46,
+            "values": [
+              {
+                "kind": "literal",
+                "value": "One",
+                "line": 23,
+                "column": 47,
+                "via": [
+                  {
+                    "text": "renderBadge",
+                    "line": 23,
+                    "column": 8
+                  }
+                ]
+              },
+              {
+                "kind": "undefined",
+                "line": 24,
+                "column": 28,
+                "via": [
+                  {
+                    "text": "renderBadge",
+                    "line": 24,
+                    "column": 8
+                  }
+                ]
+              },
+              {
+                "kind": "unresolved",
+                "code": "unsupported",
+                "text": "rest.title",
+                "line": 25,
+                "column": 8,
+                "via": [
+                  {
+                    "text": "renderBadge",
+                    "line": 25,
+                    "column": 8
+                  }
+                ]
+              }
+            ],
+            "via": [
+              {
+                "text": "rest.title",
+                "line": 5,
+                "column": 50
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Badge",
+      "file": "App.jsx",
+      "line": 8,
+      "column": 34,
+      "props": [
+        {
+          "name": "label",
+          "value": {
+            "kind": "one-of",
+            "line": 8,
+            "column": 16,
+            "values": [
+              {
+                "kind": "literal",
+                "value": "none",
+                "line": 8,
+                "column": 23,
+                "via": [
+                  {
+                    "text": "label",
+                    "line": 26,
+                    "column": 8
+                  }
+                ]
+              },
+              {
+                "kind": "literal",
+                "value": "hi",
+                "line": 27,
+                "column": 14,
+                "via": [
+                  {
+                    "text": "label",
+                    "line": 27,
+                    "column": 8
+                  }
+                ]
+              }
+            ],
+            "via": [
+              {
+                "text": "text",
+                "line": 8,
+                "column": 48
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "component": "Badge",
+      "file": "App.jsx",
+      "line": 11,
+      "column": 10,
+      "props": [
+        {
+          "name": "first",
+          "value": {
+            "kind": "unresolved",
+            "code": "parameter",
+            "text": "args",
+            "line": 11,
+            "column": 24
+          }
+        }
+      ]
+    },
+    {
+      "component": "Badge",
+      "file": "App.jsx",
+      "line": 15,
+      "column": 10,
+      "props": [
+        {
+          "name": "value",
+          "value": {
+            "kind": "unresolved",
+            "code": "parameter",
+            "text": "value",
+            "line": 15,
+            "column": 24
+          }
+        }
+      ]
+    },
+    {
+      "component": "Badge",
+      "file": "helpers.jsx",
+      "line": 4,
+      "column": 10,
+      "props": [
+        {
+          "name": "tag",
+          "value": {
+            "kind": "literal",
+            "value": "x",
+            "line": 28,
+            "column": 18,
+            "via": [
+              {
+                "text": "tag",
+                "line": 4,
+                "column": 22
+              },
+              {
+                "text": "renderTag",
+                "line": 28,
+                "column": 8,
+                "file": "App.jsx"
+              }
+            ],
+            "file": "App.jsx"
+          }
+        }
+      ]
+    },
+    {
+      "component": "Badge",
+      "file": "spreads.jsx",
+      "line": 3,
+      "column": 28,
+      "props": [
+        {
+          "name": "tone",
+          "value": {
+            "kind": "one-of",
+            "line": 7,
+            "column": 21,
+            "values": [
+              {
+                "kind": "literal",
+                "value": "plain",
+                "line": 5,
+                "column": 26,
+                "via": [
+                  {
+                    "text": "defaults",
+                    "line": 8,
+                    "column": 20
+                  }
+                ]
+              },
+              {
+                "kind": "literal",
+                "value": "loud",
+                "line": 15,
+                "column": 27,
+                "via": [
+                  {
+                    "text": "renderCard",
+                    "line": 15,
+                    "column": 8
+                  }
+                ]
+              }
+            ],
+            "via": [
+              {
+                "text": "tone",
+                "line": 3,
+                "column": 41
+              },
+              {
+                "text": "Card",
+                "line": 8,
+                "column": 10
+              },
+              {
+                "text": "overrides",
+                "line": 8,
+                "column": 34
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

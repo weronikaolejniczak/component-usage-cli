@@ -1,6 +1,6 @@
 use crate::{
-    Attribute, CallbackParameter, Definition, Entry, Exported, Expr, ExprKind, FileSummary, Item,
-    Member, Part, Reference,
+    Attribute, CallbackParameter, Callee, Definition, Entry, Exported, Expr, ExprKind, FileSummary,
+    Item, Member, Part, Reference,
 };
 
 pub(crate) fn value_imports(summary: &FileSummary, attributes: bool) -> Vec<usize> {
@@ -18,16 +18,29 @@ pub(crate) fn value_imports(summary: &FileSummary, attributes: bool) -> Vec<usiz
             .copied()
             .collect(),
     };
-    let defaults = summary
-        .parameters
-        .iter()
-        .filter_map(|parameter| parameter.default.as_ref());
+    let defaults = summary.parameters.iter().flat_map(|parameter| {
+        parameter
+            .default
+            .as_ref()
+            .into_iter()
+            .chain(&parameter.initializer)
+    });
     let default_props = summary
         .components
         .iter()
         .filter_map(|component| component.default_props.as_ref());
     for default in defaults.chain(default_props) {
         reads.expr(default);
+    }
+    for call in &summary.calls {
+        if let Callee::Import(import) = call.callee {
+            reads.imports.push(import);
+        }
+        for argument in &call.arguments {
+            match argument {
+                Item::Value(value) | Item::Spread(value) => reads.expr(value),
+            }
+        }
     }
     for exported in summary.exported.values() {
         match exported {

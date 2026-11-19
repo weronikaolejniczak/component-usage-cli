@@ -272,6 +272,7 @@ cases!(props:
     callbacks,
     callbacks_props,
     class_components,
+    function_parameters,
     default_export,
     escaped_imports,
     expressions,

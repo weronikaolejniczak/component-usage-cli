@@ -21,6 +21,15 @@ use parse::{
 /// A component: its file and its index in that file's [`parse::FileSummary::components`].
 type ComponentRef = (FileId, usize);
 
+/// What passes a component its props, in a file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Caller {
+    /// Index into [`parse::FileSummary::elements`].
+    Element(usize),
+    /// Index into [`parse::FileSummary::calls`].
+    Call(usize),
+}
+
 /// What every usage of a scan is evaluated against.
 pub struct Context<'g> {
     graph: &'g ModuleGraph,
@@ -32,9 +41,9 @@ pub struct Context<'g> {
     /// Modules changed in place through a namespace import.
     changed_modules: HashSet<FileId>,
     props: bool,
-    /// The elements that render each component, as files and indices into their
-    /// [`parse::FileSummary::elements`], in order of path and position.
-    callers: HashMap<ComponentRef, Vec<(FileId, usize)>>,
+    /// The elements that render each component and the calls of it by name, in order of path
+    /// and position.
+    callers: HashMap<ComponentRef, Vec<(FileId, Caller)>>,
     /// Components used other than as a JSX tag, an export or the argument of `memo` or
     /// `forwardRef`, in their file or through an import.
     escaped: HashSet<ComponentRef>,
@@ -92,7 +101,22 @@ impl<'g> Context<'g> {
                     self.callers
                         .entry(component)
                         .or_default()
-                        .push((file, index));
+                        .push((file, Caller::Element(index)));
+                }
+            }
+            for (index, call) in summary.calls.iter().enumerate() {
+                let component = match call.callee {
+                    parse::Callee::Component(component) => Some((file, component)),
+                    parse::Callee::Import(import) => match origins.import(file, import) {
+                        Ok(Origin::Export(export)) => self.component(export.module, &export.name),
+                        _ => None,
+                    },
+                };
+                if let Some(component) = component {
+                    self.callers
+                        .entry(component)
+                        .or_default()
+                        .push((file, Caller::Call(index)));
                 }
             }
             for (index, component) in summary.components.iter().enumerate() {
@@ -119,10 +143,11 @@ impl<'g> Context<'g> {
         }
         let paths = self.paths;
         for callers in self.callers.values_mut() {
-            callers.sort_by_cached_key(|&(file, index)| {
-                let location = graph
-                    .module(file)
-                    .map(|module| module.summary.elements[index].location);
+            callers.sort_by_cached_key(|&(file, caller)| {
+                let location = graph.module(file).map(|module| match caller {
+                    Caller::Element(index) => module.summary.elements[index].location,
+                    Caller::Call(index) => module.summary.calls[index].location,
+                });
                 (&paths[file.0 as usize], location)
             });
         }
@@ -279,6 +304,9 @@ struct Resolver<'c, 'g> {
     argument: Cell<bool>,
     /// Whether the value being found is within a call's arguments, where names aren't followed.
     in_call: Cell<bool>,
+    /// Whether the next parameter followed is spread into an element, where a missing argument
+    /// sets nothing; it's taken by that parameter.
+    spread: Cell<bool>,
 }
 
 #[derive(PartialEq, Eq)]
@@ -310,6 +338,7 @@ impl<'c, 'g> Resolver<'c, 'g> {
             active: RefCell::new(Vec::new()),
             argument: Cell::new(false),
             in_call: Cell::new(false),
+            spread: Cell::new(false),
         }
     }
 
@@ -562,6 +591,7 @@ impl<'c, 'g> Resolver<'c, 'g> {
         keys: Vec<Key>,
     ) -> Result<Value, Value> {
         let context = self.context;
+        let spread = self.spread.replace(false);
         let Some(summary) = context.graph.module(file).map(|module| &module.summary) else {
             return Err(self.stop(name, UnresolvedCode::Unparsed, None));
         };
@@ -583,14 +613,15 @@ impl<'c, 'g> Resolver<'c, 'g> {
             .pins
             .iter()
             .find(|(pinned, _)| *pinned == component)
-            .map(|(_, caller)| std::slice::from_ref(caller));
+            .map(|&(_, (file, element))| [(file, Caller::Element(element))]);
         let escaped = pinned.is_none() && context.escaped.contains(&component);
-        let callers = pinned.unwrap_or_else(|| {
-            context
+        let callers = match &pinned {
+            Some(pinned) => &pinned[..],
+            None => context
                 .callers
                 .get(&component)
-                .map_or(&[][..], Vec::as_slice)
-        });
+                .map_or(&[][..], Vec::as_slice),
+        };
         if callers.is_empty() {
             let code = if escaped {
                 UnresolvedCode::Parameter
@@ -615,20 +646,34 @@ impl<'c, 'g> Resolver<'c, 'g> {
         self.active.borrow_mut().push(active);
         let mut values: Vec<Value> = callers
             .iter()
-            .filter_map(|&(caller, element)| {
-                let element = context
-                    .graph
-                    .module(caller)?
-                    .summary
-                    .elements
-                    .get(element)?;
-                let mut value = self.caller(caller, element, &keys, &declared, name);
+            .filter_map(|&(caller, by)| {
+                let summary = &context.graph.module(caller)?.summary;
+                let (mut value, text, location) = match by {
+                    Caller::Element(element) => {
+                        let element = summary.elements.get(element)?;
+                        let value = if parameter.position == 0 {
+                            self.caller(caller, element, &keys, &declared, name)
+                        } else {
+                            self.at(
+                                caller,
+                                element.location,
+                                unresolved(UnresolvedCode::Unsupported, None, name.text),
+                            )
+                        };
+                        (value, element.tag(), element.location)
+                    }
+                    Caller::Call(call) => {
+                        let call = summary.calls.get(call)?;
+                        let value = self.caller_call(caller, call, &keys, &declared, name, spread);
+                        (value, call.text.clone(), call.location)
+                    }
+                };
                 value.via.insert(
                     0,
                     Via {
-                        text: element.tag(),
+                        text,
                         file: self.file(caller),
-                        location: element.location,
+                        location,
                     },
                 );
                 Some(value)
@@ -648,6 +693,63 @@ impl<'c, 'g> Resolver<'c, 'g> {
         } else {
             self.at(file, parameter.location, ValueKind::OneOf { values })
         })
+    }
+
+    /// What `call`, a call of `file`, passes for `keys`: the argument at the parameter's
+    /// position, or `undefined` without one. The keys up to the end of the parameter's path lead
+    /// to its name, whose default replaces `undefined`. A missing argument that's `spread_into` an
+    /// element sets nothing, so it stays `undefined`.
+    fn caller_call(
+        &self,
+        file: FileId,
+        call: &parse::CallSite,
+        keys: &[Key],
+        declared: &Declared,
+        name: &Name,
+        spread_into: bool,
+    ) -> Value {
+        let parameter = declared.parameter;
+        let position = parameter.position;
+        let spread_before = call
+            .arguments
+            .iter()
+            .take(position + 1)
+            .any(|argument| matches!(argument, parse::Item::Spread(_)));
+        let mut value = match call.arguments.get(position) {
+            _ if spread_before => {
+                return self.at(
+                    file,
+                    call.location,
+                    unresolved(UnresolvedCode::Unsupported, None, name.text),
+                );
+            }
+            Some(parse::Item::Value(argument)) => self.value(file, argument),
+            _ => self.at(file, call.location, ValueKind::Undefined),
+        };
+        if let Some(initializer) = &parameter.initializer {
+            value = self.with_default(value, declared.file, initializer);
+        }
+        if spread_into
+            && parameter.path.is_empty()
+            && keys.len() == 1
+            && value.kind == ValueKind::Undefined
+        {
+            return value;
+        }
+        let boundary = parameter.path.len().min(keys.len());
+        for key in &keys[..boundary] {
+            value = self.lookup(value, key, name);
+        }
+        if let Some(default) = &parameter.default {
+            value = self.with_default(value, declared.file, default);
+        }
+        if let Some(taken) = &parameter.rest {
+            value = without(value, taken);
+        }
+        for key in &keys[boundary..] {
+            value = self.lookup(value, key, name);
+        }
+        value
     }
 
     /// What `element`, an element of `file`, passes for `keys`: the attribute that sets the
@@ -703,7 +805,11 @@ impl<'c, 'g> Resolver<'c, 'g> {
         for key in &keys[consumed..boundary] {
             value = self.lookup(value, key, name);
         }
-        if let Some(default) = &parameter.default {
+        if let Some(default) = parameter
+            .default
+            .as_ref()
+            .filter(|_| !parameter.path.is_empty())
+        {
             value = self.with_default(value, declared.file, default);
         }
         for key in &keys[boundary..] {
@@ -712,7 +818,8 @@ impl<'c, 'g> Resolver<'c, 'g> {
         value
     }
 
-    /// The last attribute of `element` that sets `key`, or its children for `children`.
+    /// The last attribute of `element` that sets `key`, or its children for `children`. Where a
+    /// spread leaves `key` `undefined`, in any branch, the attribute before it sets it there.
     fn caller_prop(&self, file: FileId, element: &JsxElement, key: &str) -> Value {
         if key == KEY {
             return self.at(file, element.location, ValueKind::Undefined);
@@ -725,10 +832,13 @@ impl<'c, 'g> Resolver<'c, 'g> {
                 }
                 Attribute::Named { .. } => {}
                 Attribute::Spread(spread) => {
+                    self.spread.set(true);
                     let value = self.value_at(file, spread, &[Key::Static(key.to_owned())]);
-                    if value.kind != ValueKind::Undefined {
-                        found = Some(value);
-                    }
+                    self.spread.set(false);
+                    found = match found.take() {
+                        Some(earlier) => Some(or_earlier(value, &earlier)),
+                        None => (value.kind != ValueKind::Undefined).then_some(value),
+                    };
                 }
             }
         }
@@ -1145,8 +1255,6 @@ impl<'c, 'g> Resolver<'c, 'g> {
     }
 }
 
-/// `value` without the properties `keys` names, in an object and in each object spread into it
-/// or branch of a `one-of`.
 /// `value`, with what `default` gives, if anything, in place of `undefined`, in each branch.
 fn otherwise(value: Value, default: &dyn Fn() -> Option<Value>) -> Value {
     match value.kind {
@@ -1164,6 +1272,29 @@ fn otherwise(value: Value, default: &dyn Fn() -> Option<Value>) -> Value {
     }
 }
 
+/// `value`, with `earlier` in place of `undefined`, in each branch, once in each `one-of`.
+fn or_earlier(value: Value, earlier: &Value) -> Value {
+    match value.kind {
+        ValueKind::Undefined => earlier.clone(),
+        ValueKind::OneOf { values } => {
+            let mut distinct: Vec<Value> = Vec::with_capacity(values.len());
+            for value in values {
+                let value = or_earlier(value, earlier);
+                if !distinct.contains(&value) {
+                    distinct.push(value);
+                }
+            }
+            Value {
+                kind: ValueKind::OneOf { values: distinct },
+                ..value
+            }
+        }
+        kind => Value { kind, ..value },
+    }
+}
+
+/// `value` without the properties `keys` names, in an object and in each object spread into it
+/// or branch of a `one-of`.
 fn without(mut value: Value, keys: &[String]) -> Value {
     if keys.is_empty() {
         return value;

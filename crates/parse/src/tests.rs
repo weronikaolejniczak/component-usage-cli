@@ -779,11 +779,13 @@ fn props_record_paths_defaults_and_rest() {
         "function A({ icon = 'gear', a: { b }, c: { d } = {}, [key]: e, ...rest }, ref) {\n\
          \x20 return <X icon={icon} b={b} d={d} e={e} rest={rest} ref={ref} />;\n}\n",
     );
-    let parameters: Vec<(Vec<Segment>, bool, Option<Vec<String>>)> = summary
+    type Recorded = (usize, Vec<Segment>, bool, Option<Vec<String>>);
+    let parameters: Vec<Recorded> = summary
         .parameters
         .iter()
         .map(|parameter| {
             (
+                parameter.position,
                 parameter.path.clone(),
                 parameter.default.is_some(),
                 parameter.rest.clone(),
@@ -793,17 +795,20 @@ fn props_record_paths_defaults_and_rest() {
     assert_eq!(
         parameters,
         [
-            (vec![Segment::Key("icon".to_owned())], true, None),
+            (0, vec![Segment::Key("icon".to_owned())], true, None),
             (
+                0,
                 vec![Segment::Key("a".to_owned()), Segment::Key("b".to_owned())],
                 false,
                 None
             ),
             (
+                0,
                 Vec::new(),
                 false,
                 Some(vec!["icon".to_owned(), "a".to_owned(), "c".to_owned()])
             ),
+            (1, Vec::new(), false, None),
         ]
     );
     let references: Vec<Reference> = summary.elements[0]
@@ -829,7 +834,7 @@ fn props_record_paths_defaults_and_rest() {
             Reference::Parameter(None),
             Reference::Parameter(None),
             Reference::Parameter(Some(2)),
-            Reference::Parameter(None),
+            Reference::Parameter(Some(3)),
         ]
     );
 }

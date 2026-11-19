@@ -56,6 +56,8 @@ pub struct FileSummary {
     /// The fields and methods of class components read as `this.name`, indexed by
     /// [`Reference::Member`].
     pub members: Vec<Member>,
+    /// With [`Options::props`], the calls of [`FileSummary::components`] by name.
+    pub calls: Vec<CallSite>,
     /// Imports used other than as a JSX tag or an export, as indices into
     /// [`FileSummary::imports`], when [`Options::props`] is set.
     pub escaping_imports: Vec<usize>,
@@ -168,6 +170,25 @@ pub struct Component {
     pub default_props: Option<Expr>,
 }
 
+/// A call by name of a function the file declares as a component, or of an import.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CallSite {
+    pub callee: Callee,
+    /// The callee as written.
+    pub text: String,
+    /// The callee's start.
+    pub location: Location,
+    pub arguments: Vec<Item>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Callee {
+    /// Index into [`FileSummary::components`].
+    Component(usize),
+    /// Index into [`FileSummary::imports`].
+    Import(usize),
+}
+
 /// What `this.name` is in a class component.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Member {
@@ -209,12 +230,17 @@ pub enum Forwarded {
 pub struct Parameter {
     /// Index into [`FileSummary::components`].
     pub component: usize,
+    /// The position of the parameter that declares the name: 0 for the props.
+    pub position: usize,
     /// Where the name is declared.
     pub location: Location,
-    /// The steps from the props to the name.
+    /// The steps from the parameter to the name.
     pub path: Vec<Segment>,
     /// The name's own default: `'gear'` in `{ iconType = 'gear' }`.
     pub default: Option<Expr>,
+    /// The parameter's default: `{}` in `({ iconType } = {})`, or `'gear'` in
+    /// `(iconType = 'gear')`.
+    pub initializer: Option<Expr>,
     /// For a rest element, the keys the pattern takes before it.
     pub rest: Option<Vec<String>>,
     /// Whether the name is assigned, or changed in place, in the component.

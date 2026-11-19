@@ -1,15 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
 use oxc_ast::ast::{
-    AssignmentPattern, BindingPattern, CallExpression, ExportDefaultDeclaration,
-    ExportDefaultDeclarationKind, ExportNamedDeclaration, Expression, FormalParameters, Function,
-    IdentifierReference, JSXElementName, JSXMemberExpressionObject, ModuleExportName, Program,
-    StaticMemberExpression, TSTypeQuery, VariableDeclaration, VariableDeclarationKind,
-    VariableDeclarator,
+    Argument, AssignmentPattern, BindingPattern, CallExpression, ExportDefaultDeclaration,
+    ExportDefaultDeclarationKind, ExportNamedDeclaration, Expression, FormalParameter,
+    FormalParameters, Function, IdentifierReference, JSXElementName, JSXMemberExpressionObject,
+    ModuleExportName, Program, StaticMemberExpression, TSTypeQuery, VariableDeclaration,
+    VariableDeclarationKind, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_semantic::{ReferenceId, SymbolId};
-use oxc_span::GetSpan;
+use oxc_span::{GetSpan, Span};
 use oxc_syntax::scope::ScopeFlags;
 
 use crate::attributes::Exprs;
@@ -18,7 +18,8 @@ use crate::definitions::mutated;
 use crate::patterns::leaves;
 use crate::scope::Declared;
 use crate::{
-    Attribute, Component, ExprKind, Forward, Forwarded, JsxElement, Parameter, Reference, Segment,
+    Attribute, Callee, Component, ExprKind, Forward, Forwarded, JsxElement, Parameter, Reference,
+    Segment,
 };
 
 /// Adds to [`Component::forwards`] the elements given a spread of a component's props, or of a
@@ -44,7 +45,11 @@ pub(crate) fn spreads(
             let Some(parameter) = parameters.get(*parameter) else {
                 continue;
             };
-            if !path.is_empty() || !parameter.path.is_empty() || parameter.mutated {
+            if !path.is_empty()
+                || parameter.position != 0
+                || !parameter.path.is_empty()
+                || parameter.mutated
+            {
                 continue;
             }
             components[parameter.component].forwards.push(Forward {
@@ -65,6 +70,9 @@ pub(crate) struct Components {
     pub(crate) parameters: Vec<Parameter>,
     /// Components by the symbols of the names they're declared as.
     pub(crate) by_symbol: HashMap<SymbolId, usize>,
+    /// Calls by name of the components and of imports, with the spans of their arguments,
+    /// whether each is spread.
+    pub(crate) calls: Vec<(Callee, ByName)>,
     /// Sorted indices into [`crate::FileSummary::imports`].
     pub(crate) escaping_imports: Vec<usize>,
 }
@@ -87,6 +95,7 @@ pub(crate) fn components(
         found: Vec::new(),
         wrappers: Vec::new(),
         calls: calls.then(Vec::new),
+        called: Vec::new(),
         allowed: HashSet::new(),
         members: HashSet::new(),
         aliases: Vec::new(),
@@ -96,6 +105,7 @@ pub(crate) fn components(
         mut found,
         wrappers,
         calls,
+        called: by_name,
         mut allowed,
         members,
         aliases,
@@ -143,9 +153,11 @@ pub(crate) fn components(
             class_props.insert(class, parameters.len());
             parameters.push(Parameter {
                 component: index,
+                position: 0,
                 location: found.location,
                 path: Vec::new(),
                 default: None,
+                initializer: None,
                 rest: None,
                 mutated: false,
             });
@@ -154,12 +166,14 @@ pub(crate) fn components(
             parameter_of.insert(leaf.symbol, parameters.len());
             parameters.push(Parameter {
                 component: index,
+                position: leaf.position,
                 location: exprs
                     .scope
                     .lines
                     .location(scoping.symbol_span(leaf.symbol).start),
                 path: leaf.path,
                 default: None,
+                initializer: None,
                 rest: leaf.rest,
                 mutated: mutated(scoping, changed, leaf.symbol),
             });
@@ -220,6 +234,19 @@ pub(crate) fn components(
         });
     }
 
+    let calls = by_name
+        .into_iter()
+        .filter_map(|call| {
+            let symbol = scoping.get_reference(call.reference).symbol_id()?;
+            let callee = match (by_symbol.get(&symbol), exprs.scope.declared(symbol)) {
+                (Some(&index), _) => Callee::Component(index),
+                (None, Declared::Import(import)) => Callee::Import(import),
+                _ => return None,
+            };
+            allowed.insert(call.reference);
+            Some((callee, call))
+        })
+        .collect();
     *exprs.parameters.borrow_mut() = parameter_of;
     *exprs.class_props.borrow_mut() = class_props;
     let mut defaults = Defaults {
@@ -280,6 +307,7 @@ pub(crate) fn components(
         components,
         parameters,
         by_symbol,
+        calls,
         escaping_imports,
     }
 }
@@ -304,6 +332,8 @@ struct Collector<'e, 's> {
     wrappers: Vec<(Option<SymbolId>, ReferenceId)>,
     /// When recorded, `const`s and default exports holding a call that passes a name on.
     calls: Option<Vec<Called>>,
+    /// Calls whose callee is a name.
+    called: Vec<ByName>,
     /// References that don't make a name escape: JSX tags, exports and types.
     allowed: HashSet<ReferenceId>,
     /// Objects of member expressions, such as `Name` in `Name.displayName = …`: they don't make
@@ -312,6 +342,15 @@ struct Collector<'e, 's> {
     /// Names declared as a name or static property accesses on one, directly or with static
     /// keys: `I` and the reference to `Icon` in `const I = Icon`, or `const { Icon: I } = Lib`.
     aliases: Vec<(SymbolId, ReferenceId)>,
+}
+
+/// `name(…)`.
+pub(crate) struct ByName {
+    reference: ReferenceId,
+    pub(crate) text: String,
+    pub(crate) start: u32,
+    /// The spans of the arguments, with whether each is spread.
+    pub(crate) arguments: Vec<(bool, Span)>,
 }
 
 /// `const Styled = wrap(Button)`, or `export default wrap(Button)` without a symbol.
@@ -401,17 +440,22 @@ impl Collector<'_, '_> {
         start: u32,
         params: &FormalParameters,
     ) {
-        let props = params.items.first().map_or_else(Vec::new, |first| {
-            leaves(&first.pattern)
-                .into_iter()
-                .filter(|leaf| !leaf.inner_default)
-                .map(|leaf| Leaf {
-                    symbol: leaf.symbol,
-                    path: leaf.path,
-                    rest: leaf.rest,
-                })
-                .collect()
-        });
+        let props = params
+            .items
+            .iter()
+            .enumerate()
+            .flat_map(|(position, parameter)| {
+                leaves(&parameter.pattern)
+                    .into_iter()
+                    .filter(|leaf| !leaf.inner_default)
+                    .map(move |leaf| Leaf {
+                        symbol: leaf.symbol,
+                        position,
+                        path: leaf.path,
+                        rest: leaf.rest,
+                    })
+            })
+            .collect();
         self.found.push(Found {
             name,
             symbol,
@@ -586,6 +630,25 @@ impl<'a> Visit<'a> for Collector<'_, '_> {
         walk::walk_static_member_expression(self, member);
     }
 
+    fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
+        if let Expression::Identifier(callee) = call.callee.get_inner_expression() {
+            self.called.push(ByName {
+                reference: callee.reference_id(),
+                text: callee.name.to_string(),
+                start: call.span.start,
+                arguments: call
+                    .arguments
+                    .iter()
+                    .map(|argument| match argument {
+                        Argument::SpreadElement(spread) => (true, spread.argument.span()),
+                        argument => (false, argument.to_expression().span()),
+                    })
+                    .collect(),
+            });
+        }
+        walk::walk_call_expression(self, call);
+    }
+
     fn visit_identifier_reference(&mut self, identifier: &IdentifierReference<'a>) {
         if self.in_type {
             self.allowed.insert(identifier.reference_id());
@@ -600,6 +663,25 @@ struct Defaults<'e, 's, 'p> {
 }
 
 impl<'a> Visit<'a> for Defaults<'_, '_, '_> {
+    fn visit_formal_parameter(&mut self, parameter: &FormalParameter<'a>) {
+        if let Some(initializer) = &parameter.initializer {
+            let indices: Vec<usize> = {
+                let parameters = self.exprs.parameters.borrow();
+                leaves(&parameter.pattern)
+                    .iter()
+                    .filter_map(|leaf| parameters.get(&leaf.symbol).copied())
+                    .collect()
+            };
+            if !indices.is_empty() {
+                let initializer = self.exprs.expr(initializer);
+                for index in indices {
+                    self.parameters[index].initializer = Some(initializer.clone());
+                }
+            }
+        }
+        walk::walk_formal_parameter(self, parameter);
+    }
+
     fn visit_assignment_pattern(&mut self, pattern: &AssignmentPattern<'a>) {
         if let BindingPattern::BindingIdentifier(identifier) = &pattern.left {
             let index = self
@@ -608,9 +690,7 @@ impl<'a> Visit<'a> for Defaults<'_, '_, '_> {
                 .borrow()
                 .get(&identifier.symbol_id())
                 .copied();
-            if let Some(index) = index
-                && !self.parameters[index].path.is_empty()
-            {
+            if let Some(index) = index {
                 self.parameters[index].default = Some(self.exprs.expr(&pattern.right));
             }
         }
@@ -630,9 +710,10 @@ fn wraps(call: &CallExpression) -> bool {
     matches!(name, Some("memo" | "forwardRef"))
 }
 
-/// A name declared by the props.
+/// A name declared by a parameter.
 struct Leaf {
     symbol: SymbolId,
+    position: usize,
     path: Vec<Segment>,
     rest: Option<Vec<String>>,
 }

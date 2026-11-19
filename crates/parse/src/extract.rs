@@ -24,8 +24,8 @@ use crate::lines::LineIndex;
 use crate::references::references;
 use crate::scope::{Declared, Scope};
 use crate::{
-    Alias, Binding, Definition, Export, FileSummary, Import, Imported, JsxElement, Member, Options,
-    ParseError, SyntaxError,
+    Alias, Binding, CallSite, Definition, Export, Expr, ExprKind, FileSummary, Import, Imported,
+    Item, JsxElement, Member, Options, ParseError, SyntaxError,
 };
 
 pub(crate) fn extract(
@@ -128,7 +128,41 @@ pub(crate) fn extract(
     } else {
         Vec::new()
     };
+    let called = found
+        .as_ref()
+        .filter(|_| options.props)
+        .map_or(&[][..], |found| found.calls.as_slice());
+    spans.extend(
+        called
+            .iter()
+            .flat_map(|(_, call)| call.arguments.iter().map(|&(_, span)| span)),
+    );
     let mut values = classes::values(&parsed.program, &exprs, spans);
+    let calls = called
+        .iter()
+        .map(|(callee, call)| CallSite {
+            callee: *callee,
+            text: call.text.clone(),
+            location: lines.location(call.start),
+            arguments: call
+                .arguments
+                .iter()
+                .map(|(spread, span)| {
+                    let expr = values.get(span).cloned().unwrap_or_else(|| Expr {
+                        location: lines.location(span.start),
+                        kind: ExprKind::Unsupported {
+                            text: source[span.start as usize..span.end as usize].to_owned(),
+                        },
+                    });
+                    if *spread {
+                        Item::Spread(expr)
+                    } else {
+                        Item::Value(expr)
+                    }
+                })
+                .collect(),
+        })
+        .collect();
     let members = members
         .into_iter()
         .map(|(member, assigned)| match member {
@@ -221,6 +255,7 @@ pub(crate) fn extract(
         parameters,
         callbacks,
         members,
+        calls,
         escaping_imports,
         references,
         errors,

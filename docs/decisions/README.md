@@ -26,7 +26,7 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0019](./0019-follow-variables.md) | Follow variables on request, and report the path to each value | accepted |
 | [0020](./0020-architecture.md) | Crate boundaries and interfaces, with values | accepted; `values` interface superseded by [0021](./0021-follow-imports.md) |
 | [0021](./0021-follow-imports.md) | Follow imports to the exported value, and say which file each value is in | accepted; `values` interface superseded by [0022](./0022-follow-props.md); absolute paths superseded by [0034](./0034-paths-outside-the-root.md) |
-| [0022](./0022-follow-props.md) | Follow a component's props to what its callers pass | accepted; `other-callers` definition superseded by [0023](./0023-component-properties.md); class components superseded by [0038](./0038-class-components.md) |
+| [0022](./0022-follow-props.md) | Follow a component's props to what its callers pass | accepted; `other-callers` definition superseded by [0023](./0023-component-properties.md); class components superseded by [0038](./0038-class-components.md); called functions superseded by [0039](./0039-function-parameters.md) |
 | [0023](./0023-component-properties.md) | Reading or setting a property of a component doesn't add `other-callers` | accepted |
 | [0024](./0024-follow-calls.md) | Describe calls: what's called, with what, and what the functions passed return | accepted; following in arguments superseded by [0025](./0025-names-in-calls.md) |
 | [0025](./0025-names-in-calls.md) | Names in a call's arguments aren't followed | accepted |
@@ -43,3 +43,4 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0036](./0036-operations.md) | Report operators with their operands | accepted |
 | [0037](./0037-callback-items.md) | Follow the items of arrays into callbacks | accepted |
 | [0038](./0038-class-components.md) | Follow `this` in class components | accepted |
+| [0039](./0039-function-parameters.md) | Follow the parameters of functions to their calls | accepted |
