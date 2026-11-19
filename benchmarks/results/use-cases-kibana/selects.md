@@ -185,7 +185,7 @@ Features used, by prop presence and literal values ("-" means the component does
 `options`: what the value is
 | options | EuiSelect | EuiSuperSelect | EuiComboBox | EuiSelectable |
 |---|---|---|---|---|
-| call, followed | 123 | 78 | 281 | 147 |
+| call, followed | 124 | 78 | 281 | 147 |
 | array literal, followed | 124 | 30 | 44 | 5 |
 | call | 89 | 21 | 61 | 18 |
 | array literal | 45 | 10 | 11 | 1 |
@@ -193,9 +193,9 @@ Features used, by prop presence and literal values ("-" means the component does
 | one-of, followed | 13 | 6 | 25 | 8 |
 | one-of | 6 | 1 | 14 | 3 |
 | mutated | 11 | 0 | 11 | 1 |
-| unsupported | 5 | 0 | 8 | 1 |
+| state | 4 | 0 | 8 | 1 |
 | parameter | 1 | 0 | 3 | 1 |
-| unsupported, followed | 1 | 0 | 2 | 0 |
+| state, followed | 1 | 0 | 2 | 0 |
 | no-callers | 1 | 0 | 0 | 0 |
 
 `options` that are a call: what's called, and whether a function among its arguments returns an array literal

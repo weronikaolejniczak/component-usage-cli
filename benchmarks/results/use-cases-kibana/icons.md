@@ -1,4 +1,4 @@
-aliases: 72; findings: 22717; icon values to review: 896
+aliases: 72; findings: 22717; icon values to review: 895
 
 | kind | findings |
 |---|---|
@@ -9,30 +9,30 @@ aliases: 72; findings: 22717; icon values to review: 896
 | eui-call | 29 |
 | other-jsx | 16 |
 | icon-key | 112 |
-| eui-other-prop | 236 |
-| other-string | 21938 |
+| eui-other-prop | 261 |
+| other-string | 21913 |
 
 | review reason | values |
 |---|---|
-| call, followed | 373 |
+| call, followed | 374 |
+| parameter, followed | 78 |
 | unparsed | 76 |
 | call | 75 |
-| parameter, followed | 75 |
-| unsupported, followed | 62 |
 | parameter | 56 |
+| unsupported, followed | 56 |
 | unparsed, followed | 54 |
 | mutated | 32 |
-| other-callers, followed | 23 |
+| other-callers, followed | 26 |
 | mutated, followed | 17 |
 | no-items, followed | 14 |
 | in-call, followed | 14 |
 | template | 10 |
 | in-call | 3 |
-| unsupported | 3 |
 | no-callers | 3 |
 | template, followed | 2 |
 | no-callers, followed | 2 |
 | not-followed (variables), followed | 1 |
+| state | 1 |
 | operation, followed | 1 |
 
 | alias | eui-jsx | eui-data | eui-variable | eui-caller | eui-call | other-jsx | icon-key | eui-other-prop | other-string |
@@ -61,8 +61,8 @@ aliases: 72; findings: 22717; icon values to review: 896
 | indexClose | 1 | 0 | 1 | 0 | 0 | 4 | 0 | 0 | 0 |
 | pinFilled | 2 | 0 | 1 | 0 | 2 | 0 | 0 | 0 | 4 |
 | stopSlash | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| index | 2 | 0 | 0 | 1 | 0 | 0 | 1 | 27 | 2347 |
-| search | 3 | 0 | 0 | 1 | 0 | 0 | 0 | 10 | 1548 |
+| index | 2 | 0 | 0 | 1 | 0 | 0 | 1 | 37 | 2337 |
+| search | 3 | 0 | 0 | 1 | 0 | 0 | 0 | 13 | 1545 |
 | list | 1 | 0 | 2 | 1 | 0 | 0 | 0 | 19 | 726 |
 | editorComment | 0 | 0 | 1 | 0 | 3 | 0 | 0 | 0 | 7 |
 | mapMarker | 0 | 0 | 1 | 0 | 3 | 0 | 0 | 1 | 7 |
@@ -73,7 +73,7 @@ aliases: 72; findings: 22717; icon values to review: 896
 | logstashOutput | 0 | 0 | 2 | 1 | 0 | 0 | 0 | 0 | 2 |
 | securitySignalDetected | 0 | 0 | 0 | 0 | 0 | 0 | 3 | 0 | 1 |
 | indexRuntime | 2 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
-| ip | 0 | 0 | 1 | 0 | 0 | 0 | 1 | 10 | 1485 |
+| ip | 0 | 0 | 1 | 0 | 0 | 0 | 1 | 18 | 1477 |
 | container | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 3 | 186 |
 | temperature | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 1 | 93 |
 | logstashFilter | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 | 2 |
@@ -84,7 +84,7 @@ aliases: 72; findings: 22717; icon values to review: 896
 | visGauge | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 | 0 |
 | wordWrap | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | wordWrapDisabled | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| string | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 118 | 11985 |
+| string | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 122 | 11981 |
 | scale | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 2 | 202 |
 | logRateAnalysis | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 9 |
 | article | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 2 |

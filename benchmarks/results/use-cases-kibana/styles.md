@@ -17,7 +17,7 @@ EUI usages: 87240; with css, className or style: 7291 (8.4%)
 `css`: calls it's built by, outside other calls
 | callee | calls |
 |---|---|
-| useEuiTheme | 1843 |
+| useEuiTheme | 1844 |
 | css | 264 |
 | useMemoCss | 246 |
 | useStyles | 208 |
@@ -36,11 +36,11 @@ EUI usages: 87240; with css, className or style: 7291 (8.4%)
 | template, tag css, followed | 76 |
 | call, followed | 54 |
 | call | 51 |
-| one-of, followed | 34 |
+| one-of, followed | 36 |
 | one-of | 29 |
-| literal, followed | 27 |
+| literal, followed | 28 |
 | template | 23 |
-| parameter | 16 |
+| parameter | 21 |
 
 `className`: calls it's built by, outside other calls
 | callee | calls |
