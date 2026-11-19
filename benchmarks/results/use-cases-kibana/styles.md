@@ -21,7 +21,7 @@ EUI usages: 87240; with css, className or style: 7291 (8.4%)
 | css | 264 |
 | useMemoCss | 246 |
 | useStyles | 208 |
-| useMemo | 163 |
+| useMemo | 168 |
 | useEuiFontSize | 37 |
 | useListDetailPageStyles | 23 |
 | logicalCSS | 19 |
@@ -40,7 +40,7 @@ EUI usages: 87240; with css, className or style: 7291 (8.4%)
 | one-of | 29 |
 | literal, followed | 27 |
 | template | 23 |
-| parameter | 17 |
+| parameter | 16 |
 
 `className`: calls it's built by, outside other calls
 | callee | calls |
@@ -72,15 +72,15 @@ EUI usages: 87240; with css, className or style: 7291 (8.4%)
 | callee | calls |
 |---|---|
 | useEuiTheme | 183 |
+| getUpdatedColumns | 24 |
 | useState | 17 |
-| useMemo | 11 |
+| useMemo | 12 |
 | useContext | 4 |
 | makeProps | 3 |
 | useTimeRangeAsync | 3 |
 | getAssignmentColor | 2 |
 | getEmptyDroppableStyle | 2 |
 | euiFontSize | 2 |
-| useEuiBackgroundColor | 2 |
 
 Components with at least 100 usages, by share of overridden usages
 | component | usages | overridden | share | css | className | style |
