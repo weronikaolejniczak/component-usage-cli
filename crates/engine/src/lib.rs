@@ -217,7 +217,7 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
 
     report.usages = identified
         .usages
-        .into_iter()
+        .into_par_iter()
         .map(|usage| {
             let props = graph
                 .module(usage.file)
