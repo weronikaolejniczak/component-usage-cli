@@ -21,7 +21,7 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0014](./0014-file-discovery.md) | Support React JSX only, and discover files including hidden folders | accepted |
 | [0015](./0015-es-modules-only.md) | Follow ES module imports only, and report what isn't followed | accepted; reporting local constants as unidentified superseded by [0029](./0029-local-aliases.md) |
 | [0016](./0016-rust-and-oxc.md) | Implement in Rust on top of Oxc | accepted |
-| [0017](./0017-prop-values.md) | Report every prop of a usage as a tree of values with kinds | accepted |
+| [0017](./0017-prop-values.md) | Report every prop of a usage as a tree of values with kinds | accepted; operators superseded by [0036](./0036-operations.md) |
 | [0018](./0018-all-components.md) | Target every export of the module when no components are given | accepted |
 | [0019](./0019-follow-variables.md) | Follow variables on request, and report the path to each value | accepted |
 | [0020](./0020-architecture.md) | Crate boundaries and interfaces, with values | accepted; `values` interface superseded by [0021](./0021-follow-imports.md) |
@@ -40,3 +40,4 @@ Architectural decision records in [MADR 4.0](https://adr.github.io/madr/) format
 | [0033](./0033-summary-spreads.md) | Apply spreads when counting props in the summary | accepted; wrappers' forwarding spreads superseded by [0035](./0035-summary-forwarding-spreads.md) |
 | [0034](./0034-paths-outside-the-root.md) | Show paths outside the scan root relative to it | accepted |
 | [0035](./0035-summary-forwarding-spreads.md) | Count what a wrapper passes on once in the summary | accepted |
+| [0036](./0036-operations.md) | Report operators with their operands | accepted |

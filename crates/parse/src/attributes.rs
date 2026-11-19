@@ -108,9 +108,16 @@ impl<'a> Exprs<'_> {
                     ("-", Expression::NumericLiteral(number)) if number.value.is_finite() => {
                         ExprKind::Literal(Literal::Number(-number.value))
                     }
-                    _ => self.unsupported(span),
+                    (operator, _) => ExprKind::Operation {
+                        operator,
+                        operands: vec![self.expr(&unary.argument)],
+                    },
                 }
             }
+            Expression::BinaryExpression(binary) => ExprKind::Operation {
+                operator: binary.operator.as_str(),
+                operands: vec![self.expr(&binary.left), self.expr(&binary.right)],
+            },
             Expression::Identifier(identifier) => {
                 let name = self.reference(identifier);
                 if identifier.name == "undefined" && name == Reference::Global {

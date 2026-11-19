@@ -1,0 +1,110 @@
+{
+  "query": { "components": ["Button"], "from": "lib", "follow": ["variables"] },
+  "usages": [
+    {
+      "component": "Button", "file": "App.jsx", "line": 7, "column": 5,
+      "props": [
+        {
+          "name": "isDisabled",
+          "value": {
+            "kind": "operation", "operator": "!", "line": 8, "column": 19,
+            "operands": [
+              { "kind": "unresolved", "code": "parameter", "text": "items", "line": 8, "column": 20 }
+            ]
+          }
+        },
+        {
+          "name": "isLoading",
+          "value": {
+            "kind": "operation", "operator": ">", "line": 9, "column": 18,
+            "operands": [
+              { "kind": "unresolved", "code": "parameter", "text": "count", "line": 9, "column": 18 },
+              {
+                "kind": "literal", "value": 10, "line": 3, "column": 15,
+                "via": [{ "text": "LIMIT", "line": 9, "column": 26 }]
+              }
+            ]
+          }
+        },
+        {
+          "name": "size",
+          "value": {
+            "kind": "operation", "operator": "-", "line": 10, "column": 13,
+            "operands": [
+              { "kind": "unresolved", "code": "parameter", "text": "count", "line": 10, "column": 14 }
+            ]
+          }
+        },
+        {
+          "name": "width",
+          "value": {
+            "kind": "operation", "operator": "+", "line": 11, "column": 14,
+            "operands": [
+              {
+                "kind": "operation", "operator": "*", "line": 11, "column": 14,
+                "operands": [
+                  { "kind": "unresolved", "code": "parameter", "text": "count", "line": 11, "column": 14 },
+                  { "kind": "literal", "value": 2, "line": 11, "column": 22 }
+                ]
+              },
+              { "kind": "literal", "value": 1, "line": 11, "column": 26 }
+            ]
+          }
+        },
+        {
+          "name": "label",
+          "value": {
+            "kind": "operation", "operator": "typeof", "line": 12, "column": 14,
+            "operands": [
+              { "kind": "unresolved", "code": "parameter", "text": "count", "line": 12, "column": 21 }
+            ]
+          }
+        },
+        {
+          "name": "tabIndex",
+          "value": {
+            "kind": "operation", "operator": "~", "line": 13, "column": 17,
+            "operands": [
+              { "kind": "unresolved", "code": "parameter", "text": "count", "line": 13, "column": 18 }
+            ]
+          }
+        },
+        {
+          "name": "title",
+          "value": {
+            "kind": "operation", "operator": "in", "line": 14, "column": 14,
+            "operands": [
+              { "kind": "literal", "value": "a", "line": 14, "column": 14 },
+              { "kind": "unresolved", "code": "parameter", "text": "items", "line": 14, "column": 21 }
+            ]
+          }
+        },
+        {
+          "name": "name",
+          "value": {
+            "kind": "operation", "operator": "instanceof", "line": 15, "column": 13,
+            "operands": [
+              { "kind": "unresolved", "code": "parameter", "text": "items", "line": 15, "column": 13 },
+              { "kind": "unresolved", "code": "global", "text": "Array", "line": 15, "column": 30 }
+            ]
+          }
+        },
+        {
+          "name": "iconType",
+          "value": { "kind": "unresolved", "code": "unsupported", "text": "new Icon()", "line": 16, "column": 17 }
+        },
+        {
+          "name": "isSelected",
+          "value": {
+            "kind": "operation", "operator": "!", "line": 17, "column": 19,
+            "operands": [{ "kind": "literal", "value": true, "line": 17, "column": 20 }]
+          }
+        },
+        {
+          "name": "offset",
+          "value": { "kind": "literal", "value": -5, "line": 18, "column": 15 }
+        }
+      ]
+    }
+  ]
+}

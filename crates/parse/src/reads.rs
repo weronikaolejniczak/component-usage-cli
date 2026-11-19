@@ -95,7 +95,10 @@ impl Reads<'_> {
                     }
                 }
             }
-            ExprKind::OneOf(values) => {
+            ExprKind::OneOf(values)
+            | ExprKind::Operation {
+                operands: values, ..
+            } => {
                 for value in values {
                     self.expr(value);
                 }

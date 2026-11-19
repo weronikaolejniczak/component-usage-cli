@@ -31,7 +31,7 @@
             ]
           }
         },
-        { "name": "fill", "value": { "kind": "unresolved", "code": "unsupported", "text": "!isOpen", "line": 17, "column": 13 } },
+        { "name": "fill", "value": { "kind": "operation", "operator": "!", "line": 17, "column": 13, "operands": [{ "kind": "unresolved", "code": "global", "text": "isOpen", "line": 17, "column": 14 }] } },
         { "name": "onClick", "value": { "kind": "function", "line": 18, "column": 16 } },
         { "name": "prepend", "value": { "kind": "element", "tag": "Icon", "line": 19, "column": 16 } },
         { "spread": { "kind": "unresolved", "code": "global", "text": "rest", "line": 20, "column": 11 } }

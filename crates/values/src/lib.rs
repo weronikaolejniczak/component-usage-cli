@@ -382,6 +382,13 @@ impl<'c, 'g> Resolver<'c, 'g> {
             ExprKind::OneOf(values) => ValueKind::OneOf {
                 values: values.iter().map(|value| self.value(file, value)).collect(),
             },
+            ExprKind::Operation { operator, operands } => ValueKind::Operation {
+                operator: (*operator).to_owned(),
+                operands: operands
+                    .iter()
+                    .map(|operand| self.value(file, operand))
+                    .collect(),
+            },
             ExprKind::Reference { name, text, path } => {
                 let reference = Name {
                     file,
@@ -1013,6 +1020,13 @@ fn returned_by_arguments(mut value: Value, argument: bool) -> Value {
             values: values
                 .into_iter()
                 .map(|value| returned_by_arguments(value, argument))
+                .collect(),
+        },
+        ValueKind::Operation { operator, operands } => ValueKind::Operation {
+            operator,
+            operands: operands
+                .into_iter()
+                .map(|operand| returned_by_arguments(operand, false))
                 .collect(),
         },
         ValueKind::Call(call) => ValueKind::Call(Box::new(model::Call {

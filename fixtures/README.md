@@ -61,6 +61,7 @@ Each usage's `props` and `parents` ([ADR-0017](../docs/decisions/0017-prop-value
 | `objects` | Object and array literals, with spreads and computed keys |
 | `templates` | Template literals, with and without tags |
 | `expressions` | The `unresolved` codes without `--follow`, ternaries, logical expressions, functions and elements |
+| `operations` | Unary and binary operators as `operation`, with operands followed, nested, and expressions that stay `unsupported` ([ADR-0036](../docs/decisions/0036-operations.md)) |
 | `parents` | Enclosing usages, and the parent's attribute a usage is in |
 | `references` | Targets passed as values: in attributes, call arguments, static and computed object keys, array items and variables, through parentheses, `?:`, `||` and `&&`, namespace members, and what isn't a reference: tags, exports and property reads |
 | `props-filter` | `--props` keeps the named props and spreads |

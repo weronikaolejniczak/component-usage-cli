@@ -244,6 +244,11 @@ pub enum ExprKind {
     },
     /// Either branch of `?:`, either side of `||`, `&&` and `??`.
     OneOf(Vec<Expr>),
+    /// A unary or binary operator, as written, and its operands in source order.
+    Operation {
+        operator: &'static str,
+        operands: Vec<Expr>,
+    },
     /// An identifier, or a member access starting with one, such as `item.icon` or `ICONS[key]`.
     Reference {
         name: Reference,

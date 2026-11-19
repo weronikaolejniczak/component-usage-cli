@@ -282,6 +282,7 @@ cases!(props:
     mutated_props,
     nested_namespace,
     objects,
+    operations,
     parents,
     props_filter,
     references,

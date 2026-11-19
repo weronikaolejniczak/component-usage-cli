@@ -203,6 +203,12 @@ pub enum ValueKind {
     OneOf {
         values: Vec<Value>,
     },
+    /// A unary or binary operator, as written, and its operands in source order. It isn't
+    /// evaluated.
+    Operation {
+        operator: String,
+        operands: Vec<Value>,
+    },
     Unresolved {
         code: UnresolvedCode,
         /// The step that would follow the value, for [`UnresolvedCode::NotFollowed`].
