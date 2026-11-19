@@ -1,4 +1,4 @@
-EUI usages: 87239; with css, className or style: 7291 (8.4%)
+EUI usages: 87240; with css, className or style: 7291 (8.4%)
 
 `css`: 4844 usages; what the value is
 | value | usages |
@@ -187,7 +187,7 @@ styled(Eui*) wrappers: 492
 | EuiEmptyPrompt | 11 |
 | EuiTitle | 10 |
 
-usages through wrappers: 3351, of which through a styled(…) or euiStyled(…) call: 736; with css, className or style written by their callers: 150
+usages through wrappers: 3355, of which through a styled(…) or euiStyled(…) call: 736; with css, className or style written by their callers: 778
 | component | through wrappers | through styled(…) |
 |---|---|---|
 | EuiCallOut | 942 | 7 |

@@ -222,7 +222,7 @@ EuiComboBox `singleSelection` values
 | literal true | 33 |
 | one-of | 8 |
 | call | 5 |
-| unsupported | 3 |
+| operation | 3 |
 | object, asPlainText: one-of | 2 |
 | object, asPlainText: false | 2 |
 

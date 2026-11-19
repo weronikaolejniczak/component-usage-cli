@@ -1,4 +1,4 @@
-aliases: 72; findings: 22717; icon values to review: 838
+aliases: 72; findings: 22717; icon values to review: 841
 
 | kind | findings |
 |---|---|
@@ -9,8 +9,8 @@ aliases: 72; findings: 22717; icon values to review: 838
 | eui-call | 25 |
 | other-jsx | 16 |
 | icon-key | 122 |
-| eui-other-prop | 215 |
-| other-string | 21967 |
+| eui-other-prop | 211 |
+| other-string | 21971 |
 
 | review reason | values |
 |---|---|
@@ -20,11 +20,11 @@ aliases: 72; findings: 22717; icon values to review: 838
 | unparsed | 76 |
 | call | 75 |
 | unparsed, followed | 53 |
-| unsupported, followed | 48 |
+| unsupported, followed | 47 |
 | mutated | 32 |
-| other-callers, followed | 16 |
+| other-callers, followed | 18 |
 | in-call, followed | 12 |
-| mutated, followed | 10 |
+| mutated, followed | 11 |
 | template | 10 |
 | in-call | 3 |
 | unsupported | 3 |
@@ -32,6 +32,7 @@ aliases: 72; findings: 22717; icon values to review: 838
 | template, followed | 2 |
 | no-callers, followed | 2 |
 | not-followed (variables), followed | 1 |
+| operation, followed | 1 |
 
 | alias | eui-jsx | eui-data | eui-variable | eui-caller | eui-call | other-jsx | icon-key | eui-other-prop | other-string |
 |---|---|---|---|---|---|---|---|---|---|
@@ -40,7 +41,7 @@ aliases: 72; findings: 22717; icon values to review: 838
 | indexOpen | 18 | 0 | 2 | 1 | 0 | 0 | 12 | 0 | 7 |
 | tableOfContents | 6 | 0 | 1 | 0 | 0 | 0 | 15 | 0 | 0 |
 | apps | 8 | 0 | 5 | 0 | 1 | 0 | 7 | 0 | 58 |
-| alert | 4 | 0 | 0 | 0 | 3 | 0 | 12 | 31 | 2077 |
+| alert | 4 | 0 | 0 | 0 | 3 | 0 | 12 | 27 | 2081 |
 | fold | 13 | 0 | 0 | 1 | 0 | 3 | 1 | 2 | 4 |
 | pagesSelect | 13 | 0 | 0 | 1 | 0 | 0 | 2 | 0 | 0 |
 | indexSettings | 6 | 0 | 1 | 1 | 0 | 0 | 6 | 0 | 2 |
