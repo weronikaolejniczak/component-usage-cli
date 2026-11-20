@@ -1,30 +1,30 @@
-aliases: 72; findings: 22717; icon values to review: 895
+aliases: 72; findings: 22717; icon values to review: 954
 
 | kind | findings |
 |---|---|
 | eui-jsx | 308 |
 | eui-data | 0 |
-| eui-variable | 28 |
+| eui-variable | 29 |
 | eui-caller | 50 |
 | eui-call | 29 |
 | other-jsx | 16 |
-| icon-key | 112 |
-| eui-other-prop | 261 |
-| other-string | 21913 |
+| icon-key | 111 |
+| eui-other-prop | 266 |
+| other-string | 21908 |
 
 | review reason | values |
 |---|---|
-| call, followed | 374 |
-| parameter, followed | 78 |
+| call, followed | 435 |
 | unparsed | 76 |
 | call | 75 |
-| parameter | 56 |
-| unsupported, followed | 56 |
-| unparsed, followed | 54 |
+| unsupported, followed | 70 |
+| parameter, followed | 57 |
+| unparsed, followed | 55 |
+| parameter | 33 |
 | mutated | 32 |
-| other-callers, followed | 26 |
-| mutated, followed | 17 |
-| no-items, followed | 14 |
+| mutated, followed | 31 |
+| other-callers, followed | 28 |
+| no-items, followed | 25 |
 | in-call, followed | 14 |
 | template | 10 |
 | in-call | 3 |
@@ -42,7 +42,7 @@ aliases: 72; findings: 22717; icon values to review: 895
 | indexOpen | 18 | 0 | 2 | 2 | 0 | 0 | 11 | 0 | 7 |
 | tableOfContents | 6 | 0 | 1 | 0 | 0 | 0 | 15 | 0 | 0 |
 | apps | 8 | 0 | 5 | 0 | 1 | 0 | 7 | 0 | 58 |
-| alert | 4 | 0 | 0 | 0 | 3 | 0 | 12 | 31 | 2077 |
+| alert | 4 | 0 | 0 | 0 | 3 | 0 | 12 | 32 | 2076 |
 | fold | 13 | 0 | 0 | 1 | 0 | 3 | 1 | 2 | 4 |
 | pagesSelect | 13 | 0 | 0 | 1 | 0 | 0 | 2 | 0 | 0 |
 | indexSettings | 6 | 0 | 1 | 3 | 3 | 0 | 1 | 0 | 2 |
@@ -52,7 +52,7 @@ aliases: 72; findings: 22717; icon values to review: 895
 | folderClosed | 4 | 0 | 0 | 0 | 0 | 4 | 3 | 0 | 2 |
 | help | 9 | 0 | 0 | 0 | 0 | 0 | 1 | 3 | 121 |
 | indexEdit | 2 | 0 | 2 | 0 | 1 | 0 | 4 | 0 | 1 |
-| spaces | 3 | 0 | 0 | 1 | 0 | 0 | 4 | 1 | 410 |
+| spaces | 3 | 0 | 1 | 1 | 0 | 0 | 3 | 1 | 410 |
 | singleMetricViewer | 4 | 0 | 0 | 0 | 1 | 0 | 3 | 0 | 4 |
 | stats | 3 | 0 | 0 | 0 | 0 | 0 | 3 | 2 | 240 |
 | annotation | 2 | 0 | 0 | 0 | 2 | 0 | 2 | 0 | 115 |
@@ -61,7 +61,7 @@ aliases: 72; findings: 22717; icon values to review: 895
 | indexClose | 1 | 0 | 1 | 0 | 0 | 4 | 0 | 0 | 0 |
 | pinFilled | 2 | 0 | 1 | 0 | 2 | 0 | 0 | 0 | 4 |
 | stopSlash | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| index | 2 | 0 | 0 | 1 | 0 | 0 | 1 | 37 | 2337 |
+| index | 2 | 0 | 0 | 1 | 0 | 0 | 1 | 38 | 2336 |
 | search | 3 | 0 | 0 | 1 | 0 | 0 | 0 | 13 | 1545 |
 | list | 1 | 0 | 2 | 1 | 0 | 0 | 0 | 19 | 726 |
 | editorComment | 0 | 0 | 1 | 0 | 3 | 0 | 0 | 0 | 7 |
@@ -84,7 +84,7 @@ aliases: 72; findings: 22717; icon values to review: 895
 | visGauge | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 | 0 |
 | wordWrap | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | wordWrapDisabled | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| string | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 122 | 11981 |
+| string | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 125 | 11978 |
 | scale | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 2 | 202 |
 | logRateAnalysis | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 9 |
 | article | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 2 |

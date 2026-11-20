@@ -5,7 +5,7 @@ EUI usages: 87240; with css, className or style: 7291 (8.4%)
 |---|---|
 | template, tag css | 1585 |
 | object | 1117 |
-| call, followed | 905 |
+| call, followed | 909 |
 | template, tag css, followed | 548 |
 | call | 171 |
 | function, followed | 137 |
@@ -17,16 +17,16 @@ EUI usages: 87240; with css, className or style: 7291 (8.4%)
 `css`: calls it's built by, outside other calls
 | callee | calls |
 |---|---|
-| useEuiTheme | 1844 |
+| useEuiTheme | 1872 |
 | css | 264 |
-| useMemoCss | 246 |
+| useMemoCss | 253 |
 | useStyles | 208 |
 | useMemo | 168 |
 | useEuiFontSize | 37 |
+| cardProps | 24 |
 | useListDetailPageStyles | 23 |
 | logicalCSS | 19 |
 | euiFullHeight | 15 |
-| visorStyles | 13 |
 
 `className`: 1541 usages; what the value is
 | value | usages |
@@ -78,9 +78,9 @@ EUI usages: 87240; with css, className or style: 7291 (8.4%)
 | useContext | 4 |
 | makeProps | 3 |
 | useTimeRangeAsync | 3 |
+| useColumns | 2 |
 | getAssignmentColor | 2 |
 | getEmptyDroppableStyle | 2 |
-| euiFontSize | 2 |
 
 Components with at least 100 usages, by share of overridden usages
 | component | usages | overridden | share | css | className | style |
