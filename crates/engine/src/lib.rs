@@ -218,12 +218,12 @@ pub fn scan(config: &Config) -> Result<Report, ScanError> {
     report.usages = identified
         .usages
         .into_par_iter()
-        .map(|usage| {
+        .map_init(values::Cache::default, |cache, usage| {
             let props = graph
                 .module(usage.file)
                 .and_then(|module| module.summary.elements.get(usage.element))
                 .map(|element| {
-                    values::usage_props(&context, &usage, element, config.props.as_deref())
+                    values::usage_props(&context, cache, &usage, element, config.props.as_deref())
                 })
                 .unwrap_or_default();
             report::Usage {

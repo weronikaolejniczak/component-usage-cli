@@ -30,6 +30,31 @@ enum Caller {
     Call(usize),
 }
 
+/// What parameters were followed to, kept across the usages one thread resolves.
+#[derive(Default)]
+pub struct Cache {
+    parameters: RefCell<HashMap<ParameterKey, Cached>>,
+}
+
+/// What a parameter's value depends on, but for the names being followed.
+#[derive(PartialEq, Eq, Hash)]
+struct ParameterKey {
+    name: (FileId, Location, String),
+    file: FileId,
+    index: usize,
+    keys: Vec<Key>,
+    spread: bool,
+    argument: bool,
+    in_call: bool,
+}
+
+/// A parameter's value, found without stopping at a name being followed, with the names it
+/// checked: it holds wherever none of them is being followed.
+struct Cached {
+    value: Result<Value, Value>,
+    checked: HashSet<Active>,
+}
+
 /// What every usage of a scan is evaluated against.
 pub struct Context<'g> {
     graph: &'g ModuleGraph,
@@ -216,8 +241,10 @@ fn forwarding(graph: &ModuleGraph) -> HashSet<(FileId, Location)> {
 /// `element`, and those each wrapper in [`model::Usage::through`] sets around the spread that
 /// passes them on, without those its rest pattern takes. A wrapper's own props are followed to
 /// the element this usage goes through only. With `filter`, only the named ones, and spreads.
+/// `cache` is reused for the usages resolved on one thread.
 pub fn usage_props(
     context: &Context,
+    cache: &Cache,
     usage: &model::Usage,
     element: &parse::JsxElement,
     filter: Option<&[String]>,
@@ -230,7 +257,7 @@ pub fn usage_props(
             caller = (step.file, element);
         }
     }
-    let resolver = Resolver::new(context, usage.file, pins);
+    let resolver = Resolver::new(context, cache, pins);
     let mut props: Vec<Prop> = resolver
         .attributes(usage.file, &element.attributes)
         .filter(|prop| usage.through.is_empty() || !is_key(prop))
@@ -268,7 +295,70 @@ pub fn usage_props(
             .collect();
     }
     props.retain(|prop| wanted(prop, filter));
+    let path = &context.paths[usage.file.0 as usize];
+    for prop in &mut props {
+        match prop {
+            Prop::Named { value, .. } | Prop::Spread { spread: value, .. } => relative(value, path),
+        }
+    }
     props
+}
+
+/// Leaves out the file of `value`, its names and the values within it where it's `usage`.
+fn relative(value: &mut Value, usage: &str) {
+    if value.file.as_deref() == Some(usage) {
+        value.file = None;
+    }
+    for via in &mut value.via {
+        if via.file.as_deref() == Some(usage) {
+            via.file = None;
+        }
+    }
+    match &mut value.kind {
+        ValueKind::Object { entries } => {
+            for entry in entries {
+                match entry {
+                    Entry::Property { value, .. }
+                    | Entry::Computed { value, .. }
+                    | Entry::Spread { spread: value } => relative(value, usage),
+                }
+            }
+        }
+        ValueKind::Array { items } => items.iter_mut().for_each(|item| relative_item(item, usage)),
+        ValueKind::Template { parts, .. } => {
+            for part in parts {
+                if let Part::Value { value } = part {
+                    relative(value, usage);
+                }
+            }
+        }
+        ValueKind::Function {
+            returns: Some(values),
+        }
+        | ValueKind::OneOf { values }
+        | ValueKind::Operation {
+            operands: values, ..
+        } => values.iter_mut().for_each(|value| relative(value, usage)),
+        ValueKind::Call(call) => {
+            if let Some(receiver) = &mut call.receiver {
+                relative(receiver, usage);
+            }
+            call.arguments
+                .iter_mut()
+                .for_each(|item| relative_item(item, usage));
+        }
+        ValueKind::Literal { .. }
+        | ValueKind::Undefined
+        | ValueKind::Element { .. }
+        | ValueKind::Function { returns: None }
+        | ValueKind::Unresolved { .. } => {}
+    }
+}
+
+fn relative_item(item: &mut Item, usage: &str) {
+    match item {
+        Item::Value { value } | Item::Spread { spread: value } => relative(value, usage),
+    }
 }
 
 /// React keeps `key` for itself rather than passing it in the props.
@@ -294,11 +384,17 @@ struct Declared<'p> {
 
 struct Resolver<'c, 'g> {
     context: &'c Context<'g>,
-    usage: FileId,
+    /// Used without pins only, which change what parameters are followed to.
+    cache: &'c Cache,
     /// Components whose props are followed to one element only, the one the usage goes through.
     pins: Vec<(ComponentRef, (FileId, usize))>,
     /// What is being followed, to stop at names that refer back to themselves.
     active: RefCell<Vec<Active>>,
+    /// Every name checked against `active`, in order, for what each cached value checked.
+    checked: RefCell<Vec<Active>>,
+    /// How many times a name was found being followed, so values that stopped at one aren't
+    /// cached.
+    cycles: Cell<usize>,
     /// Whether the value being found is, or is within, an argument of a call; only then are the
     /// returns of its functions needed.
     argument: Cell<bool>,
@@ -309,7 +405,7 @@ struct Resolver<'c, 'g> {
     spread: Cell<bool>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 enum Active {
     Definition(FileId, usize),
     Callback(FileId, usize),
@@ -328,14 +424,16 @@ struct Name<'n> {
 impl<'c, 'g> Resolver<'c, 'g> {
     fn new(
         context: &'c Context<'g>,
-        usage: FileId,
+        cache: &'c Cache,
         pins: Vec<(ComponentRef, (FileId, usize))>,
     ) -> Self {
         Self {
             context,
-            usage,
+            cache,
             pins,
             active: RefCell::new(Vec::new()),
+            checked: RefCell::new(Vec::new()),
+            cycles: Cell::new(0),
             argument: Cell::new(false),
             in_call: Cell::new(false),
             spread: Cell::new(false),
@@ -555,7 +653,7 @@ impl<'c, 'g> Resolver<'c, 'g> {
             return Err(self.stop(name, UnresolvedCode::Mutated, None));
         }
         let active = Active::Callback(file, index);
-        if self.active.borrow().contains(&active) {
+        if self.is_active(&active) {
             return Err(self.stop(name, UnresolvedCode::Unsupported, None));
         }
         self.active.borrow_mut().push(active);
@@ -590,8 +688,57 @@ impl<'c, 'g> Resolver<'c, 'g> {
         index: usize,
         keys: Vec<Key>,
     ) -> Result<Value, Value> {
-        let context = self.context;
         let spread = self.spread.replace(false);
+        if !self.pins.is_empty() {
+            return self.follow_parameter(name, file, index, keys, spread);
+        }
+        let key = ParameterKey {
+            name: (name.file, name.location, name.text.to_owned()),
+            file,
+            index,
+            keys: keys.clone(),
+            spread,
+            argument: self.argument.get(),
+            in_call: self.in_call.get(),
+        };
+        if let Some(cached) = self.cache.parameters.borrow().get(&key)
+            && !self
+                .active
+                .borrow()
+                .iter()
+                .any(|active| cached.checked.contains(active))
+        {
+            self.checked
+                .borrow_mut()
+                .extend(cached.checked.iter().cloned());
+            return cached.value.clone();
+        }
+        let start = self.checked.borrow().len();
+        let cycles = self.cycles.get();
+        let value = self.follow_parameter(name, file, index, keys, spread);
+        if self.cycles.get() == cycles {
+            let checked = self.checked.borrow()[start..].iter().cloned().collect();
+            self.cache.parameters.borrow_mut().insert(
+                key,
+                Cached {
+                    value: value.clone(),
+                    checked,
+                },
+            );
+        }
+        value
+    }
+
+    /// [`Self::parameter`], without the cache. `spread` is whether it's spread into an element.
+    fn follow_parameter(
+        &self,
+        name: &Name,
+        file: FileId,
+        index: usize,
+        keys: Vec<Key>,
+        spread: bool,
+    ) -> Result<Value, Value> {
+        let context = self.context;
         let Some(summary) = context.graph.module(file).map(|module| &module.summary) else {
             return Err(self.stop(name, UnresolvedCode::Unparsed, None));
         };
@@ -606,7 +753,7 @@ impl<'c, 'g> Resolver<'c, 'g> {
         }
         let component = (file, parameter.component);
         let active = Active::Component(file, parameter.component);
-        if self.active.borrow().contains(&active) {
+        if self.is_active(&active) {
             return Err(self.stop(name, UnresolvedCode::Unsupported, None));
         }
         let pinned = self
@@ -1005,7 +1152,7 @@ impl<'c, 'g> Resolver<'c, 'g> {
             .module(module)
             .and_then(|module| module.summary.exported.get(&export));
         let active = Active::Export(module, export);
-        let Some(exported) = exported.filter(|_| !self.active.borrow().contains(&active)) else {
+        let Some(exported) = exported.filter(|_| !self.is_active(&active)) else {
             return Err(self.stop(name, UnresolvedCode::Unsupported, None));
         };
         self.active.borrow_mut().push(active);
@@ -1031,7 +1178,7 @@ impl<'c, 'g> Resolver<'c, 'g> {
         keys: &[Key],
     ) -> Result<Value, Value> {
         let active = Active::Definition(file, index);
-        if self.active.borrow().contains(&active) {
+        if self.is_active(&active) {
             return Err(self.stop(name, UnresolvedCode::Unsupported, None));
         }
         let Some(summary) = self
@@ -1125,7 +1272,7 @@ impl<'c, 'g> Resolver<'c, 'g> {
             }
             Member::Value(value) => {
                 let active = Active::Member(file, index);
-                if self.active.borrow().contains(&active) {
+                if self.is_active(&active) {
                     return Err(self.stop(name, UnresolvedCode::Unsupported, None));
                 }
                 self.active.borrow_mut().push(active);
@@ -1249,9 +1396,19 @@ impl<'c, 'g> Resolver<'c, 'g> {
         }
     }
 
-    /// The display path of `file`, unless it's the usage's.
+    /// The display path of `file`; [`relative`] leaves out the usage's.
     fn file(&self, file: FileId) -> Option<String> {
-        (file != self.usage).then(|| self.context.paths[file.0 as usize].clone())
+        Some(self.context.paths[file.0 as usize].clone())
+    }
+
+    /// Whether `active` is being followed, recorded for what cached values checked.
+    fn is_active(&self, active: &Active) -> bool {
+        self.checked.borrow_mut().push(active.clone());
+        let found = self.active.borrow().contains(active);
+        if found {
+            self.cycles.set(self.cycles.get() + 1);
+        }
+        found
     }
 }
 

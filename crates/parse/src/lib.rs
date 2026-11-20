@@ -375,7 +375,7 @@ pub enum Part {
     Value(Expr),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Key {
     /// A property name, or an array index as a string: `a.b`, `a['b']`, `a[0]`.
     Static(String),
