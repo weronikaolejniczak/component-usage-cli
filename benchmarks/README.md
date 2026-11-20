@@ -135,6 +135,21 @@ The 4,938 usages are the same, and so are the references, unidentified elements 
 
 The same scan with `--summary` ([ADR-0030](../docs/decisions/0030-summary.md)), at tool commit [`5442a65`](./results/kibana-5442a65-follow-props-summary/), is 279 KB of JSON, against 60.3 MB for the full report at [`fdf169d`](./results/kibana-fdf169d-follow-props/), which finds the same usages. Its counts were recomputed from the full report with a script: usages, files, spreads, references, props, their literal values and owners per component, and unidentified elements per code and component, are the same for all 10 components, and so are the errors. The times of both runs were taken with the machine under load, so they aren't compared here.
 
+### Caching followed parameters
+
+The use-case scan of every `@elastic/eui` export, as [`use-cases/run.sh`](./use-cases/run.sh) runs it, at tool commit `12590e4`, then at `c6d45de`, which caches what each parameter is followed to across the usages a thread resolves. Same export and machine, warm cache, 5 runs each, back to back. The load average was 5.6 before the first scan, 10.0 between the two and 10.9 after the last.
+
+```sh
+CODEBASE="<origin> <sha> (git archive, with @elastic/eui and @kbn packages)" benchmarks/run.sh <export> 5 <name> -- . --from @elastic/eui --owners --follow props,calls --wrappers
+```
+
+| Commit | Median | Min | Max | Peak memory |
+|---|---|---|---|---|
+| [`12590e4`](./results/kibana-12590e4-use-cases/) | 12.95 s | 12.65 s | 14.89 s | 5.00–5.27 GB |
+| [`c6d45de`](./results/kibana-c6d45de-use-cases/) | 10.36 s | 9.90 s | 10.83 s | 5.14–5.31 GB |
+
+Both reports, 639.3 MB, are byte-identical to [`use-cases-kibana/report.json.gz`](./results/use-cases-kibana/) (SHA-256 of the uncompressed JSON `f12a6993d266b7ec8b771d74edfdac8ff30d9339b355ebb39dc69af9e88bbd2e`), so they aren't kept. At `12590e4`, the scan followed a parameter 403,889 times, for 26,609 distinct names, parameters, keys and flags, counted with a temporary log.
+
 ### Checked by hand
 
 `EuiIcon` positions were compared with a text search for `<EuiIcon` followed by whitespace, `>`, `/` or the end of the line. The scan found every match the search found, except 20, and none the search missed. Each of the 20 was read: all are in comments or template strings, such as inline snapshots, so they aren't usages. The search can't see usages through generics (`<EuiBasicTable<T>`), which is why `EuiBasicTable` has more usages than a text search finds.
