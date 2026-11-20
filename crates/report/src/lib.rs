@@ -8,6 +8,7 @@ use std::io::{self, Write};
 
 use model::Location;
 pub use model::{Parent, Passed, Prop};
+use rayon::prelude::*;
 use serde::Serialize;
 pub use summary::{
     ComponentSummary, Options, OwnerCount, PropCount, Summary, UnidentifiedCount, ValueCount,
@@ -188,15 +189,71 @@ pub fn write(report: &impl Serialize, format: Format, mut writer: impl Write) ->
     }
 }
 
+/// [`write`] for a [`Report`], with its entries serialized in parallel, a batch at a time.
+pub fn write_report(report: &Report, format: Format, mut writer: impl Write) -> io::Result<()> {
+    match format {
+        Format::Json => {
+            writer.write_all(b"{\n  \"usages\": ")?;
+            json_array(&report.usages, &mut writer)?;
+            writer.write_all(b",\n  \"references\": ")?;
+            json_array(&report.references, &mut writer)?;
+            writer.write_all(b",\n  \"unidentified\": ")?;
+            json_array(&report.unidentified, &mut writer)?;
+            writer.write_all(b",\n  \"errors\": ")?;
+            json_array(&report.errors, &mut writer)?;
+            writer.write_all(b",\n  \"warnings\": ")?;
+            json_array(&report.warnings, &mut writer)?;
+            writer.write_all(b"\n}\n")
+        }
+    }
+}
+
+/// Entries serialized together, then written, so a report isn't held twice.
+const BATCH: usize = 4096;
+
+/// `items` as a pretty JSON array a field of the top-level object holds.
+fn json_array<T: Serialize + Sync>(items: &[T], writer: &mut impl Write) -> io::Result<()> {
+    if items.is_empty() {
+        return writer.write_all(b"[]");
+    }
+    writer.write_all(b"[")?;
+    for (batch, items) in items.chunks(BATCH).enumerate() {
+        let written: Vec<Vec<u8>> = items
+            .par_iter()
+            .map(|item| {
+                let json = serde_json::to_vec_pretty(item)?;
+                // Strings escape line breaks, so each one starts a line to indent.
+                let mut indented = Vec::with_capacity(json.len() + json.len() / 8);
+                indented.extend_from_slice(b"\n    ");
+                for &byte in &json {
+                    indented.push(byte);
+                    if byte == b'\n' {
+                        indented.extend_from_slice(b"    ");
+                    }
+                }
+                Ok(indented)
+            })
+            .collect::<serde_json::Result<_>>()?;
+        for (index, item) in written.iter().enumerate() {
+            if batch > 0 || index > 0 {
+                writer.write_all(b",")?;
+            }
+            writer.write_all(item)?;
+        }
+    }
+    writer.write_all(b"\n  ]")
+}
+
 #[cfg(test)]
 mod tests {
     use model::{Literal, Location, Step, UnresolvedCode, Value, ValueKind};
 
-    use super::{ErrorCode, FileError, Format, Parent, Prop, Report, Usage, write};
+    use super::{
+        BATCH, ErrorCode, FileError, Format, Parent, Prop, Report, Usage, write, write_report,
+    };
 
-    #[test]
-    fn json() {
-        let report = Report {
+    fn sample() -> Report {
+        Report {
             usages: vec![Usage {
                 file: "src/App.tsx".to_owned(),
                 location: Location { line: 3, column: 5 },
@@ -252,9 +309,13 @@ mod tests {
                 owners: None,
             }],
             warnings: vec![],
-        };
+        }
+    }
+
+    #[test]
+    fn json() {
         let mut out = Vec::new();
-        write(&report, Format::Json, &mut out).unwrap();
+        write(&sample(), Format::Json, &mut out).unwrap();
         let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
         assert_eq!(
             json,
@@ -274,5 +335,17 @@ mod tests {
                 "warnings": [],
             })
         );
+    }
+
+    #[test]
+    fn report_in_batches_as_written_whole() {
+        let mut batches = sample();
+        batches.usages = vec![batches.usages[0].clone(); BATCH + 1];
+        for report in [sample(), Report::default(), batches] {
+            let (mut whole, mut batched) = (Vec::new(), Vec::new());
+            write(&report, Format::Json, &mut whole).unwrap();
+            write_report(&report, Format::Json, &mut batched).unwrap();
+            assert_eq!(String::from_utf8(batched), String::from_utf8(whole));
+        }
     }
 }

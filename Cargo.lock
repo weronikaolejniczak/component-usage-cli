@@ -258,6 +258,7 @@ name = "component-usage-cli-report"
 version = "0.1.0"
 dependencies = [
  "component-usage-cli-model",
+ "rayon",
  "serde",
  "serde_json",
 ]

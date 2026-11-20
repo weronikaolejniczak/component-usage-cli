@@ -107,7 +107,7 @@ fn main() -> ExitCode {
                 };
                 report::write(&report.summarize(options), report::Format::Json, &mut out)
             } else {
-                report::write(&report, report::Format::Json, &mut out)
+                report::write_report(&report, report::Format::Json, &mut out)
             };
             match written.and_then(|()| out.flush()) {
                 Ok(()) => ExitCode::SUCCESS,
