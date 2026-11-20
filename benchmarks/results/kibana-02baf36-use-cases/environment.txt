@@ -1,0 +1,9 @@
+tool commit: 02baf36dcb6e39839f40fc68bc5135fb536f2987
+codebase: https://github.com/weronikaolejniczak/kibana.git 6dce6e1bbcf1fcc46be7011088c3aa1e81feba19 (git archive, with @elastic/eui and @kbn packages)
+command: component-usage-cli scan . --from @elastic/eui --owners --follow props,calls --wrappers
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+os: Darwin 25.6.0 26.7.3
+cpu: Apple M3 Pro
+cores: 11
+cache: warm (one discarded run first)
+runs: 5

@@ -150,6 +150,15 @@ CODEBASE="<origin> <sha> (git archive, with @elastic/eui and @kbn packages)" ben
 
 Both reports, 639.3 MB, are byte-identical to [`use-cases-kibana/report.json.gz`](./results/use-cases-kibana/) (SHA-256 of the uncompressed JSON `f12a6993d266b7ec8b771d74edfdac8ff30d9339b355ebb39dc69af9e88bbd2e`), so they aren't kept. At `12590e4`, the scan followed a parameter 403,889 times, for 26,609 distinct names, parameters, keys and flags, counted with a temporary log.
 
+At `02baf36`, a report's entries are serialized in parallel; before, writing the JSON took about 0.9 s of CPU on one thread in a profile of `c6d45de`. Run back to back with `c6d45de`, 5 runs each, with the load average at 5.9 before the first scan, 10.6 between the two and 12.3 after the last:
+
+| Commit | Median | Min | Max | Peak memory |
+|---|---|---|---|---|
+| [`c6d45de`](./results/kibana-c6d45de-use-cases-rerun/) | 11.73 s | 11.03 s | 11.94 s | 5.02–5.31 GB |
+| [`02baf36`](./results/kibana-02baf36-use-cases/) | 10.36 s | 10.03 s | 11.12 s | 5.14–5.32 GB |
+
+`c6d45de` took 10.36 s in its first run above, so the spread between runs of the same commit is as large as the difference. Alternating the two, 5 pairs ([`interleaved.txt`](./results/kibana-02baf36-use-cases/interleaved.txt)), the medians are 10.21 s for `c6d45de` and 9.52 s for `02baf36`, with each between 9.25 s and 11.41 s. The reports are byte-identical to the one above.
+
 ### Checked by hand
 
 `EuiIcon` positions were compared with a text search for `<EuiIcon` followed by whitespace, `>`, `/` or the end of the line. The scan found every match the search found, except 20, and none the search missed. Each of the 20 was read: all are in comments or template strings, such as inline snapshots, so they aren't usages. The search can't see usages through generics (`<EuiBasicTable<T>`), which is why `EuiBasicTable` has more usages than a text search finds.
